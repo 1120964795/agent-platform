@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>桌面端 Agent 个人助手 - 规范重构版</title>
+    <link rel="stylesheet" href="./assets/style.css">
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="brand">
+        <div class="brand-icon">A</div>
+        <div class="brand-name">AionUi</div>
+    </div>
+    <div class="nav-item new-chat">
+        <div class="nav-left"><span>＋</span> <span>新会话</span></div>
+        <span class="icon-btn">📄</span>
+    </div>
+    <div class="nav-item">
+        <div class="nav-left"><span>🔍</span> <span>搜索</span></div>
+    </div>
+
+    <div class="history-empty">
+        <div class="empty-icon">📇</div>
+        <div>暂无对话历史</div>
+    </div>
+
+    <div class="settings-btn">
+        <span>⚙️</span> <span>设置</span>
+    </div>
+</div>
+
+<div class="main-content">
+
+    <div class="topbar">
+        <div></div>
+        <div class="topbar-center">AionUi</div>
+        <div class="topbar-right">
+            <span>AionUi Skills Market</span>
+            <div class="toggle-switch"></div>
+        </div>
+    </div>
+
+    <div class="center-wrapper">
+        <h1 class="greeting">Hi, 今天有什么安排?</h1>
+
+        <div class="model-switcher" id="modelSwitcher">
+            <div class="model-option active" data-model-name="DeepSeek">
+                <span style="font-size: 16px;">🐋</span> DeepSeek
+            </div>
+            <div class="divider"></div>
+            <div class="model-option" data-model-name="千问">
+                <span style="font-size: 16px;">🤖</span> 千问
+            </div>
+            <div class="divider"></div>
+            <div class="model-add">＋</div>
+        </div>
+
+        <div class="input-container">
+            <textarea class="main-textarea" id="mainInput" placeholder="DeepSeek, 发消息、上传文件、打开文件夹或创建定时任务..."></textarea>
+            <div class="input-toolbar">
+                <div class="toolbar-left">
+                    <div class="toolbar-item add-btn">＋</div>
+                    <div class="toolbar-item"><span>⚙️</span> 默认模型 ⌄</div>
+                </div>
+                <button class="send-btn" id="sendBtn">↑</button>
+            </div>
+        </div>
+
+        <div class="skills-grid">
+            <div class="skill-pill"><span>📊</span> PPT 演示助手</div>
+            <div class="skill-pill"><span>📝</span> Word 文档助手</div>
+            <div class="skill-pill"><span>📚</span> 学术论文助手</div>
+            <div class="skill-pill"><span>⚡</span> Cowork</div>
+            <div class="skill-pill"><span>💻</span> Webcoding</div>
+            <div class="skill-pill add-more">＋</div>
+        </div>
+
+    </div>
+
+    <div class="bottom-actions">
+        <div class="action-circle">💬</div>
+        <div class="action-circle">⭐</div>
+        <div class="action-circle">🌐</div>
+    </div>
+</div>
+
+<script src="./utils/constants.js"></script>
+<script src="./services/aiService.js"></script>
+<script src="./pages/main.js"></script>
+
+</body>
+</html>
