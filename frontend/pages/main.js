@@ -2,7 +2,7 @@
 
 // 全局状态变量，采用小驼峰命名
 let currentActiveModel = DEFAULT_MODEL_NAME;
-
+let currentMode = "chat"; // chat | ppt
 // 获取 DOM 元素
 const modelOptionElements = document.querySelectorAll('.model-option');
 const mainInputTextArea = document.getElementById('mainInput');
@@ -58,10 +58,32 @@ async function handleSendMessage() {
 
     try {
         // 调用 services 层的 AI 接口逻辑
-        const aiResponse = await fetchModelResponse(userMessage, currentActiveModel);
+        let finalMessage = userMessage;
+
+// 如果是 PPT 模式，就改 prompt
+        if (currentMode === "ppt") {
+            finalMessage = `
+你是一个PPT助手，请根据用户需求生成PPT大纲。
+
+要求：
+1. 每一页用“第X页：标题”
+2. 每页3-5个要点
+3. 内容简洁，适合PPT展示
+
+用户需求：
+${userMessage}
+`;
+        }
+
+        // 显示用户消息
+        appendMessage(userMessage, "user");
+
+        // 调用 AI
+        const aiResponse = await fetchModelResponse(finalMessage, currentActiveModel);
         console.log('AI 返回成功:', aiResponse);
-        // 此处未来可扩展 appendMessage(aiResponse) 更新到聊天视图
-        alert(aiResponse); // 临时用弹窗展示
+
+        // 显示 AI 回复
+        appendMessage(aiResponse, "ai");
 
     } catch (error) {
         // 调用 AI 接口失败时应有兜底提示
@@ -81,3 +103,33 @@ sendButton.addEventListener('click', handleSendMessage);
 window.addEventListener('DOMContentLoaded', () => {
     initModelSwitchEvents();
 });
+function switchToPPTMode() {
+    currentMode = "ppt";
+    mainInputTextArea.placeholder = "请输入PPT主题，例如：人工智能发展";
+}
+
+function switchToChatMode() {
+    currentMode = "chat";
+    mainInputTextArea.placeholder = "请输入内容开始聊天...";
+}
+function appendMessage(content, role = "ai") {
+    const msgDiv = document.createElement("div");
+
+    msgDiv.style.padding = "10px";
+    msgDiv.style.margin = "10px";
+    msgDiv.style.borderRadius = "8px";
+    msgDiv.style.maxWidth = "80%";
+
+    if (role === "user") {
+        msgDiv.style.backgroundColor = "#dbeafe";
+        msgDiv.style.alignSelf = "flex-end";
+    } else {
+        msgDiv.style.backgroundColor = "#f3f4f6";
+        msgDiv.style.alignSelf = "flex-start";
+    }
+
+    // 支持换行
+    msgDiv.innerHTML = content.replace(/\n/g, "<br>");
+
+    chatDisplayArea.appendChild(msgDiv);
+}
