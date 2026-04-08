@@ -1,5 +1,5 @@
 from openai import OpenAI
-from utils.splitter import split_text  # ✅ 使用你的分段器
+from backend.utils.splitter import split_text  # ✅ 使用你的分段器
 
 # ==============================
 # 👉 直接写死 API Key（简单粗暴，先跑通再说）

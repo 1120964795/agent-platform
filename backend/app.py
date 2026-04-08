@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from service.summarizer import summarize_long_text
+from backend.service.summarizer import summarize_long_text
 from flask_cors import CORS  # 引入 CORS
 
 
