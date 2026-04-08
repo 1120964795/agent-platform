@@ -14,20 +14,32 @@ async function fetchModelResponse(message, modelName) {
             return;
         }
 
-        // 模拟网络请求与模型思考的延迟
-        setTimeout(() => {
-            try {
-                // 模拟一个偶发的网络崩溃异常 (10% 概率)
-                if (Math.random() < 0.1) {
-                    throw new Error('Network Disconnected');
+        // 发送请求到后端 API
+        fetch('http://127.0.0.1:5000/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: message })
+        })
+            .then(response => {
+                // 检查响应状态
+                if (!response.ok) {
+                    throw new Error(`API 请求失败，状态码: ${response.status}`);
                 }
-
-                const responseText = `[${modelName} 响应]：已收到指令“${message}”。这是一个符合规范的模块化回复。`;
-                resolve(responseText);
-            } catch (error) {
-                // 捕获异常，便于前端提示用户
-                reject(error);
-            }
-        }, 1000);
+                return response.json();
+            })
+            .then(data => {
+                // 模型返回数据，解析并返回
+                if (data.output) {
+                    resolve(`[${modelName} 响应]：${data.output}`);
+                } else {
+                    reject(new Error("模型没有返回有效的总结"));
+                }
+            })
+            .catch(error => {
+                // 捕获网络请求错误或者 API 错误
+                reject(new Error(`请求失败: ${error.message}`));
+            });
     });
 }
