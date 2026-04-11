@@ -19,7 +19,7 @@ const ASSISTANTS = [
   { id: 'schedule', name: '日程助手', icon: CalendarClock }
 ]
 
-export default function Sidebar({ collapsed, onToggle, onOpenDrawer }) {
+export default function Sidebar({ collapsed, selectedAssistant = 'general', onToggle, onSelectAssistant, onOpenDrawer }) {
   const width = collapsed ? 'w-[60px]' : 'w-[260px]'
 
   return (
@@ -50,11 +50,17 @@ export default function Sidebar({ collapsed, onToggle, onOpenDrawer }) {
         {!collapsed && <div className="px-2 py-1 text-xs text-[color:var(--text-muted)]">助手</div>}
         {ASSISTANTS.map(a => {
           const Icon = a.icon
+          const selected = a.id === selectedAssistant
           return (
             <button
               type="button"
               key={a.id}
-              className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-[color:var(--bg-tertiary)]"
+              onClick={() => onSelectAssistant?.(a.id)}
+              className={`w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm ${
+                selected
+                  ? 'bg-[color:var(--bg-tertiary)] text-[color:var(--accent)] font-medium'
+                  : 'hover:bg-[color:var(--bg-tertiary)]'
+              }`}
             >
               <Icon size={16} className="shrink-0" />
               {!collapsed && <span className="truncate">{a.name}</span>}
