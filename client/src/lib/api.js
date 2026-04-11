@@ -66,3 +66,11 @@ export const api = {
     return () => ctrl.abort()
   }
 }
+
+export function getConfig() {
+  return api.get('/api/config')
+}
+
+export function setConfig(patch) {
+  return api.post('/api/config', patch)
+}

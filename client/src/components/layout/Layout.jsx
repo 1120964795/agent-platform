@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Sidebar from './Sidebar.jsx'
 import MainArea from './MainArea.jsx'
+import RightDrawer from './RightDrawer.jsx'
 
 export default function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -13,7 +14,8 @@ export default function Layout() {
         onToggle={() => setSidebarCollapsed(v => !v)}
         onOpenDrawer={setDrawer}
       />
-      <MainArea onOpenDrawer={setDrawer} drawer={drawer} onCloseDrawer={() => setDrawer(null)} />
+      <MainArea onOpenDrawer={setDrawer} />
+      <RightDrawer view={drawer} onClose={() => setDrawer(null)} />
     </div>
   )
 }
