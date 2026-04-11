@@ -1,0 +1,13 @@
+{
+  "name": "agentdev-lite",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lightweight AionUi-style agent app",
+  "scripts": {
+    "setup": "npm install && npm --prefix client install && npm --prefix server install",
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm --prefix server run dev\" \"npm --prefix client run dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
