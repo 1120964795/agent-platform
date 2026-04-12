@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Send } from 'lucide-react'
 import { useCommand } from '../../hooks/useCommand.js'
+import { parseCommandLine } from '../../lib/commands.js'
 import CommandPalette from './CommandPalette.jsx'
 
 export default function InputBar({ onSend, onCommand, disabled }) {
@@ -8,15 +9,21 @@ export default function InputBar({ onSend, onCommand, disabled }) {
   const command = useCommand()
 
   function handleSelectCommand(cmd) {
-    onCommand?.(cmd)
-    setText('')
+    // 选中命令后，插入 "/word " 到输入框让用户继续输入参数
+    setText(`/${cmd.id} `)
     command.close()
   }
 
   function handleChange(e) {
     const nextText = e.target.value
     setText(nextText)
-    command.update(nextText)
+
+    // 只在输入纯 /xxx 时显示 palette（没有空格说明还在选命令）
+    if (nextText.startsWith('/') && !nextText.includes(' ')) {
+      command.update(nextText)
+    } else {
+      command.close()
+    }
   }
 
   function handleSubmit(e) {
@@ -25,7 +32,14 @@ export default function InputBar({ onSend, onCommand, disabled }) {
 
     const v = text.trim()
     if (!v || disabled) return
-    onSend(v)
+
+    // 检测是否是 /word ... 或 /ppt ... 命令
+    const parsed = parseCommandLine(v)
+    if (parsed) {
+      onCommand?.(parsed)
+    } else {
+      onSend(v)
+    }
     setText('')
     command.close()
   }
@@ -54,7 +68,7 @@ export default function InputBar({ onSend, onCommand, disabled }) {
           value={text}
           onChange={handleChange}
           onKeyDown={handleKey}
-          placeholder='发送消息，输入 "/" 触发命令面板，Shift+Enter 换行...'
+          placeholder='发送消息，输入 "/" 触发命令（如 /word 写报告），Shift+Enter 换行...'
           rows={1}
           className="flex-1 resize-none bg-transparent outline-none text-sm max-h-40 py-1"
         />
