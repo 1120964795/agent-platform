@@ -79,6 +79,10 @@ export function generatePpt(payload) {
   return api.post('/api/ppt', payload)
 }
 
+export function generateWord(payload) {
+  return api.post('/api/word', payload)
+}
+
 export function openFile(path) {
   const query = new URLSearchParams({ path }).toString()
   return api.get(`/api/open-file?${query}`)
