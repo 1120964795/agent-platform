@@ -132,6 +132,9 @@ export function useChat() {
   }, [])
 
   const addFileCard = useCallback((artifact) => {
+    if (artifact) {
+      window.dispatchEvent(new CustomEvent('agentdev:artifact-created', { detail: artifact }))
+    }
     dispatch({
       type: 'ADD',
       msg: { id: uid(), role: 'card', cardType: 'file', cardData: artifact, cardState: 'done' }
