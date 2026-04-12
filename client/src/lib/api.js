@@ -75,6 +75,10 @@ export function setConfig(patch) {
   return api.post('/api/config', patch)
 }
 
+export function generatePpt(payload) {
+  return api.post('/api/ppt', payload)
+}
+
 export function openFile(path) {
   const query = new URLSearchParams({ path }).toString()
   return api.get(`/api/open-file?${query}`)
