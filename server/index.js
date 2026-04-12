@@ -9,6 +9,7 @@ import conversationsRouter from './routes/conversations.js'
 import wordRouter from './routes/word.js'
 import pptRouter from './routes/ppt.js'
 import artifactsRouter, { openFileHandler } from './routes/artifacts.js'
+import filesRouter from './routes/files.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -25,6 +26,7 @@ app.use('/api/conversations', conversationsRouter)
 app.use('/api/word', wordRouter)
 app.use('/api/ppt', pptRouter)
 app.use('/api/artifacts', artifactsRouter)
+app.use('/api/files', filesRouter)
 app.get('/api/open-file', openFileHandler)
 
 app.get('/api/health', (req, res) => {
