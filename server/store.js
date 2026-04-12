@@ -4,8 +4,8 @@ import { fileURLToPath } from 'url'
 import crypto from 'crypto'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const DATA_DIR = path.join(__dirname, '..', 'data')
-const GENERATED_DIR = path.join(__dirname, '..', 'generated')
+const DATA_DIR = process.env.AGENTDEV_DATA_DIR || path.join(__dirname, '..', 'data')
+const GENERATED_DIR = process.env.AGENTDEV_GENERATED_DIR || path.join(__dirname, '..', 'generated')
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json')
 const DATA_PATH = path.join(DATA_DIR, 'data.json')
 
