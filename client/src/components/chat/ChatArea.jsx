@@ -3,10 +3,11 @@ import MessageList from './MessageList.jsx'
 import InputBar from './InputBar.jsx'
 
 export default function ChatArea() {
-  const { messages, streaming, sendUserMessage, addCard, updateCard, addFileCard } = useChat()
+  const { messages, streaming, sendUserMessage, sendCommand, addCard, updateCard, addFileCard } = useChat()
 
-  function handleCommand(cmd) {
-    addCard(cmd.cardType)
+  function handleCommand(parsed) {
+    // parsed = { command, cardType, prompt, referencePath }
+    sendCommand(parsed)
   }
 
   return (
