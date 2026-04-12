@@ -3,13 +3,59 @@
   "version": "0.1.0",
   "private": true,
   "description": "Lightweight AionUi-style agent app",
+  "main": "electron/main.js",
   "scripts": {
     "setup": "npm install && npm --prefix client install && npm --prefix server install",
-    "dev": "concurrently -n server,client -c cyan,magenta \"npm --prefix server run dev\" \"npm --prefix client run dev\""
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "build:client": "npm --prefix client run build",
+    "electron:dev": "concurrently -n server,client,electron -c cyan,magenta,yellow \"npm --prefix server run dev\" \"npm --prefix client run dev\" \"node -e \\\"setTimeout(()=>require('child_process').execSync('electron .', {stdio:'inherit'}),5000)\\\"\"",
+    "electron:build": "npm run build:client && electron-builder --win",
+    "electron:start": "npm run build:client && electron ."
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "electron": "^33.2.1",
+    "electron": "33.2.1",
     "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.agentdev.lite",
+    "productName": "AgentDev Lite",
+    "asar": false,
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "server",
+        "filter": [
+          "**/*",
+          "!node_modules/.cache/**"
+        ]
+      },
+      {
+        "from": "client/dist",
+        "to": "client/dist"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }
