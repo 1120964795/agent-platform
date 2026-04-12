@@ -5,6 +5,7 @@ import path from 'path'
 import chatRouter from './routes/chat.js'
 import configRouter from './routes/config.js'
 import conversationsRouter from './routes/conversations.js'
+import wordRouter from './routes/word.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -17,6 +18,7 @@ app.use('/files', express.static(path.join(__dirname, '..', 'generated')))
 app.use('/api/chat', chatRouter)
 app.use('/api/config', configRouter)
 app.use('/api/conversations', conversationsRouter)
+app.use('/api/word', wordRouter)
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, version: '0.1.0' })
