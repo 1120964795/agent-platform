@@ -24,10 +24,10 @@ export default function MessageList({ messages, onUpdateCard, onFileGenerated })
         }
         if (m.role === 'card') {
           if (m.cardType === 'word') {
-            return <WordCard key={m.id} msg={m} onUpdate={onUpdateCard} onFileGenerated={onFileGenerated} />
+            return <WordCard key={m.id} msg={m} />
           }
           if (m.cardType === 'ppt') {
-            return <PptCard key={m.id} msg={m} onUpdate={onUpdateCard} onFileGenerated={onFileGenerated} />
+            return <PptCard key={m.id} msg={m} />
           }
           if (m.cardType === 'file') {
             return <FileCard key={m.id} artifact={m.cardData} />
