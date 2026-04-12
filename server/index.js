@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import path from 'path'
 import chatRouter from './routes/chat.js'
@@ -12,11 +13,12 @@ import artifactsRouter, { openFileHandler } from './routes/artifacts.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 const PORT = process.env.PORT || 8787
+const generatedDir = process.env.AGENTDEV_GENERATED_DIR || path.join(__dirname, '..', 'generated')
 
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }))
+app.use(cors({ origin: true, credentials: true }))
 app.use(express.json({ limit: '10mb' }))
 
-app.use('/files', express.static(path.join(__dirname, '..', 'generated')))
+app.use('/files', express.static(generatedDir))
 app.use('/api/chat', chatRouter)
 app.use('/api/config', configRouter)
 app.use('/api/conversations', conversationsRouter)
@@ -29,6 +31,18 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, version: '0.1.0' })
 })
 
+// 生产模式：服务前端 dist
+const clientDist = process.env.AGENTDEV_CLIENT_DIST
+if (clientDist) {
+  if (fs.existsSync(clientDist)) {
+    app.use(express.static(clientDist))
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api') || req.path.startsWith('/files')) return next()
+      res.sendFile(path.join(clientDist, 'index.html'))
+    })
+  }
+}
+
 // 全局错误兜底
 app.use((err, req, res, next) => {
   console.error('[error]', err)
@@ -40,4 +54,5 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`[server] running on http://localhost:${PORT}`)
+  if (process.send) process.send('ready')
 })
