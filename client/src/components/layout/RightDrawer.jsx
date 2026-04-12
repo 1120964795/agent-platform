@@ -2,18 +2,42 @@ import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import SettingsPanel from '../../panels/SettingsPanel.jsx'
 import ArtifactsPanel from '../../panels/ArtifactsPanel.jsx'
+import FileBrowser from '../../panels/FileBrowser.jsx'
 
-const TABS = [
-  { id: 'settings', label: '设置' },
-  { id: 'artifacts', label: '产物' }
-]
+function usePermissionMode() {
+  const [mode, setMode] = useState(() => localStorage.getItem('agentdev-permission-mode') || 'default')
+
+  useEffect(() => {
+    function handleChange(e) {
+      setMode(e.detail?.mode || 'default')
+    }
+    window.addEventListener('agentdev:permission-changed', handleChange)
+    return () => window.removeEventListener('agentdev:permission-changed', handleChange)
+  }, [])
+
+  return mode
+}
 
 export default function RightDrawer({ view, onClose }) {
+  const permissionMode = usePermissionMode()
   const [activeTab, setActiveTab] = useState(view || 'settings')
+
+  const tabs = [
+    { id: 'settings', label: '设置' },
+    ...(permissionMode === 'full' ? [{ id: 'files', label: '文件' }] : []),
+    { id: 'artifacts', label: '产物' }
+  ]
 
   useEffect(() => {
     if (view) setActiveTab(view)
   }, [view])
+
+  // 如果切到了 files tab 但权限被关闭了，回退到 settings
+  useEffect(() => {
+    if (activeTab === 'files' && permissionMode !== 'full') {
+      setActiveTab('settings')
+    }
+  }, [permissionMode, activeTab])
 
   if (!view) return null
 
@@ -34,7 +58,7 @@ export default function RightDrawer({ view, onClose }) {
             </button>
           </div>
           <div className="px-4 pb-3 flex gap-2">
-            {TABS.map(tab => (
+            {tabs.map(tab => (
               <button
                 key={tab.id}
                 type="button"
@@ -51,6 +75,7 @@ export default function RightDrawer({ view, onClose }) {
           </div>
         </div>
         {activeTab === 'settings' && <SettingsPanel />}
+        {activeTab === 'files' && permissionMode === 'full' && <FileBrowser />}
         {activeTab === 'artifacts' && <ArtifactsPanel />}
       </aside>
     </>
