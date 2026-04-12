@@ -6,6 +6,7 @@ import chatRouter from './routes/chat.js'
 import configRouter from './routes/config.js'
 import conversationsRouter from './routes/conversations.js'
 import wordRouter from './routes/word.js'
+import pptRouter from './routes/ppt.js'
 import artifactsRouter, { openFileHandler } from './routes/artifacts.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -20,6 +21,7 @@ app.use('/api/chat', chatRouter)
 app.use('/api/config', configRouter)
 app.use('/api/conversations', conversationsRouter)
 app.use('/api/word', wordRouter)
+app.use('/api/ppt', pptRouter)
 app.use('/api/artifacts', artifactsRouter)
 app.get('/api/open-file', openFileHandler)
 
