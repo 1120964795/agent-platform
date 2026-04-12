@@ -83,7 +83,19 @@ export function generateWord(payload) {
   return api.post('/api/word', payload)
 }
 
-export function openFile(path) {
-  const query = new URLSearchParams({ path }).toString()
+export async function openFile(filePath) {
+  if (window.electronAPI?.openPath) {
+    return window.electronAPI.openPath(filePath)
+  }
+  const query = new URLSearchParams({ path: filePath }).toString()
   return api.get(`/api/open-file?${query}`)
+}
+
+// 本地文件操作
+export function listFiles(dir) {
+  return api.get(`/api/files/list?dir=${encodeURIComponent(dir)}`)
+}
+
+export function searchFiles(query, dir) {
+  return api.get(`/api/files/search?query=${encodeURIComponent(query)}&dir=${encodeURIComponent(dir)}`)
 }
