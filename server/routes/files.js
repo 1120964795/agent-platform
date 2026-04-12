@@ -1,8 +1,21 @@
 import express from 'express'
 import fs from 'fs'
 import path from 'path'
+import { store } from '../store.js'
 
 const router = express.Router()
+
+// 权限检查中间件
+router.use((req, res, next) => {
+  const config = store.getConfig()
+  if (config.permissionMode !== 'full') {
+    return res.status(403).json({
+      ok: false,
+      error: { code: 'PERMISSION_DENIED', message: '请在设置中开启全权限模式' }
+    })
+  }
+  next()
+})
 
 // 列出目录内容
 router.get('/list', (req, res) => {
