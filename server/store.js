@@ -54,7 +54,7 @@ export const store = {
   GENERATED_DIR,
 
   getConfig() {
-    return readJson(CONFIG_PATH, DEFAULT_CONFIG)
+    return { ...DEFAULT_CONFIG, ...readJson(CONFIG_PATH, DEFAULT_CONFIG) }
   },
   setConfig(patch) {
     const cur = this.getConfig()
