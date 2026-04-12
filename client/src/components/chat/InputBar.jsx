@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Send } from 'lucide-react'
+import { Send, Paperclip } from 'lucide-react'
 import { useCommand } from '../../hooks/useCommand.js'
 import { parseCommandLine } from '../../lib/commands.js'
 import CommandPalette from './CommandPalette.jsx'
@@ -23,6 +23,30 @@ export default function InputBar({ onSend, onCommand, disabled }) {
       command.update(nextText)
     } else {
       command.close()
+    }
+  }
+
+  async function handleAttachFile() {
+    let filePath = null
+    if (window.electronAPI?.selectFile) {
+      filePath = await window.electronAPI.selectFile()
+    } else {
+      filePath = window.prompt('输入文件绝对路径:')
+    }
+    if (filePath) {
+      setText(current => {
+        const trimmed = current.trim()
+        // 如果已经有 /command 前缀，在命令后插入文件路径
+        if (trimmed.startsWith('/') && trimmed.includes(' ')) {
+          const spaceIdx = trimmed.indexOf(' ')
+          return `${trimmed.slice(0, spaceIdx + 1)}"${filePath}" ${trimmed.slice(spaceIdx + 1)}`
+        }
+        if (trimmed.startsWith('/')) {
+          return `${trimmed} "${filePath}" `
+        }
+        // 否则直接插入
+        return `${trimmed} "${filePath}" `.trim()
+      })
     }
   }
 
@@ -64,6 +88,15 @@ export default function InputBar({ onSend, onCommand, disabled }) {
             onHover={command.setIndex}
           />
         )}
+        <button
+          type="button"
+          onClick={handleAttachFile}
+          className="h-8 w-8 flex items-center justify-center rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-tertiary)]"
+          aria-label="附件"
+          title="选择本地文件"
+        >
+          <Paperclip size={14} />
+        </button>
         <textarea
           value={text}
           onChange={handleChange}
