@@ -118,6 +118,59 @@ export function useChat() {
     )
   }, [state.messages, saveConversation])
 
+  const sendCommand = useCallback(async ({ command, cardType, prompt, referencePath }) => {
+    // 1. 显示用户的命令文本
+    const displayText = referencePath
+      ? `/${command} "${referencePath}" ${prompt}`
+      : `/${command} ${prompt}`
+    const userMsg = { id: uid(), role: 'user', content: displayText }
+    dispatch({ type: 'ADD', msg: userMsg })
+
+    // 2. 显示 loading 卡片
+    const cardId = uid()
+    dispatch({
+      type: 'ADD',
+      msg: { id: cardId, role: 'card', cardType, cardData: { prompt, referencePath }, cardState: 'loading' }
+    })
+
+    // 3. 调用对应的后端 API
+    const endpoint = cardType === 'ppt' ? '/api/ppt' : '/api/word'
+    try {
+      const result = await api.post(endpoint, {
+        conversationId: conversationIdRef.current,
+        prompt,
+        referencePath
+      })
+
+      // 4. 更新卡片为 done 状态
+      const artifact = {
+        id: result.artifactId,
+        type: cardType,
+        filename: result.filename,
+        path: result.path,
+        title: result.title || prompt.slice(0, 24),
+        createdAt: new Date().toISOString()
+      }
+      dispatch({ type: 'UPDATE_CARD', id: cardId, cardState: 'done', cardData: { prompt, result, artifact } })
+
+      // 5. 添加 FileCard + 通知 ArtifactsPanel
+      if (artifact) {
+        window.dispatchEvent(new CustomEvent('agentdev:artifact-created', { detail: artifact }))
+      }
+      dispatch({
+        type: 'ADD',
+        msg: { id: uid(), role: 'card', cardType: 'file', cardData: artifact, cardState: 'done' }
+      })
+    } catch (error) {
+      dispatch({
+        type: 'UPDATE_CARD',
+        id: cardId,
+        cardState: 'done',
+        cardData: { prompt, error: error.message || '生成失败' }
+      })
+    }
+  }, [saveConversation])
+
   const addCard = useCallback((cardType, initialData = {}) => {
     const id = uid()
     dispatch({
@@ -143,5 +196,5 @@ export function useChat() {
 
   const clear = useCallback(() => dispatch({ type: 'CLEAR' }), [])
 
-  return { ...state, sendUserMessage, addCard, updateCard, addFileCard, clear }
+  return { ...state, sendUserMessage, sendCommand, addCard, updateCard, addFileCard, clear }
 }
