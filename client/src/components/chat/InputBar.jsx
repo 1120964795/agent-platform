@@ -1,15 +1,51 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Send, Paperclip } from 'lucide-react'
 import { useCommand } from '../../hooks/useCommand.js'
 import { parseCommandLine } from '../../lib/commands.js'
 import CommandPalette from './CommandPalette.jsx'
 
+function usePermissionMode() {
+  const [mode, setMode] = useState(() => localStorage.getItem('agentdev-permission-mode') || 'default')
+
+  useEffect(() => {
+    function handleChange(e) {
+      setMode(e.detail?.mode || 'default')
+    }
+    window.addEventListener('agentdev:permission-changed', handleChange)
+    return () => window.removeEventListener('agentdev:permission-changed', handleChange)
+  }, [])
+
+  return mode
+}
+
 export default function InputBar({ onSend, onCommand, disabled }) {
   const [text, setText] = useState('')
   const command = useCommand()
+  const permissionMode = usePermissionMode()
+  const isFull = permissionMode === 'full'
+
+  // 监听文件浏览器的文件选择事件
+  useEffect(() => {
+    function handleFileSelected(e) {
+      const filePath = e.detail?.path
+      if (!filePath) return
+      setText(current => {
+        const trimmed = current.trim()
+        if (trimmed.startsWith('/') && trimmed.includes(' ')) {
+          const spaceIdx = trimmed.indexOf(' ')
+          return `${trimmed.slice(0, spaceIdx + 1)}"${filePath}" ${trimmed.slice(spaceIdx + 1)}`
+        }
+        if (trimmed.startsWith('/')) {
+          return `${trimmed} "${filePath}" `
+        }
+        return `"${filePath}" ${trimmed}`.trim()
+      })
+    }
+    window.addEventListener('agentdev:file-selected', handleFileSelected)
+    return () => window.removeEventListener('agentdev:file-selected', handleFileSelected)
+  }, [])
 
   function handleSelectCommand(cmd) {
-    // 选中命令后，插入 "/word " 到输入框让用户继续输入参数
     setText(`/${cmd.id} `)
     command.close()
   }
@@ -18,7 +54,6 @@ export default function InputBar({ onSend, onCommand, disabled }) {
     const nextText = e.target.value
     setText(nextText)
 
-    // 只在输入纯 /xxx 时显示 palette（没有空格说明还在选命令）
     if (nextText.startsWith('/') && !nextText.includes(' ')) {
       command.update(nextText)
     } else {
@@ -36,7 +71,6 @@ export default function InputBar({ onSend, onCommand, disabled }) {
     if (filePath) {
       setText(current => {
         const trimmed = current.trim()
-        // 如果已经有 /command 前缀，在命令后插入文件路径
         if (trimmed.startsWith('/') && trimmed.includes(' ')) {
           const spaceIdx = trimmed.indexOf(' ')
           return `${trimmed.slice(0, spaceIdx + 1)}"${filePath}" ${trimmed.slice(spaceIdx + 1)}`
@@ -44,8 +78,7 @@ export default function InputBar({ onSend, onCommand, disabled }) {
         if (trimmed.startsWith('/')) {
           return `${trimmed} "${filePath}" `
         }
-        // 否则直接插入
-        return `${trimmed} "${filePath}" `.trim()
+        return `"${filePath}" ${trimmed}`.trim()
       })
     }
   }
@@ -57,7 +90,6 @@ export default function InputBar({ onSend, onCommand, disabled }) {
     const v = text.trim()
     if (!v || disabled) return
 
-    // 检测是否是 /word ... 或 /ppt ... 命令
     const parsed = parseCommandLine(v)
     if (parsed) {
       onCommand?.(parsed)
@@ -88,20 +120,25 @@ export default function InputBar({ onSend, onCommand, disabled }) {
             onHover={command.setIndex}
           />
         )}
-        <button
-          type="button"
-          onClick={handleAttachFile}
-          className="h-8 w-8 flex items-center justify-center rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-tertiary)]"
-          aria-label="附件"
-          title="选择本地文件"
-        >
-          <Paperclip size={14} />
-        </button>
+        {isFull && (
+          <button
+            type="button"
+            onClick={handleAttachFile}
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-tertiary)]"
+            aria-label="附件"
+            title="选择本地文件"
+          >
+            <Paperclip size={14} />
+          </button>
+        )}
         <textarea
           value={text}
           onChange={handleChange}
           onKeyDown={handleKey}
-          placeholder='发送消息，输入 "/" 触发命令（如 /word 写报告），Shift+Enter 换行...'
+          placeholder={isFull
+            ? '发送消息，"/" 触发命令，📎 选择文件，Shift+Enter 换行...'
+            : '发送消息，"/" 触发命令，Shift+Enter 换行...'
+          }
           rows={1}
           className="flex-1 resize-none bg-transparent outline-none text-sm max-h-40 py-1"
         />
