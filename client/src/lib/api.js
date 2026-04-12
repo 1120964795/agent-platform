@@ -74,3 +74,8 @@ export function getConfig() {
 export function setConfig(patch) {
   return api.post('/api/config', patch)
 }
+
+export function openFile(path) {
+  const query = new URLSearchParams({ path }).toString()
+  return api.get(`/api/open-file?${query}`)
+}
