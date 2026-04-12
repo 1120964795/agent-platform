@@ -13,7 +13,8 @@ const DEFAULT_CONFIG = {
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
   model: 'deepseek-chat',
-  temperature: 0.7
+  temperature: 0.7,
+  permissionMode: 'default'
 }
 
 const DEFAULT_DATA = {
