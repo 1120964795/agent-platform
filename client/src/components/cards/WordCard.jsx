@@ -1,5 +1,6 @@
 import { FileText, Loader2 } from 'lucide-react'
-import { api, openFile } from '../../lib/api.js'
+import { api } from '../../lib/api.js'
+import FileCard from './FileCard.jsx'
 
 const DEFAULT_FORM = {
   title: '',
@@ -28,10 +29,6 @@ function buildArtifact(result, form) {
     size: result.size,
     createdAt: new Date().toISOString()
   }
-}
-
-function downloadUrl(filename) {
-  return filename ? `/files/${encodeURIComponent(filename)}` : '#'
 }
 
 export default function WordCard({ msg, onUpdate, onFileGenerated }) {
@@ -69,15 +66,6 @@ export default function WordCard({ msg, onUpdate, onFileGenerated }) {
     }
   }
 
-  async function handleOpen() {
-    if (!artifact?.path) return
-    try {
-      await openFile(artifact.path)
-    } catch (error) {
-      onUpdate?.(id, 'done', { ...cardData, error: error.message || '打开失败' })
-    }
-  }
-
   if (cardState === 'loading') {
     return (
       <Card>
@@ -91,43 +79,25 @@ export default function WordCard({ msg, onUpdate, onFileGenerated }) {
 
   if (cardState === 'done') {
     return (
-      <Card>
-        <div className="flex items-center gap-2 mb-3">
-          <FileText size={16} className="text-[color:var(--accent)]" />
-          <span className="font-medium text-sm">Word 文档已生成</span>
-        </div>
-        <div className="text-xs text-[color:var(--text-muted)] mb-2">标题：{form.title}</div>
-        {result?.preview && (
-          <div className="text-xs bg-[color:var(--bg-tertiary)] rounded-md p-2 text-[color:var(--text-muted)] line-clamp-3 mb-3">
-            {result.preview}...
+      <>
+        <Card>
+          <div className="flex items-center gap-2 mb-3">
+            <FileText size={16} className="text-[color:var(--accent)]" />
+            <span className="font-medium text-sm">Word 文档已生成</span>
           </div>
-        )}
-        {artifact && (
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--bg-secondary)] p-3">
-            <div className="min-w-0">
-              <div className="text-sm font-medium truncate">{artifact.filename}</div>
-              <div className="text-xs text-[color:var(--text-muted)] truncate">{artifact.path}</div>
+          <div className="text-xs text-[color:var(--text-muted)] mb-2">标题：{form.title}</div>
+          {result?.preview && (
+            <div className="text-xs bg-[color:var(--bg-tertiary)] rounded-md p-2 text-[color:var(--text-muted)] line-clamp-3">
+              {result.preview}...
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={handleOpen}
-                className="h-8 rounded-md border border-[color:var(--border)] px-3 text-xs hover:bg-[color:var(--bg-tertiary)]"
-              >
-                打开文件
-              </button>
-              <a
-                href={downloadUrl(artifact.filename)}
-                download={artifact.filename}
-                className="h-8 rounded-md bg-[color:var(--accent)] px-3 text-xs text-white flex items-center"
-              >
-                下载
-              </a>
-            </div>
-          </div>
-        )}
-        {cardData.error && <div className="mt-2 text-xs text-[color:var(--error)]">{cardData.error}</div>}
-      </Card>
+          )}
+          {cardData.error && <div className="mt-2 text-xs text-[color:var(--error)]">{cardData.error}</div>}
+        </Card>
+        <FileCard
+          artifact={artifact}
+          onError={error => onUpdate?.(id, 'done', { ...cardData, error: error.message || '打开失败' })}
+        />
+      </>
     )
   }
 
