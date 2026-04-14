@@ -116,9 +116,11 @@
 
 ### 3.2 Shell 三段策略
 
+**分词规则**：取命令字符串首个空白分隔的 token（`command.trim().split(/\s+/)[0]`），去掉引号包裹，`toLowerCase()` 后比对。故意简化，避免 shell-quote 类库在 Windows cmd / PowerShell / bash 下的分词差异。
+
 ```
 run_shell_command(command)
-  ├─ 提取首 token（lowercase），按 shell 语法分词
+  ├─ 提取首 token（按上述规则）
   ├─ 首 token ∈ 黑名单  → 直接返回 PERMISSION_DENIED（永不执行）
   │   黑名单: rm, rmdir, rd, del, erase, format, diskpart,
   │          shutdown, reboot, taskkill, reg, regedit,
@@ -246,7 +248,7 @@ resources:
 2. `resources` 相对路径展开为绝对路径，追加到正文底部
 3. 作为 `tool` 消息返回
 4. 同时 IPC 推 `chat:skill-loaded` 事件 → 聊天界面显示"📘 word-writer"徽标
-5. 本会话内缓存已加载的 skill name；重复加载返回 `{already_loaded: true, content: <空或简化>}`
+5. 本会话内缓存已加载的 skill name；重复加载返回 `{already_loaded: true, content: ""}`（空字符串,避免再占 token；模型应已掌握先前加载的正文）
 
 ### 4.4 内置 Skill（5 个，随 exe 发布）
 
@@ -316,7 +318,7 @@ system prompt 追加（`full` 模式下）：
 
 ### 6.4 模式行为
 
-- `normal` 模式：工具不可见，但 `user_rules.md` 内容**仍**拼进 system prompt（规则对纯聊天也有效，如"用中文回答"）。模型在此模式下**无法**新增/删除规则（`remember_user_rule` 不在 schema 里）；用户只能在设置面板里编辑。
+- `normal` 模式：工具不可见，但 `user_rules.md` 内容**仍**拼进 system prompt（规则对纯聊天也有效，如"用中文回答"）。模型在此模式下**无法**新增/删除规则（`remember_user_rule` 不在 schema 里）；**§6.3 的指引 prompt 也不拼入**（避免模型提到它看不见的工具让用户困惑）；用户只能在设置面板里编辑。
 - `full` 模式：规则拼入 + 两个工具可见。
 
 ### 6.5 UI
@@ -441,7 +443,8 @@ useChatStore (zustand 或等价)
 5. **删除** `server/routes/word.js` / `ppt.js`（被 skill 吃掉）
 6. `server/store.js` → `electron/store.js`
 7. `electron/preload.js` → 扩展 `contextBridge.exposeInMainWorld('electronAPI', { invoke, on, off })`
-8. `client/src/lib/api.js`（或等价 HTTP 客户端层）→ `fetch` 改为 `window.electronAPI.invoke`；SSE 改为事件订阅
+8. `client/src/lib/api.js`（或等价 HTTP 客户端层）→ `fetch` 改为 `window.electronAPI.invoke`；SSE 改为按 §7.1 列出的事件名订阅 (`chat:delta` / `chat:tool-start` / `chat:tool-log` / `chat:tool-result` / `chat:tool-error` / `chat:skill-loaded` / `chat:done`)
+8a. **清理** `electron/main.js` 现有 `exec-local-command` IPC handler 与 `electron/preload.js` 的 `execLocalCommand` 桥接 —— 功能被 `run_shell_command` 工具取代；前端若有直接调用也一并移除（不做别名兼容,彻底替换）
 
 ### 阶段 B：工具执行器与 Skill 系统
 
