@@ -130,7 +130,16 @@ test('setConfig persists patches', () => {
 ```
 
 - [ ] 运行：`npm test electron/__tests__/store.test.js` → 期望 FAIL（store.js 还没新字段）
-- [ ] 实现 `electron/store.js`：CJS 化原 `server/store.js`，`DATA_DIR` 取 `process.env.AGENTDEV_DATA_DIR || path.join(app.getPath('userData'), 'data')`（注意：在测试环境 `app` 是 undefined，需要 try/require 兜底用 `os.tmpdir()`）。`DEFAULT_CONFIG` 加上述 4 个字段
+- [ ] 实现 `electron/store.js`：CJS 化原 `server/store.js`；顶部用以下 pattern 兼容测试环境：
+
+```js
+let app
+try { app = require('electron').app } catch { app = null }
+const userData = app ? app.getPath('userData') : require('os').tmpdir()
+const DATA_DIR = process.env.AGENTDEV_DATA_DIR || path.join(userData, 'agentdev-lite', 'data')
+```
+
+`DEFAULT_CONFIG` 加上述 4 个字段（`workspace_root` 默认 `os.homedir()`）
 - [ ] 重跑测试 → 期望 PASS
 - [ ] **Commit**：`electron: port store to main process with workspace/shell config`
 
@@ -497,10 +506,11 @@ async function runShellCommand({command, cwd, timeout_ms = 120_000}, {onLog} = {
 - Create: `electron/__tests__/skills-loader.test.js`
 
 ```js
-// load_skill({name}) -> {name, content, referenced_tools, already_loaded?}
-//   维护 sessionLoadedSkills: Set<string>（每个 chat 会话独立；通过 chat 循环传入或挂到模块级 Map<convId, Set>）
+// load_skill({name}, {convId}) -> {name, content, referenced_tools, already_loaded?}
+//   模块级 Map<convId, Set<string>>; chat 循环 (B11) 把 convId 显式传入
 //   重复加载 -> {already_loaded: true, content: ''}
 //   resources 字段把相对路径展开到正文末尾的"可用资源（绝对路径）"区段
+//   导出 clearSession(convId) 供会话结束/切换时调用
 ```
 
 - [ ] 测试 + 实现
@@ -762,7 +772,7 @@ async function handleChatSend(evt, {convId, messages}) {
 
 ## 完成
 
-**总任务数**：26（A 9 + B 13 + C 6 + D 3 = 实际 31，按上述编号分布）
+**总任务数**：31（A 9 + B 13 + C 6 + D 3）
 
 **最终验收**：spec §10.3 的 8 项 checklist 全部勾选;`npm run electron:build` 产出可安装 exe；exe 安装到干净机器跑核心 5 个用例无报错。
 
