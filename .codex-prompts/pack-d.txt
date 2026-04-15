@@ -1,0 +1,34 @@
+你现在要执行 AgentDev Lite 项目的 Day 0 Pack D。
+
+前置：Pack A/B/C 已完成，前端能渲染测试页面，后端能跑。注意：本机 curl 对 localhost 走代理会返回 502，验证时请带 `--noproxy "*"`。
+
+请打开并阅读这个 plan 文件：
+D:\claude project\agentdev-lite\docs\superpowers\plans\2026-04-10-agentdev-lite.md
+
+需要执行的任务：
+- Task 0.13（Layout + Sidebar + MainArea + TopBar 骨架）
+- Task 0.14（RightDrawer + SettingsPanel）
+
+执行规则：
+1. 工作目录固定为 D:\claude project\agentdev-lite\。Windows 路径里有空格，shell 命令里所有路径都加双引号。
+2. 文件路径严格按 plan：client/src/components/layout/{Layout,Sidebar,TopBar,MainArea,RightDrawer}.jsx、client/src/panels/SettingsPanel.jsx。**不要改目录结构**。
+3. App.jsx 在 Task 0.13 里会被改写，把 Pack C 那段测试渲染替换成真正的 Layout 组件树——按 plan 来。
+4. Sidebar 里的 5 个 Assistant 项（通用对话/Word/PPT/论文/计划+定时）的图标、文字、颜色严格按 plan，**不要换 lucide 图标**。
+5. 浅色主题色直接用 client/src/styles/theme.css 里的 CSS 变量（var(--color-bg) 等），**不要在组件里写死 hex**。
+6. SettingsPanel 这阶段只需要静态 UI（输入框 + 保存按钮），保存逻辑用 Pack C 写好的 lib/api.js 里的 setConfig 调用。
+7. 每个 Task 末尾的 git commit 必须执行。
+
+完成后必须验证：
+- 后台启 `npm run dev`，等 5 秒。
+- `curl --noproxy "*" http://localhost:5173/` 应该拿到 HTML（含 `<div id="root"></div>`）。
+- 不能做浏览器交互测试，但可以做**组件 import 冒烟**：`curl --noproxy "*" http://localhost:5173/src/components/layout/Layout.jsx` 应返回 200 的模块源代码（vite 编译后），同理检查 Sidebar.jsx、TopBar.jsx、RightDrawer.jsx、panels/SettingsPanel.jsx 都能被 vite 编译返回（非 404 非 500）。
+- POST /api/config 验证：`curl --noproxy "*" -X POST http://localhost:8787/api/config -H "Content-Type: application/json" -d "{\"apiKey\":\"sk-abcdefghijklmn\",\"model\":\"deepseek-chat\"}"`，返回 ok。
+- 然后 `curl --noproxy "*" http://localhost:8787/api/config`，apiKey 字段应该被 mask（不是原 key 明文）。
+- kill 掉所有 node 进程。
+- 跑 `git log --oneline`，应该比 Pack C 多 2 个 commit（共 14 个）。
+
+最后停下来：
+1. 贴出上面 curl 结果（每项前两行即可，别贴完整 HTML）
+2. 输出 `git status` 和 `git log --oneline -20`
+3. 列出 client/src/ 下新增的文件
+4. 报告完成，**不要自动开 Pack E**。

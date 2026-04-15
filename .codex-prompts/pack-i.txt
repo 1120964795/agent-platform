@@ -1,0 +1,39 @@
+你现在要执行 AgentDev Lite 项目的 Day 2 Pack I。
+
+前置：Day 1 已完成（day1-complete tag 存在），Word 端到端跑通。根目录和 server/ 的 node_modules 都已安装好。
+
+请打开并阅读这个 plan 文件：
+D:\claude project\agentdev-lite\docs\superpowers\plans\2026-04-10-agentdev-lite.md
+
+需要执行的任务，**严格按顺序**：
+- Task 2.1（Server - services/pptxGen.js）
+- Task 2.2（Server - routes/ppt.js）
+
+执行规则：
+1. 工作目录固定为 D:\claude project\agentdev-lite\。Windows 路径里有空格，shell 命令里所有路径都加双引号。
+2. Task 2.1 会要你在 server/package.json 加 `pptxgenjs` 依赖，按 plan 里写的版本号装，**不要升级到 latest**。注意：server/package.json 的 dependencies 里 Day 0 可能已经有 pptxgenjs 了（"pptxgenjs": "^3.12.0"），如果已有，确认已装好即可，不需要再加。装完跑 `npm --prefix server install` 验证。
+3. pptxGen.js 里的封面页、内容页布局、颜色（背景 F6F8FB、强调色 3B82F6、字号、字体）全部照搬，**不要换字体名、不要改坐标**。pptxgenjs 的坐标系是 inch，改一个数字整张幻灯片就崩。
+4. pptxGen.js 末尾页码（slide N / total）那段 footer 不能省略。
+5. routes/ppt.js 调用 deepseek.chatJson 生成 slides 的 prompt 必须照搬 plan，**JSON 输出格式约束那段不能删**。
+6. server/index.js 在 Task 2.2 里会被改动加 `/api/ppt` 路由，按 plan 改。
+7. 每个 Task 末尾的 git commit 必须执行。
+8. 验证时本机 curl 对 localhost 走代理会返回 502，带 `--noproxy "*"`。
+
+完成后必须验证（不要让 server 一直挂着，验完关掉）：
+- `npm --prefix server install` 无错
+- 后台启 `npm --prefix server run dev`，等 3 秒让它启好。
+- 跑：
+    curl --noproxy "*" -X POST http://localhost:8787/api/ppt -H "Content-Type: application/json" -d "{\"title\":\"测试演示\",\"topic\":\"区块链入门\",\"slides\":5}"
+  注意：这个接口需要真 DeepSeek API Key。如果 data/config.json 里已有 apiKey 就直接跑；如果返回 apiKey 相关错误，**停下来提示用户先填 key**。
+  如果 key 可用，应返回 JSON，包含 filename、path 字段。
+- 跑：
+    curl --noproxy "*" http://localhost:8787/api/artifacts
+  返回的列表里应该同时有 Day 1 的 .docx 和刚才的 .pptx。
+- kill 掉所有 node 进程。
+- 跑 `git log --oneline`，应该比 day1-complete 多 2 个 commit。
+
+最后停下来：
+1. 贴出 curl 响应（/api/ppt 的返回 JSON、/api/artifacts 的返回）
+2. 如果成功生成了 .pptx，贴出文件路径和文件大小
+3. 输出 `git status` 和 `git log --oneline -20`
+4. 报告完成，**不要自动开 Pack J**。

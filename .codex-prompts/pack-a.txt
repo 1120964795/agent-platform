@@ -1,0 +1,31 @@
+你现在要执行 AgentDev Lite 项目的 Day 0 Pack A。
+
+请打开并阅读这个 plan 文件的指定区段：
+D:\claude project\agentdev-lite\docs\superpowers\plans\2026-04-10-agentdev-lite.md
+
+需要执行的任务：
+- Task 0.1（创建项目目录 + git init）
+- Task 0.2（根 package.json）
+- Task 0.3（Server 骨架 + package.json）
+
+执行规则：
+1. 严格按照 plan 里每个 Task 下面的 Step 顺序执行。
+2. 每个 Step 里贴的代码块、命令、文件路径，**完整照搬**，不要改字段顺序、不要改依赖版本、不要加注释。
+3. 用文件写入工具创建文件。运行命令用 bash。
+4. 每个 Task 末尾的 git commit 命令必须执行，commit message 完整照抄。
+5. 不要触碰 client/ 目录，client 在 Pack C 才创建。
+6. 工作目录固定为 D:\claude project\agentdev-lite\。Windows 路径里有空格，shell 命令里所有路径都加双引号。
+7. 不要安装 plan 没列出的依赖。
+
+完成后必须验证：
+- 目录结构里存在：.git/、.gitignore、README.md、package.json、server/package.json、server/index.js、server/.env.example
+- 跑 `npm run setup`，无报错，client/ 安装那一段会失败因为 client/package.json 不存在——这是预期的，跳过即可，但 root + server 必须装成功。如果 setup 因为 client 缺失整个失败，把命令改成只跑 root + server：
+    npm install
+    npm --prefix server install
+- 跑 `npm --prefix server run dev`，看到 "AgentDev server listening on http://localhost:8787" 字样后立刻停掉进程（例如用 taskkill 或直接 kill）。不要让 server 一直跑。
+- 跑 `git log --oneline`，应该有 3 个 commit。
+
+最后停下来：
+1. 输出 `git status` 和 `git log --oneline -5`
+2. 输出最终目录树（用 `find . -type f -not -path "./node_modules/*" -not -path "./.git/*"` 或类似命令）
+3. 报告完成后停止，**不要自动开 Pack B**。

@@ -1,0 +1,69 @@
+{
+  "name": "agentdev-lite",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lightweight AionUi-style agent app",
+  "main": "electron/main.js",
+  "scripts": {
+    "setup": "npm install && npm --prefix client install",
+    "build:client": "npm --prefix client run build",
+    "electron:dev": "concurrently -n client,electron -c magenta,yellow \"npm --prefix client run dev\" \"node -e \\\"setTimeout(()=>require('child_process').execSync('electron .', {stdio:'inherit'}),3000)\\\"\"",
+    "electron:build": "npm run build:client && electron-builder --win",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@vitest/ui": "^4.1.4",
+    "concurrently": "^8.2.2",
+    "electron": "33.2.1",
+    "electron-builder": "^25.1.8",
+    "vitest": "^4.1.4"
+  },
+  "build": {
+    "appId": "com.agentdev.lite",
+    "productName": "AgentDev Lite",
+    "asar": false,
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "!electron/__tests__/**/*",
+      "package.json",
+      "resources/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/skills",
+        "to": "skills"
+      },
+      {
+        "from": "client/dist",
+        "to": "client/dist"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "dependencies": {
+    "docx": "^9.6.1",
+    "gray-matter": "^4.0.3",
+    "mammoth": "^1.12.0",
+    "pptxgenjs": "^4.0.1"
+  }
+}

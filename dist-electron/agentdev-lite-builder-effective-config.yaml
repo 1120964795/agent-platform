@@ -1,0 +1,29 @@
+directories:
+  output: dist-electron
+  buildResources: build
+appId: com.agentdev.lite
+productName: AgentDev Lite
+asar: false
+files:
+  - filter:
+      - electron/**/*
+      - '!electron/__tests__/**/*'
+      - package.json
+      - resources/**/*
+extraResources:
+  - from: resources/skills
+    to: skills
+  - from: client/dist
+    to: client/dist
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: null
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+electronVersion: 33.2.1
