@@ -1,0 +1,611 @@
+你现在要重构 AgentDev Lite 项目的 /word 和 /ppt 命令交互模式。
+
+工作目录：D:\claude project\agentdev-lite\
+Windows 路径里有空格，shell 命令里所有路径都加双引号。
+
+## 目标
+
+把 /word 和 /ppt 从「弹表单卡片填字段」改成「命令行 + 自然语言参数」风格，类似 Claude Code 的 slash command。
+
+**改之前**：输入 / → CommandPalette 弹出 → 选 /word → WordCard 表单弹出（填标题、要求等字段）→ 点生成
+**改之后**：输入 / → CommandPalette 弹出 → 选 /word → 输入框里插入 `/word ` → 用户继续输入参数 → 回车发送
+
+用户输入示例：
+```
+/word 帮我写一份人工智能简介的报告，1500字左右，学术风格
+/word "D:\generated\word_xxx_今日热点.docx" 请参考这个文件，帮我完成个人热点分析报告
+/ppt 做一个介绍 React 框架的演示，5页
+/ppt "D:\generated\word_xxx_报告.docx" 根据这篇报告生成配套的 PPT 演示
+```
+
+## 需要修改的文件（严格按顺序）
+
+### Step 1: 后端 - 添加 .docx 文件读取能力
+
+安装 mammoth（用于读取 .docx 文件的纯文本内容）：
+```bash
+cd "D:/claude project/agentdev-lite/server"
+npm install mammoth@1.8.0
+```
+
+创建 `server/services/fileReader.js`：
+```js
+import mammoth from 'mammoth'
+import fs from 'fs'
+import path from 'path'
+
+/**
+ * 读取文件内容为纯文本，支持 .docx 和普通文本文件
+ * @param {string} filePath 绝对路径
+ * @returns {Promise<string>} 文件文本内容
+ */
+export async function readFileAsText(filePath) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`文件不存在: ${filePath}`)
+  }
+
+  const ext = path.extname(filePath).toLowerCase()
+
+  if (ext === '.docx') {
+    const result = await mammoth.extractRawText({ path: filePath })
+    return result.value
+  }
+
+  // 其它按纯文本读
+  return fs.readFileSync(filePath, 'utf-8')
+}
+```
+
+git commit: `feat(server): add file reader for docx and text files`
+
+### Step 2: 后端 - 重构 routes/word.js
+
+打开 `server/routes/word.js`，**完全替换**成：
+
+```js
+import express from 'express'
+import { chatJson, DeepSeekError } from '../services/deepseek.js'
+import { generateDocx } from '../services/docxGen.js'
+import { readFileAsText } from '../services/fileReader.js'
+import { store } from '../store.js'
+
+const router = express.Router()
+
+function buildSystemPrompt(referenceContent) {
+  let base = `你是 Word 文档助手。根据用户的自然语言指令生成文档内容。
+输出纯 JSON:
+{"title":"文档标题","sections":[{"heading":"一级标题","content":"正文段落..."}]}
+要求:
+- content 用普通段落，不要 Markdown 语法
+- 段落之间用 \\n\\n 分隔
+- 根据用户要求决定字数、风格和章节数量
+- 如果用户没指定字数，默认 1500 字左右
+- 如果用户没指定章节数，默认 5-8 个 section
+- 不要输出 JSON 以外任何文字`
+
+  if (referenceContent) {
+    base += `\n\n用户提供了一个参考文件，其内容如下（你可以参考其结构、内容或风格）：\n\n---\n${referenceContent.slice(0, 8000)}\n---`
+  }
+
+  return base
+}
+
+router.post('/', async (req, res) => {
+  try {
+    const { conversationId, prompt, referencePath } = req.body || {}
+
+    if (!prompt) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: '缺少 prompt' } })
+    }
+
+    let referenceContent = null
+    if (referencePath) {
+      try {
+        referenceContent = await readFileAsText(referencePath)
+      } catch (e) {
+        console.warn('[word] 读取参考文件失败:', e.message)
+        // 不阻塞，继续生成
+      }
+    }
+
+    const messages = [
+      { role: 'system', content: buildSystemPrompt(referenceContent) },
+      { role: 'user', content: prompt }
+    ]
+
+    const json = await chatJson(messages)
+    const title = json.title || '未命名文档'
+    if (!Array.isArray(json.sections) || json.sections.length === 0) {
+      return res.status(502).json({ ok: false, error: { code: 'LLM_INVALID_JSON', message: '模型输出缺少 sections 数组' } })
+    }
+
+    const { filename, path: filePath } = await generateDocx({ title, sections: json.sections })
+
+    const artifact = {
+      id: store.genId('art-'),
+      type: 'word',
+      filename,
+      path: filePath,
+      title,
+      conversationId: conversationId || null,
+      createdAt: new Date().toISOString()
+    }
+    store.addArtifact(artifact)
+
+    const preview = json.sections[0]?.content?.slice(0, 200) || ''
+
+    res.json({ ok: true, artifactId: artifact.id, filename, path: filePath, title, preview, sections: json.sections })
+  } catch (e) {
+    console.error('[word]', e)
+    if (e instanceof DeepSeekError) {
+      return res.status(502).json({ ok: false, error: { code: e.code, message: e.message } })
+    }
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: e.message } })
+  }
+})
+
+export default router
+```
+
+git commit: `refactor(server): word route accepts natural language prompt`
+
+### Step 3: 后端 - 重构 routes/ppt.js
+
+打开 `server/routes/ppt.js`，**完全替换**成：
+
+```js
+import express from 'express'
+import { chatJson, DeepSeekError } from '../services/deepseek.js'
+import { generatePptx } from '../services/pptxGen.js'
+import { readFileAsText } from '../services/fileReader.js'
+import { store } from '../store.js'
+
+const router = express.Router()
+
+function buildSystemPrompt(referenceContent) {
+  let base = `你是 PPT 助手。根据用户的自然语言指令生成演示文稿内容。
+输出纯 JSON:
+{"title":"演示标题","slides":[{"title":"页标题","bullets":["要点1","要点2"]}]}
+要求:
+- 第一页是封面（title 为主题，bullets 为副标题/作者/日期）
+- 每页 bullets 3-5 条，每条不超过 25 字
+- 最后一页是总结/致谢
+- 如果用户没指定页数，默认 8 页
+- 不要输出 JSON 以外任何文字`
+
+  if (referenceContent) {
+    base += `\n\n用户提供了一个参考文件，其内容如下（你可以参考其内容来生成 PPT）：\n\n---\n${referenceContent.slice(0, 8000)}\n---`
+  }
+
+  return base
+}
+
+router.post('/', async (req, res) => {
+  try {
+    const { conversationId, prompt, referencePath } = req.body || {}
+
+    if (!prompt) {
+      return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: '缺少 prompt' } })
+    }
+
+    let referenceContent = null
+    if (referencePath) {
+      try {
+        referenceContent = await readFileAsText(referencePath)
+      } catch (e) {
+        console.warn('[ppt] 读取参考文件失败:', e.message)
+      }
+    }
+
+    const messages = [
+      { role: 'system', content: buildSystemPrompt(referenceContent) },
+      { role: 'user', content: prompt }
+    ]
+
+    const json = await chatJson(messages)
+    const title = json.title || '未命名演示'
+    if (!Array.isArray(json.slides) || json.slides.length === 0) {
+      return res.status(502).json({ ok: false, error: { code: 'LLM_INVALID_JSON', message: '模型输出缺少 slides 数组' } })
+    }
+
+    const { filename, path: filePath } = await generatePptx({ title, slides: json.slides })
+
+    const artifact = {
+      id: store.genId('art-'),
+      type: 'ppt',
+      filename,
+      path: filePath,
+      title,
+      conversationId: conversationId || null,
+      createdAt: new Date().toISOString()
+    }
+    store.addArtifact(artifact)
+
+    res.json({ ok: true, artifactId: artifact.id, filename, path: filePath, title, slides: json.slides })
+  } catch (e) {
+    console.error('[ppt]', e)
+    if (e instanceof DeepSeekError) {
+      return res.status(502).json({ ok: false, error: { code: e.code, message: e.message } })
+    }
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: e.message } })
+  }
+})
+
+export default router
+```
+
+git commit: `refactor(server): ppt route accepts natural language prompt`
+
+### Step 4: 前端 - 添加命令解析工具
+
+在 `client/src/lib/commands.js` 文件末尾**追加**以下函数（不要删除已有的 COMMANDS 和 matchCommands）：
+
+```js
+/**
+ * 解析命令行文本，提取命令类型、引号包裹的文件路径、剩余文本
+ * 示例输入: '/word "D:\\some\\path.docx" 帮我写个报告'
+ * 返回: { command: 'word', referencePath: 'D:\\some\\path.docx', prompt: '帮我写个报告' }
+ */
+export function parseCommandLine(text) {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('/')) return null
+
+  // 提取命令名（第一个空格前的部分）
+  const spaceIdx = trimmed.indexOf(' ')
+  if (spaceIdx === -1) return null // 只有 /word 没有参数
+
+  const commandId = trimmed.slice(1, spaceIdx).toLowerCase()
+  const cmd = COMMANDS.find(c => c.id === commandId)
+  if (!cmd) return null
+
+  let rest = trimmed.slice(spaceIdx + 1).trim()
+  let referencePath = null
+
+  // 提取引号里的文件路径
+  const pathMatch = rest.match(/^"([^"]+)"/)
+  if (pathMatch) {
+    referencePath = pathMatch[1]
+    rest = rest.slice(pathMatch[0].length).trim()
+  }
+
+  if (!rest) return null // 有命令但没有实际指令
+
+  return {
+    command: commandId,
+    cardType: cmd.cardType,
+    referencePath,
+    prompt: rest
+  }
+}
+```
+
+git commit: `feat(client): add command line parser for slash commands`
+
+### Step 5: 前端 - 修改 InputBar.jsx
+
+打开 `client/src/components/chat/InputBar.jsx`，**完全替换**成：
+
+```jsx
+import { useState } from 'react'
+import { Send } from 'lucide-react'
+import { useCommand } from '../../hooks/useCommand.js'
+import { parseCommandLine } from '../../lib/commands.js'
+import CommandPalette from './CommandPalette.jsx'
+
+export default function InputBar({ onSend, onCommand, disabled }) {
+  const [text, setText] = useState('')
+  const command = useCommand()
+
+  function handleSelectCommand(cmd) {
+    // 选中命令后，插入 "/word " 到输入框让用户继续输入参数
+    setText(`/${cmd.id} `)
+    command.close()
+  }
+
+  function handleChange(e) {
+    const nextText = e.target.value
+    setText(nextText)
+
+    // 只在输入纯 /xxx 时显示 palette（没有空格说明还在选命令）
+    if (nextText.startsWith('/') && !nextText.includes(' ')) {
+      command.update(nextText)
+    } else {
+      command.close()
+    }
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    if (command.active && command.choose(handleSelectCommand)) return
+
+    const v = text.trim()
+    if (!v || disabled) return
+
+    // 检测是否是 /word ... 或 /ppt ... 命令
+    const parsed = parseCommandLine(v)
+    if (parsed) {
+      onCommand?.(parsed)
+    } else {
+      onSend(v)
+    }
+    setText('')
+    command.close()
+  }
+
+  function handleKey(e) {
+    if (command.handleKeyDown(e, handleSelectCommand)) return
+
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit(e)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="border-t border-[color:var(--border)] bg-[color:var(--bg-secondary)] px-6 py-4">
+      <div className="relative flex items-end gap-3 bg-[color:var(--bg-primary)] border border-[color:var(--border)] rounded-xl px-3 py-2 focus-within:border-[color:var(--accent)]">
+        {command.active && (
+          <CommandPalette
+            matches={command.matches}
+            index={command.index}
+            onSelect={handleSelectCommand}
+            onHover={command.setIndex}
+          />
+        )}
+        <textarea
+          value={text}
+          onChange={handleChange}
+          onKeyDown={handleKey}
+          placeholder='发送消息，输入 "/" 触发命令（如 /word 写报告），Shift+Enter 换行...'
+          rows={1}
+          className="flex-1 resize-none bg-transparent outline-none text-sm max-h-40 py-1"
+        />
+        <button
+          type="submit"
+          disabled={disabled || !text.trim()}
+          className="h-8 w-8 flex items-center justify-center rounded-lg bg-[color:var(--accent)] text-white disabled:opacity-40"
+          aria-label="send"
+        >
+          <Send size={14} />
+        </button>
+      </div>
+    </form>
+  )
+}
+```
+
+git commit: `refactor(client): InputBar inserts command prefix instead of spawning card`
+
+### Step 6: 前端 - 修改 useChat.js
+
+打开 `client/src/hooks/useChat.js`，在现有 `sendUserMessage` 后面、`addCard` 前面，**插入**一个新函数 `sendCommand`：
+
+```js
+  const sendCommand = useCallback(async ({ command, cardType, prompt, referencePath }) => {
+    // 1. 显示用户的命令文本
+    const displayText = referencePath
+      ? `/${command} "${referencePath}" ${prompt}`
+      : `/${command} ${prompt}`
+    const userMsg = { id: uid(), role: 'user', content: displayText }
+    dispatch({ type: 'ADD', msg: userMsg })
+
+    // 2. 显示 loading 卡片
+    const cardId = uid()
+    dispatch({
+      type: 'ADD',
+      msg: { id: cardId, role: 'card', cardType, cardData: { prompt, referencePath }, cardState: 'loading' }
+    })
+
+    // 3. 调用对应的后端 API
+    const endpoint = cardType === 'ppt' ? '/api/ppt' : '/api/word'
+    try {
+      const result = await api.post(endpoint, {
+        conversationId: conversationIdRef.current,
+        prompt,
+        referencePath
+      })
+
+      // 4. 更新卡片为 done 状态
+      const artifact = {
+        id: result.artifactId,
+        type: cardType,
+        filename: result.filename,
+        path: result.path,
+        title: result.title || prompt.slice(0, 24),
+        createdAt: new Date().toISOString()
+      }
+      dispatch({ type: 'UPDATE_CARD', id: cardId, cardState: 'done', cardData: { prompt, result, artifact } })
+
+      // 5. 添加 FileCard + 通知 ArtifactsPanel
+      if (artifact) {
+        window.dispatchEvent(new CustomEvent('agentdev:artifact-created', { detail: artifact }))
+      }
+      dispatch({
+        type: 'ADD',
+        msg: { id: uid(), role: 'card', cardType: 'file', cardData: artifact, cardState: 'done' }
+      })
+    } catch (error) {
+      dispatch({
+        type: 'UPDATE_CARD',
+        id: cardId,
+        cardState: 'done',
+        cardData: { prompt, error: error.message || '生成失败' }
+      })
+    }
+  }, [saveConversation])
+```
+
+然后在 return 语句里加上 `sendCommand`：
+```js
+  return { ...state, sendUserMessage, sendCommand, addCard, updateCard, addFileCard, clear }
+```
+
+git commit: `feat(client): add sendCommand for slash command flow`
+
+### Step 7: 前端 - 修改 ChatArea.jsx
+
+打开 `client/src/components/chat/ChatArea.jsx`，**完全替换**成：
+
+```jsx
+import { useChat } from '../../hooks/useChat.js'
+import MessageList from './MessageList.jsx'
+import InputBar from './InputBar.jsx'
+
+export default function ChatArea() {
+  const { messages, streaming, sendUserMessage, sendCommand, addCard, updateCard, addFileCard } = useChat()
+
+  function handleCommand(parsed) {
+    // parsed = { command, cardType, prompt, referencePath }
+    sendCommand(parsed)
+  }
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0">
+      <MessageList
+        messages={messages}
+        onUpdateCard={updateCard}
+        onFileGenerated={addFileCard}
+      />
+      <InputBar onSend={sendUserMessage} onCommand={handleCommand} disabled={streaming} />
+    </div>
+  )
+}
+```
+
+git commit: `refactor(client): ChatArea passes parsed commands to sendCommand`
+
+### Step 8: 前端 - 简化 WordCard.jsx（移除 form 态）
+
+打开 `client/src/components/cards/WordCard.jsx`，**完全替换**成：
+
+```jsx
+import { FileText, Loader2 } from 'lucide-react'
+
+export default function WordCard({ msg }) {
+  const { cardState = 'loading', cardData = {} } = msg
+
+  if (cardState === 'loading') {
+    return (
+      <div className="my-3 p-4 border border-[color:var(--border)] rounded-lg bg-[color:var(--bg-primary)] shadow-sm max-w-[680px]">
+        <div className="flex items-center gap-3 text-sm text-[color:var(--text-muted)]">
+          <Loader2 size={16} className="animate-spin" />
+          正在生成 Word 文档，约需 10-30 秒...
+        </div>
+      </div>
+    )
+  }
+
+  // done 状态
+  return (
+    <div className="my-3 p-4 border border-[color:var(--border)] rounded-lg bg-[color:var(--bg-primary)] shadow-sm max-w-[680px]">
+      <div className="flex items-center gap-2 mb-2">
+        <FileText size={16} className="text-[color:var(--accent)]" />
+        <span className="font-medium text-sm">
+          {cardData.error ? 'Word 生成失败' : 'Word 文档已生成'}
+        </span>
+      </div>
+      {cardData.error && (
+        <div className="text-xs text-[color:var(--error)]">{cardData.error}</div>
+      )}
+      {cardData.result?.title && (
+        <div className="text-xs text-[color:var(--text-muted)]">标题：{cardData.result.title}</div>
+      )}
+      {cardData.result?.preview && (
+        <div className="mt-2 text-xs bg-[color:var(--bg-tertiary)] rounded-md p-2 text-[color:var(--text-muted)] line-clamp-3">
+          {cardData.result.preview}...
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+git commit: `refactor(client): simplify WordCard to loading+done states only`
+
+### Step 9: 前端 - 简化 PptCard.jsx（移除 form 态）
+
+打开 `client/src/components/cards/PptCard.jsx`，**完全替换**成：
+
+```jsx
+import { Loader2, Presentation } from 'lucide-react'
+
+export default function PptCard({ msg }) {
+  const { cardState = 'loading', cardData = {} } = msg
+
+  if (cardState === 'loading') {
+    return (
+      <div className="my-3 p-4 border border-[color:var(--border)] rounded-lg bg-[color:var(--bg-primary)] shadow-sm max-w-[680px]">
+        <div className="flex items-center gap-3 text-sm text-[color:var(--text-muted)]">
+          <Loader2 size={16} className="animate-spin text-[color:var(--success)]" />
+          正在生成 PPT，约需 15-40 秒...
+        </div>
+      </div>
+    )
+  }
+
+  // done 状态
+  return (
+    <div className="my-3 p-4 border border-[color:var(--border)] rounded-lg bg-[color:var(--bg-primary)] shadow-sm max-w-[680px]">
+      <div className="flex items-center gap-2 mb-2">
+        <Presentation size={16} className="text-[color:var(--success)]" />
+        <span className="font-medium text-sm">
+          {cardData.error ? 'PPT 生成失败' : 'PPT 已生成'}
+        </span>
+      </div>
+      {cardData.error && (
+        <div className="text-xs text-[color:var(--error)]">{cardData.error}</div>
+      )}
+      {cardData.result?.title && (
+        <div className="text-xs text-[color:var(--text-muted)]">标题：{cardData.result.title}</div>
+      )}
+    </div>
+  )
+}
+```
+
+git commit: `refactor(client): simplify PptCard to loading+done states only`
+
+### Step 10: 前端 - 更新 MessageList.jsx
+
+由于 WordCard 和 PptCard 不再需要 onUpdate 和 onFileGenerated props，更新 `client/src/components/chat/MessageList.jsx`：
+
+把 WordCard 和 PptCard 的渲染行改成不传这些 props：
+```jsx
+          if (m.cardType === 'word') {
+            return <WordCard key={m.id} msg={m} />
+          }
+          if (m.cardType === 'ppt') {
+            return <PptCard key={m.id} msg={m} />
+          }
+```
+
+git commit: `refactor(client): remove unused props from card components in MessageList`
+
+### Step 11: 前端 - 更新 lib/api.js
+
+在 `client/src/lib/api.js` 里，确认有 `generateWord` 函数。如果没有就在 `generatePpt` 下面加：
+
+```js
+export function generateWord(payload) {
+  return api.post('/api/word', payload)
+}
+```
+
+git commit（如果有改动的话）: `feat(client): add generateWord api helper`
+
+### Step 12: 验证
+
+1. 跑 `npm --prefix server install` 安装 mammoth
+2. 跑 `npm --prefix client run build`，必须零错误
+3. 后台启 `npm run dev`，等 5~8 秒
+4. `curl --noproxy "*" http://localhost:5173/` 返回 200
+5. `curl --noproxy "*" http://localhost:8787/api/health` 返回 ok
+6. 验证新的 /api/word 接口（不需要真 key，只看路由是否通）：
+    curl --noproxy "*" -X POST http://localhost:8787/api/word -H "Content-Type: application/json" -d "{\"prompt\":\"test\"}"
+   应返回 502（因为没有真 key）或正常 JSON，不应返回 400 说缺字段。
+7. kill 掉所有 node 进程
+
+最后停下来：
+1. 输出 `npm --prefix client run build` 最后 5 行
+2. 输出 `git status` 和 `git log --oneline -15`
+3. 报告完成

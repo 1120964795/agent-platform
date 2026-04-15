@@ -5,17 +5,19 @@
   "description": "Lightweight AionUi-style agent app",
   "main": "electron/main.js",
   "scripts": {
-    "setup": "npm install && npm --prefix client install && npm --prefix server install",
-    "dev": "concurrently -n server,client -c cyan,magenta \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "setup": "npm install && npm --prefix client install",
     "build:client": "npm --prefix client run build",
-    "electron:dev": "concurrently -n server,client,electron -c cyan,magenta,yellow \"npm --prefix server run dev\" \"npm --prefix client run dev\" \"node -e \\\"setTimeout(()=>require('child_process').execSync('electron .', {stdio:'inherit'}),5000)\\\"\"",
+    "electron:dev": "concurrently -n client,electron -c magenta,yellow \"npm --prefix client run dev\" \"node -e \\\"setTimeout(()=>require('child_process').execSync('electron .', {stdio:'inherit'}),3000)\\\"\"",
     "electron:build": "npm run build:client && electron-builder --win",
-    "electron:start": "npm run build:client && electron ."
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
+    "@vitest/ui": "^4.1.4",
     "concurrently": "^8.2.2",
     "electron": "33.2.1",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "vitest": "^4.1.4"
   },
   "build": {
     "appId": "com.agentdev.lite",
@@ -26,16 +28,14 @@
     },
     "files": [
       "electron/**/*",
-      "package.json"
+      "!electron/__tests__/**/*",
+      "package.json",
+      "resources/**/*"
     ],
     "extraResources": [
       {
-        "from": "server",
-        "to": "server",
-        "filter": [
-          "**/*",
-          "!node_modules/.cache/**"
-        ]
+        "from": "resources/skills",
+        "to": "skills"
       },
       {
         "from": "client/dist",
@@ -46,7 +46,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": null
@@ -57,5 +59,11 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }
+  },
+  "dependencies": {
+    "docx": "^9.6.1",
+    "gray-matter": "^4.0.3",
+    "mammoth": "^1.12.0",
+    "pptxgenjs": "^4.0.1"
   }
 }

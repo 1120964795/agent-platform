@@ -739,7 +739,7 @@ async function handleChatSend(evt, {convId, messages}) {
 **Files:**
 - Modify: `package.json`（root） — `build.extraResources` 改为 `[{from: "resources/skills", to: "skills"}, {from: "client/dist", to: "client/dist"}]`；`build.files` 增加 `electron/**/*` `resources/**/*`
 
-- [ ] 改 + 跑一次 `npm run electron:build` 看是否能产 exe
+- [x] 改 + 跑一次 `npm run electron:build` 看是否能产 exe
 - [ ] **Commit**：`build: bundle skills/ as extra resource`
 
 ---
@@ -755,7 +755,8 @@ async function handleChatSend(evt, {convId, messages}) {
 
 `scripts.dev` 删除（已废弃浏览器纯前端开发模式）。
 
-- [ ] 修改并测试 `npm run electron:dev`
+- [x] 修改 `scripts.electron:dev` 并删除 `scripts.dev`
+- [ ] 手动启动 `npm run electron:dev`（长驻 GUI 流程，未在自动验证中运行）
 - [ ] **Commit**：`build: simplify electron:dev script`
 
 ---
@@ -765,7 +766,7 @@ async function handleChatSend(evt, {convId, messages}) {
 **Files:**
 - Modify: `README.md` — 反映新架构、新功能、新 skill 体系；附 spec §10.3 checklist
 
-- [ ] 重写 README（保留中文,简短,结构化）
+- [x] 重写 README（保留中文,简短,结构化）
 - [ ] **Commit**：`docs: rewrite README for new tool/skill architecture`
 
 ---
@@ -777,3 +778,45 @@ async function handleChatSend(evt, {convId, messages}) {
 **最终验收**：spec §10.3 的 8 项 checklist 全部勾选;`npm run electron:build` 产出可安装 exe；exe 安装到干净机器跑核心 5 个用例无报错。
 
 实现完成后,把本 plan 文件追加一段"实施结果"小节记录：哪些任务发生偏差、原因、与 spec 的差异是否需回补。
+
+---
+
+## 实施结果
+
+- 阶段 A 已完成核心迁移：Electron 主进程承接配置、会话、文件浏览、聊天 IPC；前端聊天流从 HTTP/SSE 改为 IPC 事件；Express 不再被启动或打包。
+- 阶段 B 已完成工具执行器、confirm、文件工具、shell 三段策略、env 工具、文档生成工具、user_rules、skill registry/loader、内置 5 个 skill、function-calling chat loop、skills/rules IPC。
+- 阶段 C 已完成工具卡片、shell 输出卡、skill 加载徽标、工作区/shell 设置、Skills 管理、用户偏好管理，并清理 `/word` `/ppt` `/local` 旧入口。
+- 阶段 D 已完成打包资源配置、dev 脚本简化和 README 重写。
+
+### 偏差与原因
+
+- 未删除 `server/` 目录：开始实施前工作树中已有 `server/routes/chat.js`、`server/services/fileReader.js` 等未提交改动。为避免丢失用户改动，暂时保留目录；当前 `package.json` 已不启动、不打包 `server/`。
+- 未按计划逐任务 commit：用户没有要求提交，且工作树存在既有未提交改动，因此没有制造混合 commit。
+- 前端确认 modal 只提供骨架：生产路径按 spec 使用 Electron 原生 dialog；dev fallback 未接线。
+- 手动 checklist 未逐项实机验证：已完成自动测试、前端构建和 Electron 打包验证，实际模型调用仍需要配置真实 DeepSeek API Key 后回归。
+
+### 验证记录
+
+- `npm test`：通过。
+- `npm run build:client`：通过。
+- `node --check electron/**/*.js`：通过。
+- `npm run electron:build`：通过，产出 `dist-electron\AgentDev Lite Setup 0.1.0.exe`。
+
+### 阶段 E：收尾验收与硬化
+
+- 新增 `electron/__tests__/packaging.test.js`，锁定桌面脚本不再启动旧 `server`、打包资源必须包含 `skills` 与 `client/dist`、README 必须保留 8 项手动回归 checklist。
+- `package.json` 的 `build.files` 增加 `!electron/__tests__/**/*`，避免测试文件进入安装包。
+- 重新打包后确认 `dist-electron/win-unpacked/resources/app/server` 不存在，`dist-electron/win-unpacked/resources/app/electron/__tests__` 不存在，`dist-electron/win-unpacked/resources/skills` 包含 5 个内置 skill。
+
+### 阶段 E 验证记录
+
+- `npm test`：通过，9 个测试文件 / 25 个用例。
+- `node --check electron/**/*.js`：通过。
+- `npm run electron:build`：通过，产出 `dist-electron\AgentDev Lite Setup 0.1.0.exe`。
+
+### 阶段 E 热修：安装版缺少 gray-matter
+
+- 现象：安装后启动时报 `Cannot find module 'gray-matter'`，调用链来自 `electron/skills/loader.js` 和 `electron/skills/registry.js`。
+- 原因：`gray-matter` 是主进程运行时依赖，但之前放在 `devDependencies`；electron-builder 生产打包不会把 dev dependency 放进安装版 `resources/app/node_modules`。
+- 修复：将 `gray-matter` 移到 `dependencies`，并在 `electron/__tests__/packaging.test.js` 增加运行时依赖必须位于 production dependencies 的防回退断言。
+- 验证：`npm test` 通过，9 个测试文件 / 25 个用例；`npm run electron:build` 通过；打包后的 `resources/app/node_modules/gray-matter` 存在；在 `dist-electron/win-unpacked/resources/app` 下执行 `require('./electron/skills/loader'); require('./electron/tools')` 通过。

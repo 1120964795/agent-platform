@@ -1,0 +1,540 @@
+你现在要把 AgentDev Lite 打包成 Electron 桌面应用（.exe），并添加本地文件查询、读取、创建能力。
+
+工作目录：D:\claude project\agentdev-lite\
+Windows 路径里有空格，shell 命令里所有路径都加双引号。
+
+## 总体架构
+
+- Electron 主进程用 child_process.fork() 启动 server/index.js（ESM）
+- 生产模式：Express 同时服务 API + client/dist 静态文件，BrowserWindow 加载 http://localhost:8787
+- 开发模式：分别启 vite + Express，BrowserWindow 加载 http://localhost:5173
+- 数据目录（data/ generated/）通过环境变量传给 server，打包后存在 app.getPath('userData')
+- 本地文件能力：Electron 原生文件对话框（IPC）+ 后端文件列表/搜索 API
+
+## 严格按以下步骤执行
+
+### Step 1: 安装 Electron 依赖
+
+```bash
+cd "D:/claude project/agentdev-lite"
+npm install --save-dev electron@33.2.1 electron-builder@25.1.8
+```
+
+git commit: `chore: add electron and electron-builder`
+
+### Step 2: 创建 electron/main.js
+
+创建文件 `electron/main.js`（这是 CommonJS 文件，不是 ESM）：
+
+```js
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
+const { fork } = require('child_process')
+const path = require('path')
+const fs = require('fs')
+
+const isDev = !app.isPackaged
+const PORT = 8787
+
+let serverProcess = null
+let mainWindow = null
+
+// 数据目录：开发时用项目根目录，打包后用 userData
+const rootDir = isDev
+  ? path.join(__dirname, '..')
+  : process.resourcesPath
+
+const userDataPath = app.getPath('userData')
+const dataDir = isDev ? path.join(rootDir, 'data') : path.join(userDataPath, 'data')
+const generatedDir = isDev ? path.join(rootDir, 'generated') : path.join(userDataPath, 'generated')
+
+// 确保目录存在
+;[dataDir, generatedDir].forEach(d => {
+  if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true })
+})
+
+function startServer() {
+  const serverScript = path.join(rootDir, 'server', 'index.js')
+
+  serverProcess = fork(serverScript, [], {
+    env: {
+      ...process.env,
+      PORT: String(PORT),
+      NODE_ENV: isDev ? 'development' : 'production',
+      AGENTDEV_DATA_DIR: dataDir,
+      AGENTDEV_GENERATED_DIR: generatedDir,
+      AGENTDEV_CLIENT_DIST: isDev ? '' : path.join(rootDir, 'client', 'dist')
+    },
+    cwd: rootDir
+  })
+
+  return new Promise((resolve) => {
+    serverProcess.on('message', (msg) => {
+      if (msg === 'ready') resolve()
+    })
+    // 兜底 3 秒
+    setTimeout(resolve, 3000)
+  })
+}
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    title: 'AgentDev Lite',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+
+  const url = isDev ? 'http://localhost:5173' : `http://localhost:${PORT}`
+  mainWindow.loadURL(url)
+
+  if (isDev) mainWindow.webContents.openDevTools()
+}
+
+// ========== IPC handlers ==========
+
+// 选择文件
+ipcMain.handle('select-file', async (_event, options) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: options?.filters || [
+      { name: '文档', extensions: ['docx', 'pptx', 'pdf', 'txt', 'md'] },
+      { name: '所有文件', extensions: ['*'] }
+    ]
+  })
+  return result.canceled ? null : result.filePaths[0]
+})
+
+// 选择目录
+ipcMain.handle('select-directory', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  })
+  return result.canceled ? null : result.filePaths[0]
+})
+
+// 用系统默认程序打开文件
+ipcMain.handle('open-path', async (_event, filePath) => {
+  await shell.openPath(filePath)
+})
+
+// 获取常用目录路径
+ipcMain.handle('get-paths', () => ({
+  home: app.getPath('home'),
+  desktop: app.getPath('desktop'),
+  documents: app.getPath('documents'),
+  downloads: app.getPath('downloads'),
+  userData: userDataPath,
+  generated: generatedDir
+}))
+
+// ========== App lifecycle ==========
+
+app.whenReady().then(async () => {
+  await startServer()
+  createWindow()
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+})
+
+app.on('window-all-closed', () => {
+  if (serverProcess) {
+    serverProcess.kill()
+    serverProcess = null
+  }
+  app.quit()
+})
+
+app.on('before-quit', () => {
+  if (serverProcess) {
+    serverProcess.kill()
+    serverProcess = null
+  }
+})
+```
+
+git commit: `feat(electron): add main process with IPC file dialogs`
+
+### Step 3: 创建 electron/preload.js
+
+创建文件 `electron/preload.js`（CommonJS）：
+
+```js
+const { contextBridge, ipcRenderer } = require('electron')
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  isElectron: true,
+  selectFile: (options) => ipcRenderer.invoke('select-file', options),
+  selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  openPath: (filePath) => ipcRenderer.invoke('open-path', filePath),
+  getPaths: () => ipcRenderer.invoke('get-paths')
+})
+```
+
+git commit: `feat(electron): add preload script with IPC bridge`
+
+### Step 4: 修改 server/store.js — 支持环境变量数据目录
+
+打开 `server/store.js`，把前面的路径定义改成：
+
+找到：
+```js
+const DATA_DIR = path.join(__dirname, '..', 'data')
+const GENERATED_DIR = path.join(__dirname, '..', 'generated')
+```
+
+替换成：
+```js
+const DATA_DIR = process.env.AGENTDEV_DATA_DIR || path.join(__dirname, '..', 'data')
+const GENERATED_DIR = process.env.AGENTDEV_GENERATED_DIR || path.join(__dirname, '..', 'generated')
+```
+
+git commit: `feat(server): support env-based data and generated dirs`
+
+### Step 5: 修改 server/index.js — 生产模式服务静态文件 + ready 信号
+
+打开 `server/index.js`。
+
+**第一处**：把 CORS 改成允许所有 localhost（Electron 加载时 origin 是 http://localhost:8787）：
+找到：
+```js
+app.use(cors({ origin: 'http://localhost:5173', credentials: true }))
+```
+替换成：
+```js
+app.use(cors({ origin: true, credentials: true }))
+```
+
+**第二处**：在错误兜底 `app.use((err, ...)` **之前**，加入生产模式静态服务：
+
+```js
+// 生产模式：服务前端 dist
+const clientDist = process.env.AGENTDEV_CLIENT_DIST
+if (clientDist) {
+  const fs = await import('fs')
+  if (fs.existsSync(clientDist)) {
+    app.use(express.static(clientDist))
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api') || req.path.startsWith('/files')) return next()
+      res.sendFile(path.join(clientDist, 'index.html'))
+    })
+  }
+}
+```
+
+注意：server/index.js 是 ESM 顶层文件，上面的 `await import('fs')` 在顶层是合法的。但如果你觉得不方便，也可以在文件开头 `import fs from 'fs'`（其实 store.js 已经用了 fs，这里直接 import 就好）。更简单的做法是在文件顶部加 `import fs from 'fs'`，然后用 `fs.existsSync`。
+
+**第三处**：在 `app.listen` 回调里加 process.send：
+
+找到：
+```js
+app.listen(PORT, () => {
+  console.log(`[server] running on http://localhost:${PORT}`)
+})
+```
+替换成：
+```js
+app.listen(PORT, () => {
+  console.log(`[server] running on http://localhost:${PORT}`)
+  if (process.send) process.send('ready')
+})
+```
+
+git commit: `feat(server): add production static serving and ready signal`
+
+### Step 6: 创建 server/routes/files.js — 文件列表和搜索 API
+
+创建文件 `server/routes/files.js`：
+
+```js
+import express from 'express'
+import fs from 'fs'
+import path from 'path'
+
+const router = express.Router()
+
+// 列出目录内容
+router.get('/list', (req, res) => {
+  const dir = req.query.dir
+  if (!dir) return res.status(400).json({ ok: false, error: { message: '缺少 dir 参数' } })
+
+  try {
+    if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+      return res.status(400).json({ ok: false, error: { message: '目录不存在' } })
+    }
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    const items = entries
+      .filter(e => !e.name.startsWith('.'))
+      .map(e => {
+        const fullPath = path.join(dir, e.name)
+        const isDir = e.isDirectory()
+        let size = null
+        try { if (!isDir) size = fs.statSync(fullPath).size } catch {}
+        return {
+          name: e.name,
+          path: fullPath,
+          isDirectory: isDir,
+          ext: isDir ? null : path.extname(e.name).toLowerCase(),
+          size
+        }
+      })
+      .sort((a, b) => {
+        if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1
+        return a.name.localeCompare(b.name)
+      })
+
+    res.json({ ok: true, dir, items })
+  } catch (e) {
+    res.status(500).json({ ok: false, error: { message: e.message } })
+  }
+})
+
+// 搜索文件
+router.get('/search', (req, res) => {
+  const { query, dir, maxDepth = '3' } = req.query
+  if (!query || !dir) return res.status(400).json({ ok: false, error: { message: '缺少 query 或 dir' } })
+
+  const results = []
+  const pattern = query.toLowerCase()
+  const limit = 50
+
+  function walk(currentDir, depth) {
+    if (depth > Number(maxDepth) || results.length >= limit) return
+    try {
+      const entries = fs.readdirSync(currentDir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.name.startsWith('.') || entry.name === 'node_modules') continue
+        const fullPath = path.join(currentDir, entry.name)
+        if (entry.name.toLowerCase().includes(pattern)) {
+          results.push({
+            name: entry.name,
+            path: fullPath,
+            isDirectory: entry.isDirectory(),
+            ext: entry.isFile() ? path.extname(entry.name).toLowerCase() : null
+          })
+        }
+        if (entry.isDirectory() && results.length < limit) {
+          walk(fullPath, depth + 1)
+        }
+      }
+    } catch {}
+  }
+
+  walk(dir, 0)
+  res.json({ ok: true, results })
+})
+
+export default router
+```
+
+然后在 `server/index.js` 里挂载路由，在已有路由声明区域加：
+```js
+import filesRouter from './routes/files.js'
+```
+和：
+```js
+app.use('/api/files', filesRouter)
+```
+
+git commit: `feat(server): add file list and search API`
+
+### Step 7: 修改 client/src/lib/api.js — 添加文件和 Electron 相关函数
+
+在 `client/src/lib/api.js` 末尾追加：
+
+```js
+// 本地文件操作
+export function listFiles(dir) {
+  return api.get(`/api/files/list?dir=${encodeURIComponent(dir)}`)
+}
+
+export function searchFiles(query, dir) {
+  return api.get(`/api/files/search?query=${encodeURIComponent(query)}&dir=${encodeURIComponent(dir)}`)
+}
+```
+
+并且修改已有的 openFile 函数，优先用 Electron 原生打开：
+找到：
+```js
+export function openFile(path) {
+  const query = new URLSearchParams({ path }).toString()
+  return api.get(`/api/open-file?${query}`)
+}
+```
+替换成：
+```js
+export async function openFile(filePath) {
+  if (window.electronAPI?.openPath) {
+    return window.electronAPI.openPath(filePath)
+  }
+  const query = new URLSearchParams({ path: filePath }).toString()
+  return api.get(`/api/open-file?${query}`)
+}
+```
+
+git commit: `feat(client): add file list/search API and electron-aware openFile`
+
+### Step 8: 修改 InputBar.jsx — 添加附件按钮
+
+打开 `client/src/components/chat/InputBar.jsx`。
+
+**改 import**：加上 Paperclip 图标：
+```jsx
+import { Send, Paperclip } from 'lucide-react'
+```
+
+**加函数**（在 handleSubmit 前面）：
+```jsx
+  async function handleAttachFile() {
+    let filePath = null
+    if (window.electronAPI?.selectFile) {
+      filePath = await window.electronAPI.selectFile()
+    } else {
+      filePath = window.prompt('输入文件绝对路径:')
+    }
+    if (filePath) {
+      setText(current => {
+        const trimmed = current.trim()
+        // 如果已经有 /command 前缀，在命令后插入文件路径
+        if (trimmed.startsWith('/') && trimmed.includes(' ')) {
+          const spaceIdx = trimmed.indexOf(' ')
+          return `${trimmed.slice(0, spaceIdx + 1)}"${filePath}" ${trimmed.slice(spaceIdx + 1)}`
+        }
+        if (trimmed.startsWith('/')) {
+          return `${trimmed} "${filePath}" `
+        }
+        // 否则直接插入
+        return `${trimmed} "${filePath}" `.trim()
+      })
+    }
+  }
+```
+
+**改 JSX**：在 textarea 前面加附件按钮：
+找到 textarea 标签所在位置，在 textarea **之前**加：
+```jsx
+        <button
+          type="button"
+          onClick={handleAttachFile}
+          className="h-8 w-8 flex items-center justify-center rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-tertiary)]"
+          aria-label="附件"
+          title="选择本地文件"
+        >
+          <Paperclip size={14} />
+        </button>
+```
+
+git commit: `feat(client): add file attachment button in InputBar`
+
+### Step 9: 修改根 package.json — 添加 Electron 脚本和 build 配置
+
+打开根目录 `package.json`，**完全替换**成：
+
+```json
+{
+  "name": "agentdev-lite",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lightweight AionUi-style agent app",
+  "main": "electron/main.js",
+  "scripts": {
+    "setup": "npm install && npm --prefix client install && npm --prefix server install",
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "build:client": "npm --prefix client run build",
+    "electron:dev": "concurrently -n server,client,electron -c cyan,magenta,yellow \"npm --prefix server run dev\" \"npm --prefix client run dev\" \"node -e \\\"setTimeout(()=>require('child_process').execSync('electron .', {stdio:'inherit'}),5000)\\\"\"",
+    "electron:build": "npm run build:client && electron-builder --win",
+    "electron:start": "npm run build:client && electron ."
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.agentdev.lite",
+    "productName": "AgentDev Lite",
+    "asar": false,
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "server",
+        "filter": [
+          "**/*",
+          "!node_modules/.cache/**"
+        ]
+      },
+      {
+        "from": "client/dist",
+        "to": "client/dist"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
+```
+
+git commit: `feat: add electron build scripts and electron-builder config`
+
+### Step 10: 修改 .gitignore
+
+在 `.gitignore` 末尾追加：
+```
+dist-electron/
+```
+
+git commit: `chore: ignore electron build output`
+
+### Step 11: 验证
+
+1. `npm install` — 安装 electron + electron-builder（可能比较慢）
+2. `npm run build:client` — 构建前端，必须成功
+3. 快速冒烟测试 Electron 开发模式：
+   - 后台启 `npm --prefix server run dev`，等 3 秒
+   - 后台启 `npm --prefix client run dev`，等 5 秒
+   - 确认 http://localhost:5173 和 http://localhost:8787/api/health 都通（`curl --noproxy "*" ...`）
+   - kill 掉所有 node 进程和 vite 进程
+4. 测试 server 路由：
+   - 后台启 `npm --prefix server run dev`，等 3 秒
+   - `curl --noproxy "*" "http://localhost:8787/api/files/list?dir=D:/claude%20project/agentdev-lite"` 应返回文件列表 JSON
+   - `curl --noproxy "*" "http://localhost:8787/api/files/search?query=index&dir=D:/claude%20project/agentdev-lite"` 应返回搜索结果
+   - kill 掉 node 进程
+5. `npm run electron:build` — 构建 exe（这一步可能要 3-5 分钟，等耐心点）
+   - 如果 electron-builder 下载 electron 二进制卡住（网络问题），尝试设置镜像：
+     `set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/`
+     然后重跑
+   - 如果因为网络问题实在跑不出来，**跳过这一步，报告失败原因**，不要卡死
+6. 如果 exe 构建成功，查看 `dist-electron/` 目录，应该有安装包或 unpacked 文件夹
+
+最后停下来：
+1. 输出 `npm run build:client` 最后 5 行
+2. 输出 /api/files/list 和 /api/files/search 的 curl 结果（前 20 行）
+3. 输出 `ls dist-electron/` 结果（如果构建了 exe）或报告为什么没构建
+4. 输出 `git status` 和 `git log --oneline -15`
+5. 报告完成

@@ -5,97 +5,115 @@ export class ApiError extends Error {
   }
 }
 
-async function request(method, url, body) {
-  const resp = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined
-  })
-  const json = await resp.json().catch(() => ({}))
-  if (!resp.ok || json.ok === false) {
-    const err = json.error || { code: 'HTTP', message: `HTTP ${resp.status}` }
-    throw new ApiError(err.code, err.message)
+function electronAPI() {
+  const electron = window.electronAPI
+  if (!electron?.invoke) throw new ApiError('NOT_SUPPORTED', 'Electron IPC is not available.')
+  return electron
+}
+
+function unwrap(result) {
+  if (result?.ok === false) {
+    const error = result.error || { code: 'IPC_ERROR', message: 'IPC request failed.' }
+    throw new ApiError(error.code || 'IPC_ERROR', error.message || 'IPC request failed.')
   }
-  return json
+  return result
+}
+
+async function invoke(channel, payload) {
+  return unwrap(await electronAPI().invoke(channel, payload))
+}
+
+function parseUrl(url) {
+  return new URL(url, 'http://agentdev.local')
+}
+
+async function get(url) {
+  if (url === '/api/config') return invoke('config:get')
+  if (url === '/api/artifacts') return invoke('artifacts:list')
+  if (url.startsWith('/api/conversations/')) return invoke('conversations:get', { id: decodeURIComponent(url.slice('/api/conversations/'.length)) })
+  if (url.startsWith('/api/files/list')) {
+    const parsed = parseUrl(url)
+    return invoke('files:list', { dir: parsed.searchParams.get('dir') })
+  }
+  if (url.startsWith('/api/files/search')) {
+    const parsed = parseUrl(url)
+    return invoke('files:search', { query: parsed.searchParams.get('query'), dir: parsed.searchParams.get('dir') })
+  }
+  throw new ApiError('UNSUPPORTED_ROUTE', `No IPC mapping for GET ${url}`)
+}
+
+async function post(url, body) {
+  if (url === '/api/config') return invoke('config:set', body)
+  if (url === '/api/conversations') return invoke('conversations:upsert', body)
+  throw new ApiError('UNSUPPORTED_ROUTE', `No IPC mapping for POST ${url}`)
+}
+
+function stream(arg, legacyBody, legacyOnDelta, legacyOnDone, legacyOnError) {
+  const options = typeof arg === 'string'
+    ? { channel: arg === '/api/chat' ? 'chat:send' : arg, payload: legacyBody, onDelta: legacyOnDelta, onDone: legacyOnDone, onError: legacyOnError }
+    : arg
+
+  const { channel, payload, onDelta, onDone, onError, onToolStart, onToolLog, onToolResult, onToolError, onSkillLoaded } = options
+  const electron = electronAPI()
+  const cleanupFns = []
+  let closed = false
+
+  const cleanup = () => {
+    if (closed) return
+    closed = true
+    while (cleanupFns.length) cleanupFns.pop()()
+  }
+  const listen = (event, handler) => {
+    cleanupFns.push(electron.on(event, (data) => {
+      if (!closed && data.convId === payload.convId) handler(data)
+    }))
+  }
+
+  listen('chat:delta', (data) => onDelta?.(data.text))
+  listen('chat:tool-start', (data) => onToolStart?.(data))
+  listen('chat:tool-log', (data) => onToolLog?.(data))
+  listen('chat:tool-result', (data) => onToolResult?.(data))
+  listen('chat:tool-error', (data) => onToolError?.(data))
+  listen('chat:skill-loaded', (data) => onSkillLoaded?.(data))
+  listen('chat:done', () => { cleanup(); onDone?.() })
+  listen('chat:error', (data) => {
+    cleanup()
+    const error = data.error || { code: 'CHAT_ERROR', message: 'Chat failed.' }
+    onError?.(new ApiError(error.code, error.message))
+  })
+
+  electron.invoke(channel, payload).catch((error) => {
+    cleanup()
+    onError?.(error)
+  })
+
+  return cleanup
 }
 
 export const api = {
-  get: (url) => request('GET', url),
-  post: (url, body) => request('POST', url, body),
-  del: (url) => request('DELETE', url),
-  patch: (url, body) => request('PATCH', url, body),
-
-  /** SSE 流式，回调式。返回 abort 函数 */
-  async stream(url, body, onDelta, onDone, onError) {
-    const ctrl = new AbortController()
-    try {
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: ctrl.signal
-      })
-      if (!resp.ok) {
-        onError?.(new ApiError('HTTP', `HTTP ${resp.status}`))
-        return () => ctrl.abort()
-      }
-      const reader = resp.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-        for (const line of lines) {
-          const t = line.trim()
-          if (!t.startsWith('data:')) continue
-          try {
-            const obj = JSON.parse(t.slice(5).trim())
-            if (obj.delta) onDelta?.(obj.delta)
-            else if (obj.done) onDone?.()
-            else if (obj.error) onError?.(new ApiError(obj.error.code, obj.error.message))
-          } catch {}
-        }
-      }
-      onDone?.()
-    } catch (e) {
-      if (e.name !== 'AbortError') onError?.(e)
-    }
-    return () => ctrl.abort()
-  }
+  get,
+  post,
+  del: async (url) => { throw new ApiError('UNSUPPORTED_ROUTE', `No IPC mapping for DELETE ${url}`) },
+  patch: async (url) => { throw new ApiError('UNSUPPORTED_ROUTE', `No IPC mapping for PATCH ${url}`) },
+  stream,
+  invoke
 }
 
-export function getConfig() {
-  return api.get('/api/config')
-}
-
-export function setConfig(patch) {
-  return api.post('/api/config', patch)
-}
-
-export function generatePpt(payload) {
-  return api.post('/api/ppt', payload)
-}
-
-export function generateWord(payload) {
-  return api.post('/api/word', payload)
-}
+export function getConfig() { return invoke('config:get') }
+export function setConfig(patch) { return invoke('config:set', patch) }
+export function listSkills() { return invoke('skills:list') }
+export function reloadSkills() { return invoke('skills:reload') }
+export function createSkill(payload) { return invoke('skills:create', payload) }
+export function deleteSkill(name) { return invoke('skills:delete', { name }) }
+export function copyBuiltinSkill(payload) { return invoke('skills:copyBuiltin', payload) }
+export function openSkillsFolder() { return invoke('skills:openFolder') }
+export function listRules() { return invoke('rules:list') }
+export function deleteRule(payload) { return invoke('rules:delete', payload) }
 
 export async function openFile(filePath) {
-  if (window.electronAPI?.openPath) {
-    return window.electronAPI.openPath(filePath)
-  }
-  const query = new URLSearchParams({ path: filePath }).toString()
-  return api.get(`/api/open-file?${query}`)
+  if (window.electronAPI?.openPath) return unwrap(await window.electronAPI.openPath(filePath))
+  return invoke('shell:openPath', filePath)
 }
 
-// 本地文件操作
-export function listFiles(dir) {
-  return api.get(`/api/files/list?dir=${encodeURIComponent(dir)}`)
-}
-
-export function searchFiles(query, dir) {
-  return api.get(`/api/files/search?query=${encodeURIComponent(query)}&dir=${encodeURIComponent(dir)}`)
-}
+export function listFiles(dir) { return invoke('files:list', { dir }) }
+export function searchFiles(query, dir) { return invoke('files:search', { query, dir }) }

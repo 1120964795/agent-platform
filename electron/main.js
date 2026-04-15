@@ -1,50 +1,58 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron')
-const { fork } = require('child_process')
+const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const { registerAll } = require('./ipc')
 
 const isDev = !app.isPackaged
-const PORT = 8787
-
-let serverProcess = null
 let mainWindow = null
 
-// 数据目录：开发时用项目根目录，打包后用 userData
-const rootDir = isDev
-  ? path.join(__dirname, '..')
-  : process.resourcesPath
+const rootDir = isDev ? path.join(__dirname, '..') : process.resourcesPath
+const devUrl = process.env.AGENTDEV_DEV_SERVER_URL || 'http://localhost:5173'
 
-const userDataPath = app.getPath('userData')
-const dataDir = isDev ? path.join(rootDir, 'data') : path.join(userDataPath, 'data')
-const generatedDir = isDev ? path.join(rootDir, 'generated') : path.join(userDataPath, 'generated')
+function renderLoadFailure(reason) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const safeReason = String(reason || 'Unknown error').replace(/[<>&]/g, '')
+  const html = `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>AgentDev Lite</title>
+        <style>
+          body { font-family: Segoe UI, Arial, sans-serif; margin: 0; background: #f7f7f9; color: #222; }
+          .wrap { max-width: 760px; margin: 64px auto; padding: 0 24px; }
+          h1 { font-size: 22px; margin-bottom: 12px; }
+          .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; }
+          code { white-space: pre-wrap; word-break: break-word; font-family: Consolas, monospace; }
+        </style>
+      </head>
+      <body>
+        <div class="wrap">
+          <h1>UI failed to load</h1>
+          <div class="card">
+            <p>The renderer could not be loaded.</p>
+            <p><strong>Reason</strong></p>
+            <code>${safeReason}</code>
+            <p>In development, start the Vite dev server first. In production, rebuild the client bundle.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+  mainWindow.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(html)}`)
+}
 
-// 确保目录存在
-;[dataDir, generatedDir].forEach(d => {
-  if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true })
-})
+async function loadRenderer() {
+  if (isDev) {
+    await mainWindow.loadURL(devUrl)
+    return
+  }
 
-function startServer() {
-  const serverScript = path.join(rootDir, 'server', 'index.js')
-
-  serverProcess = fork(serverScript, [], {
-    env: {
-      ...process.env,
-      PORT: String(PORT),
-      NODE_ENV: isDev ? 'development' : 'production',
-      AGENTDEV_DATA_DIR: dataDir,
-      AGENTDEV_GENERATED_DIR: generatedDir,
-      AGENTDEV_CLIENT_DIST: isDev ? '' : path.join(rootDir, 'client', 'dist')
-    },
-    cwd: rootDir
-  })
-
-  return new Promise((resolve) => {
-    serverProcess.on('message', (msg) => {
-      if (msg === 'ready') resolve()
-    })
-    // 兜底 3 秒
-    setTimeout(resolve, 3000)
-  })
+  const indexPath = path.join(rootDir, 'client', 'dist', 'index.html')
+  if (!fs.existsSync(indexPath)) {
+    throw new Error(`Renderer bundle not found: ${indexPath}`)
+  }
+  await mainWindow.loadFile(indexPath)
 }
 
 function createWindow() {
@@ -59,53 +67,15 @@ function createWindow() {
     }
   })
 
-  const url = isDev ? 'http://localhost:5173' : `http://localhost:${PORT}`
-  mainWindow.loadURL(url)
+  loadRenderer().catch((error) => {
+    renderLoadFailure(error?.message || 'Failed to load renderer.')
+  })
 
   if (isDev) mainWindow.webContents.openDevTools()
 }
 
-// ========== IPC handlers ==========
-
-// 选择文件
-ipcMain.handle('select-file', async (_event, options) => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile'],
-    filters: options?.filters || [
-      { name: '文档', extensions: ['docx', 'pptx', 'pdf', 'txt', 'md'] },
-      { name: '所有文件', extensions: ['*'] }
-    ]
-  })
-  return result.canceled ? null : result.filePaths[0]
-})
-
-// 选择目录
-ipcMain.handle('select-directory', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory']
-  })
-  return result.canceled ? null : result.filePaths[0]
-})
-
-// 用系统默认程序打开文件
-ipcMain.handle('open-path', async (_event, filePath) => {
-  await shell.openPath(filePath)
-})
-
-// 获取常用目录路径
-ipcMain.handle('get-paths', () => ({
-  home: app.getPath('home'),
-  desktop: app.getPath('desktop'),
-  documents: app.getPath('documents'),
-  downloads: app.getPath('downloads'),
-  userData: userDataPath,
-  generated: generatedDir
-}))
-
-// ========== App lifecycle ==========
-
-app.whenReady().then(async () => {
-  await startServer()
+app.whenReady().then(() => {
+  registerAll(ipcMain)
   createWindow()
 
   app.on('activate', () => {
@@ -114,16 +84,5 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
-  if (serverProcess) {
-    serverProcess.kill()
-    serverProcess = null
-  }
-  app.quit()
-})
-
-app.on('before-quit', () => {
-  if (serverProcess) {
-    serverProcess.kill()
-    serverProcess = null
-  }
+  if (process.platform !== 'darwin') app.quit()
 })

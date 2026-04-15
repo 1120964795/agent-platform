@@ -1,0 +1,76 @@
+你现在要执行 AgentDev Lite 项目的 Day 1 Pack H（最后一个 Day 1 包）。
+
+前置：Pack F + G 已完成。后端 /api/word 通；前端有 WordCard、FileCard、CommandPalette 文件但还没接到聊天里。
+
+请打开并阅读这个 plan 文件：
+D:\claude project\agentdev-lite\docs\superpowers\plans\2026-04-10-agentdev-lite.md
+
+需要执行的任务：
+- Task 1.7（Client - 集成 cards 到 MessageList + ChatArea）
+- Task 1.8（Client - ArtifactsPanel）
+- Task 1.9（Day 1 验收）
+
+执行规则：
+1. 工作目录固定为 D:\claude project\agentdev-lite\。Windows 路径里有空格，shell 命令里所有路径都加双引号。
+2. Task 1.7 会改 InputBar（接 useCommand + CommandPalette 浮层）、MessageList（识别 card 类型并渲染对应组件）、useChat reducer（加 addCard / updateCard / addFileCard action）。**这三处改动必须同时做完才能联调**。
+3. useChat 的 reducer 在 Day 0 已经有 ADD / APPEND_DELTA / FINISH / CLEAR 等 action，这次**新增** UPDATE_CARD 等，不要删旧的。先读 client/src/hooks/useChat.js 里现在的代码再改。
+4. WordCard 在 form 状态收集到 title/topic/sections 后，调用 lib/api.js 的 generateWord（POST /api/word），返回结果通过 reducer 更新到 done 状态，并自动 addFileCard 把生成的 .docx 加到消息流。
+5. ArtifactsPanel 在 RightDrawer 里以 Tab 形式和 SettingsPanel 共存（plan 里有 RightDrawer 改造的代码）。Tab 切换用 React 内部 state 即可。
+6. ArtifactsPanel 启动时调用 GET /api/artifacts 拉一次列表；后续每次 chat 生成新文件后追加到列表头部。
+7. 每个 Task 末尾的 git commit 必须执行。
+8. 验证时本机 curl 对 localhost 走代理会返回 502，带 `--noproxy "*"`。
+
+**重要：端到端真实 API 测试由用户在浏览器里做，你不要尝试调用 /api/word。**
+流程是：
+a) 你完成 Task 1.7 和 1.8 所有代码 + commit
+b) 你做非 API 冒烟验证（见下）
+c) 你打印给用户的操作说明，然后停下来
+d) **暂时不要** `git tag day1-complete`——tag 等用户确认端到端通过后再打。
+
+完成后必须做的非 API 验证：
+- 后台启 `npm run dev`，等 5~8 秒让 server + client 都起来。
+- `curl --noproxy "*" http://localhost:5173/` 拿到 HTML（200）
+- `curl --noproxy "*" http://localhost:8787/api/health` 返回 ok
+- `curl --noproxy "*" http://localhost:8787/api/artifacts` 返回 JSON（可能是空数组或有之前的 .docx）
+- `npm --prefix client run build` 成功（验证集成后无 import 错误）
+- kill 掉所有 node 进程。
+- 跑 `git log --oneline`，应该比 Pack G 多 2~3 个 commit。
+
+最后停下来做一件事：**给用户打印如下端到端操作清单**，然后停，**不要自动继续、不要自己打 tag**：
+
+==========================================
+Pack H 代码部分已完成，请在浏览器里做 Day 1 端到端验收：
+
+1. 启动：在项目根目录运行
+     npm run dev
+   等 server 和 client 都启起来。
+
+2. 打开 http://localhost:5173，确保 Day 0 的通用对话仍然能用（流式回复正常）。
+
+3. 测试 CommandPalette：在 InputBar 输入 / 字符
+   应弹出 5 个命令（/word /ppt /paper /plan /schedule）
+   上下方向键切换高亮，Enter 选中 /word。
+
+4. 测试 WordCard 表单：选中 /word 后 WordCard 出现，填：
+     title: 测试文档
+     topic: 介绍机器学习
+     sections: 3
+   点"生成"按钮。
+
+5. 观察 WordCard 状态变化：
+   form → loading（旋转 spinner）→ done（FileCard 显示文件名 + 大小 + 打开按钮）
+   整个过程约 10-30 秒（取决于 DeepSeek 响应速度）。
+
+6. 点"打开"按钮，Word/WPS 应自动打开 .docx 文件，
+   里面有"测试文档"标题 + 3 个 AI 生成的章节。
+
+7. 右上角 ⚙ 打开 RightDrawer，应看到 Tab 切换（设置 / 产物），
+   切到"产物"Tab，应看到刚才的 .docx 文件出现在列表里。
+
+8. 刷新页面，对话历史 + 产物列表应该还在。
+
+9. 全部 OK → 回来告诉 orchestrator "Day 1 验收通过"
+   任何一步失败 → 停下把报错贴出来。
+==========================================
+
+打印完清单后，再输出 `git status` 和 `git log --oneline -25`，然后停止。

@@ -1,0 +1,34 @@
+你现在要执行 AgentDev Lite 项目的 Day 0 Pack C。
+
+前置：Pack A + B 已完成，server/ 目录可独立运行。
+
+请打开并阅读这个 plan 文件：
+D:\claude project\agentdev-lite\docs\superpowers\plans\2026-04-10-agentdev-lite.md
+
+需要执行的任务：
+- Task 0.9（Client 骨架 + Vite 初始化）
+- Task 0.10（Tailwind + PostCSS + theme.css）
+- Task 0.11（main.jsx + App.jsx 最小渲染）
+- Task 0.12（lib/api.js fetch 封装）
+
+执行规则：
+1. 工作目录固定为 D:\claude project\agentdev-lite\。Windows 路径里有空格，shell 命令里所有路径都加双引号。
+2. **不要用 `npm create vite`**，按 plan 里的 Step 手动写 client/package.json、vite.config.js、index.html。理由：vite 模板会带很多用不上的文件。
+3. 所有代码完整照搬，**不要改 Tailwind 配置里的 content 路径，不要改 theme.css 里的 CSS 变量值**（浅色主题色已经定好）。
+4. 安装依赖时严格按 plan 里写的版本号，不要 `^` 改成 `~`，不要升级到 latest。
+5. main.jsx + App.jsx 这阶段只需要渲染一个测试文字（plan 里有），不要加 layout 组件——layout 是 Pack D 的事。
+6. lib/api.js 必须包含 ApiError 类、fetch 封装、SSE 流封装三段，**不能省略任何一个**。
+7. 每个 Task 末尾的 git commit 必须执行。
+
+完成后必须验证：
+- `npm --prefix client install` 无错（耐心等，可能要几分钟）
+- 启动 vite dev server（后台）：`npm --prefix client run dev`，等 2~3 秒看到 "Local: http://localhost:5173/" 字样后，用 curl 拉首页验证能拿到 HTML：`curl http://localhost:5173/`，应返回含 `<div id="root"></div>` 的 HTML。
+- 关闭 vite dev server。
+- 跑 `git log --oneline`，应该比 Pack B 多 4 个 commit（共 12 个）。
+- **顺手验证根级聚合脚本**：后台启 `npm run dev`，等 5 秒让 server 和 client 都启起来，然后各 curl 一下 http://localhost:8787/api/health 和 http://localhost:5173/，都 200 就 kill 掉。
+
+最后停下来：
+1. 贴出 curl 输出（首页 HTML 截取前 20 行就行）
+2. 输出 `git status` 和 `git log --oneline -15`
+3. 列出 client/ 下的文件树（不含 node_modules）
+4. 报告完成，**不要自动开 Pack D**。
