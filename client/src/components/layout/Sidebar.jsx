@@ -1,25 +1,6 @@
-import {
-  MessageSquare,
-  FileText,
-  Presentation,
-  BookOpen,
-  CalendarClock,
-  Settings,
-  FolderOpen,
-  Plus,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react'
+import { Settings, FolderOpen, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 
-const ASSISTANTS = [
-  { id: 'general', name: '通用对话', icon: MessageSquare },
-  { id: 'word', name: 'Word 助手', icon: FileText },
-  { id: 'ppt', name: 'PPT 助手', icon: Presentation },
-  { id: 'paper', name: '论文助手', icon: BookOpen },
-  { id: 'schedule', name: '日程助手', icon: CalendarClock }
-]
-
-export default function Sidebar({ collapsed, selectedAssistant = 'general', onToggle, onSelectAssistant, onOpenDrawer }) {
+export default function Sidebar({ collapsed, onToggle, onOpenDrawer, onNewConversation }) {
   const width = collapsed ? 'w-[60px]' : 'w-[260px]'
 
   return (
@@ -39,6 +20,7 @@ export default function Sidebar({ collapsed, selectedAssistant = 'general', onTo
       <div className="p-3">
         <button
           type="button"
+          onClick={onNewConversation}
           className="w-full h-9 flex items-center justify-center gap-2 rounded-lg bg-[color:var(--accent)] text-white text-sm hover:opacity-90"
         >
           <Plus size={16} />
@@ -46,28 +28,7 @@ export default function Sidebar({ collapsed, selectedAssistant = 'general', onTo
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2">
-        {!collapsed && <div className="px-2 py-1 text-xs text-[color:var(--text-muted)]">助手</div>}
-        {ASSISTANTS.map(a => {
-          const Icon = a.icon
-          const selected = a.id === selectedAssistant
-          return (
-            <button
-              type="button"
-              key={a.id}
-              onClick={() => onSelectAssistant?.(a.id)}
-              className={`w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm ${
-                selected
-                  ? 'bg-[color:var(--bg-tertiary)] text-[color:var(--accent)] font-medium'
-                  : 'hover:bg-[color:var(--bg-tertiary)]'
-              }`}
-            >
-              <Icon size={16} className="shrink-0" />
-              {!collapsed && <span className="truncate">{a.name}</span>}
-            </button>
-          )
-        })}
-      </div>
+      <div className="flex-1" />
 
       <div className="p-2 border-t border-[color:var(--border)] flex flex-col gap-1">
         <button

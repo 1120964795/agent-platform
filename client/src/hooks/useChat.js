@@ -33,45 +33,59 @@ function reducer(state, action) {
   }
 }
 
-const DEFAULT_CONVERSATION_ID = 'general-default'
-
 function makeTitle(messages) {
   const firstUser = messages.find((message) => message.role === 'user' && message.content)
   return firstUser?.content.slice(0, 24) || 'New Chat'
 }
 
-export function useChat() {
+export function useChat(conversationId) {
   const [state, dispatch] = useReducer(reducer, initialState)
   const abortRef = useRef(null)
-  const conversationIdRef = useRef(DEFAULT_CONVERSATION_ID)
+  const conversationIdRef = useRef(conversationId)
   const toolMessageIdsRef = useRef(new Map())
 
   useEffect(() => {
+    if (!conversationId) return undefined
+
     let ignored = false
+    conversationIdRef.current = conversationId
+    abortRef.current?.()
+    abortRef.current = null
+    toolMessageIdsRef.current = new Map()
+    dispatch({ type: 'CLEAR' })
+
     async function loadConversation() {
       try {
-        const response = await api.get(`/api/conversations/${conversationIdRef.current}`)
+        const response = await api.get(`/api/conversations/${conversationId}`)
         if (ignored || !response.conversation?.messages) return
         response.conversation.messages
           .filter((message) => message.role === 'user' || message.role === 'assistant')
           .forEach((message) => dispatch({ type: 'ADD', msg: { id: uid(), role: message.role, content: message.content } }))
       } catch (error) {
-        if (error.code !== 'NOT_FOUND') console.error('[chat] load conversation failed:', error)
+        if (!ignored && error.code !== 'NOT_FOUND') console.error('[chat] load conversation failed:', error)
       }
     }
-    loadConversation()
-    return () => { ignored = true; abortRef.current?.() }
-  }, [])
 
-  const saveConversation = useCallback(async (messages) => {
+    loadConversation()
+    return () => {
+      ignored = true
+      abortRef.current?.()
+      abortRef.current = null
+    }
+  }, [conversationId])
+
+  const saveConversation = useCallback(async (convId, messages) => {
     try {
-      await api.post('/api/conversations', { id: conversationIdRef.current, title: makeTitle(messages), assistant: 'general', messages })
+      await api.post('/api/conversations', { id: convId, title: makeTitle(messages), assistant: 'general', messages })
     } catch (error) {
       console.error('[chat] save conversation failed:', error)
     }
   }, [])
 
   const sendUserMessage = useCallback((text) => {
+    const convId = conversationIdRef.current
+    if (!convId) return
+
     abortRef.current?.()
     toolMessageIdsRef.current = new Map()
 
@@ -91,12 +105,12 @@ export function useChat() {
       if (finished) return
       finished = true
       dispatch({ type: 'FINISH', id: assistantId })
-      saveConversation([...history, { role: 'assistant', content: assistantContent }])
+      saveConversation(convId, [...history, { role: 'assistant', content: assistantContent }])
     }
 
     abortRef.current = api.stream({
       channel: 'chat:send',
-      payload: { convId: conversationIdRef.current, messages: history },
+      payload: { convId, messages: history },
       onDelta: (delta) => {
         assistantContent += delta
         dispatch({ type: 'APPEND_DELTA', id: assistantId, delta })
@@ -132,13 +146,16 @@ export function useChat() {
   }, [state.messages, saveConversation])
 
   const sendCommand = useCallback(({ command, prompt, referencePath }) => {
+    const convId = conversationIdRef.current
+    if (!convId) return
+
     const displayText = referencePath ? `/${command} "${referencePath}" ${prompt}` : `/${command} ${prompt}`
     const userMessage = { id: uid(), role: 'user', content: displayText }
     const assistantContent = 'This slash command has been removed. In full permission mode, describe the task in natural language instead.'
     dispatch({ type: 'ADD', msg: userMessage })
     dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', content: assistantContent } })
     const history = [...state.messages, userMessage].filter((message) => message.role === 'user' || message.role === 'assistant').map((message) => ({ role: message.role, content: message.content }))
-    saveConversation([...history, { role: 'assistant', content: assistantContent }])
+    saveConversation(convId, [...history, { role: 'assistant', content: assistantContent }])
   }, [state.messages, saveConversation])
 
   const addCard = useCallback((cardType, initialData = {}) => {
