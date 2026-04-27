@@ -4,7 +4,7 @@ const { register } = require('./index')
 
 function whichCommand({ command }) {
   if (!command) {
-    const error = new Error('command is required')
+    const error = new Error('缺少命令')
     error.code = 'INVALID_ARGS'
     throw error
   }

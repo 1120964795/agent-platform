@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ChevronRight, Folder, FileText, File, Home, ArrowUp, RefreshCw, HardDrive } from 'lucide-react'
+import { ChevronRight, Folder, FileText, File, Home, ArrowUp, RefreshCw, HardDrive, Download, Monitor } from 'lucide-react'
 import { listFiles } from '../lib/api.js'
 
 const EXT_ICONS = {
@@ -12,38 +12,86 @@ const EXT_ICONS = {
   '.md': FileText
 }
 
-function getStartDir() {
-  // 默认 Documents 或桌面
+async function getAppPaths() {
   if (window.electronAPI?.getPaths) {
-    return window.electronAPI.getPaths().then(p => p.documents || p.home || 'C:\\')
+    return window.electronAPI.getPaths()
   }
-  return Promise.resolve('C:\\')
+  return { home: '', documents: '', downloads: '', desktop: '', roots: [] }
 }
 
-export default function FileBrowser() {
+function normalizeKey(path) {
+  return String(path || '').replace(/[\\/]+$/, '').toLowerCase()
+}
+
+function buildShortcuts(paths = {}, roots = []) {
+  const seen = new Set()
+  const add = (items, item) => {
+    if (!item.path) return
+    const key = normalizeKey(item.path)
+    if (seen.has(key)) return
+    seen.add(key)
+    items.push(item)
+  }
+
+  const items = []
+  add(items, { id: 'documents', label: '文档', path: paths.documents, icon: Folder })
+  add(items, { id: 'downloads', label: '下载', path: paths.downloads, icon: Download })
+  add(items, { id: 'desktop', label: '桌面', path: paths.desktop, icon: Monitor })
+  add(items, { id: 'home', label: '主目录', path: paths.home, icon: Home })
+
+  roots.forEach(root => {
+    add(items, { id: `root:${root}`, label: root, path: root, icon: HardDrive })
+  })
+
+  return items
+}
+
+export default function FileBrowser({ currentUser }) {
+  const username = currentUser?.username || 'guest'
   const [currentDir, setCurrentDir] = useState('')
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [drives, setDrives] = useState([])
+  const [parentDir, setParentDir] = useState(null)
+  const [breadcrumbs, setBreadcrumbs] = useState([])
+  const [shortcuts, setShortcuts] = useState([])
 
   const loadDir = useCallback(async (dir) => {
+    if (!dir) return
     setLoading(true)
     setError('')
     try {
-      const r = await listFiles(dir)
+      const r = await listFiles(dir, username)
       setItems(r.items || [])
-      setCurrentDir(dir)
+      setCurrentDir(r.dir || dir)
+      setParentDir(r.parentDir || null)
+      setBreadcrumbs(r.breadcrumbs || [])
+      setShortcuts(current => current.length ? current : buildShortcuts({}, r.roots || []))
     } catch (e) {
       setError(e.message || '无法读取目录')
       setItems([])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [username])
 
   useEffect(() => {
-    getStartDir().then(dir => loadDir(dir))
+    let ignored = false
+
+    async function loadInitialDir() {
+      const paths = await getAppPaths()
+      if (ignored) return
+      const roots = paths.roots || []
+      setShortcuts(buildShortcuts(paths, roots))
+      loadDir(paths.documents || paths.home || roots[0] || '')
+    }
+
+    loadInitialDir().catch(error => {
+      console.error('[files] load initial directory failed:', error)
+      setError(error.message || '无法读取目录')
+    })
+
+    return () => { ignored = true }
   }, [loadDir])
 
   function handleNavigate(dirPath) {
@@ -51,10 +99,7 @@ export default function FileBrowser() {
   }
 
   function handleUp() {
-    const parent = currentDir.replace(/[\\/][^\\/]+[\\/]?$/, '')
-    if (parent && parent !== currentDir) {
-      loadDir(parent)
-    }
+    if (parentDir) loadDir(parentDir)
   }
 
   function handleSelectFile(item) {
@@ -73,15 +118,18 @@ export default function FileBrowser() {
     return `${(size / (1024 * 1024)).toFixed(1)} MB`
   }
 
-  // 面包屑
-  const pathParts = currentDir.split(/[\\/]/).filter(Boolean)
-
   return (
     <div className="p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">文件浏览</h2>
         <div className="flex items-center gap-1">
-          <button type="button" onClick={handleUp} className="p-1.5 rounded hover:bg-[color:var(--bg-tertiary)]" title="上级目录">
+          <button
+            type="button"
+            onClick={handleUp}
+            disabled={!parentDir}
+            className="p-1.5 rounded hover:bg-[color:var(--bg-tertiary)] disabled:opacity-40"
+            title="上级目录"
+          >
             <ArrowUp size={14} />
           </button>
           <button type="button" onClick={() => loadDir(currentDir)} className="p-1.5 rounded hover:bg-[color:var(--bg-tertiary)]" title="刷新">
@@ -92,40 +140,38 @@ export default function FileBrowser() {
 
       {/* 快捷位置 */}
       <div className="flex gap-1 flex-wrap">
-        {['C:\\', 'D:\\'].map(d => (
+        {shortcuts.map(shortcut => {
+          const ShortcutIcon = shortcut.icon
+          return (
           <button
-            key={d}
+            key={shortcut.id}
             type="button"
-            onClick={() => handleNavigate(d)}
+            onClick={() => handleNavigate(shortcut.path)}
             className="h-7 px-2 text-xs rounded border border-[color:var(--border)] hover:bg-[color:var(--bg-tertiary)] flex items-center gap-1"
+            title={shortcut.path}
           >
-            <HardDrive size={10} /> {d}
+            <ShortcutIcon size={10} /> {shortcut.label}
           </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => getStartDir().then(d => handleNavigate(d))}
-          className="h-7 px-2 text-xs rounded border border-[color:var(--border)] hover:bg-[color:var(--bg-tertiary)] flex items-center gap-1"
-        >
-          <Home size={10} /> 文档
-        </button>
+          )
+        })}
       </div>
 
       {/* 面包屑路径 */}
       <div className="text-xs text-[color:var(--text-muted)] flex items-center gap-0.5 flex-wrap overflow-hidden">
-        {pathParts.map((part, i) => {
-          const fullPath = pathParts.slice(0, i + 1).join('\\')
-          const display = i === 0 ? part + '\\' : part
+        {breadcrumbs.length === 0 && currentDir && (
+          <span className="truncate" title={currentDir}>{currentDir}</span>
+        )}
+        {breadcrumbs.map((part, i) => {
           return (
-            <span key={i} className="flex items-center gap-0.5 shrink-0">
+            <span key={`${part.path}-${i}`} className="flex items-center gap-0.5 shrink-0">
               {i > 0 && <ChevronRight size={10} />}
               <button
                 type="button"
-                onClick={() => handleNavigate(fullPath + (i === 0 ? '\\' : ''))}
+                onClick={() => handleNavigate(part.path)}
                 className="hover:text-[color:var(--accent)] hover:underline truncate max-w-[120px]"
-                title={fullPath}
+                title={part.path}
               >
-                {display}
+                {part.label}
               </button>
             </span>
           )

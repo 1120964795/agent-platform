@@ -7,26 +7,41 @@ function normalizeMessages(messages) {
     .map((message) => ({ ...message, role: message.role, content: message.content }))
 }
 
+function normalizeUsername(username) {
+  return String(username || 'guest').trim() || 'guest'
+}
+
+function belongsToUser(conversation, username) {
+  if (!username) return true
+  return normalizeUsername(conversation?.username).toLowerCase() === normalizeUsername(username).toLowerCase()
+}
+
 function register(ipcMain) {
-  ipcMain.handle('conversations:list', async () => ({ ok: true, conversations: store.listConversations() }))
+  ipcMain.handle('conversations:list', async (_event, payload = {}) => {
+    const username = typeof payload === 'string' ? payload : payload.username
+    const conversations = store.listConversations().filter((conversation) => belongsToUser(conversation, username))
+    return { ok: true, conversations }
+  })
 
   ipcMain.handle('conversations:get', async (_event, payload = {}) => {
     const id = typeof payload === 'string' ? payload : payload.id
+    const username = typeof payload === 'object' ? payload.username : ''
     const conversation = store.getConversation(id)
-    if (!conversation) return { ok: false, error: { code: 'NOT_FOUND', message: 'Conversation not found' } }
+    if (!conversation || !belongsToUser(conversation, username)) return { ok: false, error: { code: 'NOT_FOUND', message: '未找到会话' } }
     return { ok: true, conversation }
   })
 
   ipcMain.handle('conversations:upsert', async (_event, payload = {}) => {
-    const { id, title, assistant = 'general', messages = [] } = payload
-    if (!id) return { ok: false, error: { code: 'BAD_REQUEST', message: 'conversation id is required' } }
+    const { id, title, assistant = 'general', username, messages = [] } = payload
+    if (!id) return { ok: false, error: { code: 'BAD_REQUEST', message: '缺少会话 ID' } }
 
     const now = new Date().toISOString()
     const existing = store.getConversation(id)
     const conversation = {
       id,
-      title: title || existing?.title || 'New Chat',
+      title: title || existing?.title || '新对话',
       assistant,
+      username: username || existing?.username || 'guest',
       createdAt: existing?.createdAt || now,
       updatedAt: now,
       messages: normalizeMessages(messages)
@@ -36,4 +51,4 @@ function register(ipcMain) {
   })
 }
 
-module.exports = { register, normalizeMessages }
+module.exports = { register, normalizeMessages, belongsToUser }

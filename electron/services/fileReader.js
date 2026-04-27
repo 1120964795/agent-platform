@@ -35,7 +35,7 @@ async function readPdfAsText(filePath) {
 
 async function readFileAsText(filePath) {
   if (!fs.existsSync(filePath)) {
-    throw new Error(`File does not exist: ${filePath}`)
+    throw new Error(`文件不存在：${filePath}`)
   }
 
   const ext = path.extname(filePath).toLowerCase()

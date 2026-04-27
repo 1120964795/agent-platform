@@ -18,7 +18,7 @@ export default function MessageList({ messages }) {
     <div className="flex-1 overflow-y-auto px-6 py-4">
       {messages.length === 0 && (
         <div className="h-full flex items-center justify-center text-[color:var(--text-muted)] text-sm text-center">
-          Ask naturally. In full permission mode, local files, shell commands, and skills are available as tools.
+          直接描述你要做的事。开启完全权限后，可以使用本地文件、Shell 命令和技能工具。
         </div>
       )}
       {messages.map((message) => {

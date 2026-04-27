@@ -4,19 +4,24 @@ const { store } = require('../store')
 
 const HEADER = '<!-- Rules below are managed by remember_user_rule. You may edit this file manually. -->\n'
 
-function rulesPath() {
-  return path.join(path.dirname(store.DATA_DIR), 'user_rules.md')
+function normalizeUsername(username) {
+  return String(username || 'guest').trim() || 'guest'
 }
 
-function ensureFile() {
-  const filePath = rulesPath()
+function rulesPath(username) {
+  const userKey = encodeURIComponent(normalizeUsername(username))
+  return path.join(path.dirname(store.DATA_DIR), `user_rules.${userKey}.md`)
+}
+
+function ensureFile(username) {
+  const filePath = rulesPath(username)
   fs.mkdirSync(path.dirname(filePath), { recursive: true })
   if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, HEADER, 'utf-8')
   return filePath
 }
 
-function readRules() {
-  const filePath = ensureFile()
+function readRules(username) {
+  const filePath = ensureFile(username)
   const raw = fs.readFileSync(filePath, 'utf-8')
   return raw.split(/\r?\n/).map((line) => {
     const match = line.match(/^\s*- \[(r_[^\]]+)\]\s+(.+)$/)
@@ -24,19 +29,19 @@ function readRules() {
   }).filter(Boolean)
 }
 
-function appendRule(text) {
+function appendRule(text, username) {
   if (!text || typeof text !== 'string') {
-    const error = new Error('rule is required')
+    const error = new Error('缺少偏好内容')
     error.code = 'INVALID_ARGS'
     throw error
   }
   const id = `r_${new Date().toISOString()}`
-  fs.appendFileSync(ensureFile(), `- [${id}] ${text.trim()}\n`, 'utf-8')
+  fs.appendFileSync(ensureFile(username), `- [${id}] ${text.trim()}\n`, 'utf-8')
   return { id, text: text.trim() }
 }
 
-function removeRuleById(id) {
-  const filePath = ensureFile()
+function removeRuleById(id, username) {
+  const filePath = ensureFile(username)
   const lines = fs.readFileSync(filePath, 'utf-8').split(/\r?\n/)
   let removed = false
   const next = lines.filter((line) => {
@@ -50,8 +55,8 @@ function removeRuleById(id) {
   return { removed }
 }
 
-function removeRulesBySubstring(substring) {
-  const filePath = ensureFile()
+function removeRulesBySubstring(substring, username) {
+  const filePath = ensureFile(username)
   const lines = fs.readFileSync(filePath, 'utf-8').split(/\r?\n/)
   let removedCount = 0
   const next = lines.filter((line) => {
@@ -65,8 +70,8 @@ function removeRulesBySubstring(substring) {
   return { removed_count: removedCount }
 }
 
-function buildSystemPromptSection() {
-  const rules = readRules()
+function buildSystemPromptSection(username) {
+  const rules = readRules(username)
   if (!rules.length) return ''
   return ['## User Persistent Preferences', 'Follow these cross-session preferences explicitly stated by the user:', ...rules.map((rule) => `- ${rule.text}`)].join('\n')
 }

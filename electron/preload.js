@@ -21,6 +21,7 @@ function createElectronAPI(ipc = ipcRenderer) {
     },
     selectFile: (options) => ipc.invoke('dialog:selectFile', options),
     selectDirectory: () => ipc.invoke('dialog:selectDirectory'),
+    saveFileAs: (payload) => ipc.invoke('dialog:saveFileAs', payload),
     openPath: (filePath) => ipc.invoke('shell:openPath', filePath),
     getPaths: () => ipc.invoke('app:getPaths')
   }

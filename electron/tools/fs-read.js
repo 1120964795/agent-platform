@@ -12,7 +12,7 @@ async function readFile({ path: filePath, encoding = 'utf8', max_bytes = 2000000
   ensurePathExists(filePath)
   const stat = fs.statSync(filePath)
   if (!stat.isFile()) {
-    const error = new Error('path must be a file')
+    const error = new Error('路径必须是文件')
     error.code = 'INVALID_ARGS'
     throw error
   }

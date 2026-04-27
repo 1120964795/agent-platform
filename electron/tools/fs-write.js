@@ -5,11 +5,11 @@ const { requestConfirm } = require('../confirm')
 const { toolError } = require('./_fs-helpers')
 
 async function writeFile({ path: filePath, content = '', encoding = 'utf8', overwrite = false }) {
-  if (!filePath) throw toolError('INVALID_ARGS', 'path is required')
+  if (!filePath) throw toolError('INVALID_ARGS', '缺少路径')
   if (fs.existsSync(filePath)) {
-    if (!overwrite) return { error: { code: 'ALREADY_EXISTS', message: `file already exists: ${filePath}` } }
+    if (!overwrite) return { error: { code: 'ALREADY_EXISTS', message: `文件已存在：${filePath}` } }
     const allowed = await requestConfirm({ kind: 'overwrite', payload: { path: filePath } })
-    if (!allowed) return { error: { code: 'USER_CANCELLED', message: 'overwrite cancelled by user' } }
+    if (!allowed) return { error: { code: 'USER_CANCELLED', message: '用户已取消覆盖' } }
   }
   fs.mkdirSync(path.dirname(filePath), { recursive: true })
   const data = encoding === 'base64' ? Buffer.from(String(content), 'base64') : String(content)
@@ -18,12 +18,12 @@ async function writeFile({ path: filePath, content = '', encoding = 'utf8', over
 }
 
 function editFile({ path: filePath, old_string, new_string, replace_all = false }) {
-  if (!filePath || typeof old_string !== 'string' || typeof new_string !== 'string') throw toolError('INVALID_ARGS', 'path, old_string and new_string are required')
-  if (!fs.existsSync(filePath)) throw toolError('PATH_NOT_FOUND', `file not found: ${filePath}`)
+  if (!filePath || typeof old_string !== 'string' || typeof new_string !== 'string') throw toolError('INVALID_ARGS', '缺少路径、原文本或新文本')
+  if (!fs.existsSync(filePath)) throw toolError('PATH_NOT_FOUND', `文件不存在：${filePath}`)
   const current = fs.readFileSync(filePath, 'utf-8')
   const first = current.indexOf(old_string)
-  if (first === -1) throw toolError('INVALID_ARGS', 'old_string was not found')
-  if (!replace_all && current.indexOf(old_string, first + old_string.length) !== -1) throw toolError('INVALID_ARGS', 'old_string is not unique; set replace_all=true')
+  if (first === -1) throw toolError('INVALID_ARGS', '未找到要替换的原文本')
+  if (!replace_all && current.indexOf(old_string, first + old_string.length) !== -1) throw toolError('INVALID_ARGS', '原文本不唯一，请设置 replace_all=true')
   const next = replace_all ? current.split(old_string).join(new_string) : current.replace(old_string, new_string)
   const replacements = replace_all ? current.split(old_string).length - 1 : 1
   fs.writeFileSync(filePath, next, 'utf-8')
@@ -31,7 +31,7 @@ function editFile({ path: filePath, old_string, new_string, replace_all = false 
 }
 
 function createDir({ path: dirPath, recursive = true }) {
-  if (!dirPath) throw toolError('INVALID_ARGS', 'path is required')
+  if (!dirPath) throw toolError('INVALID_ARGS', '缺少路径')
   fs.mkdirSync(dirPath, { recursive: recursive !== false })
   return { path: dirPath }
 }

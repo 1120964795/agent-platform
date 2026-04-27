@@ -50,6 +50,20 @@ test('skills IPC lists, creates, copies and deletes user skills', async () => {
   expect(registry.findSkill('mine')).toBe(null)
 })
 
+test('skills IPC rejects unsafe skill directory names', async () => {
+  const ipcMain = createIpcMain()
+  registerAll(ipcMain, { shell: { openPath: vi.fn(async () => '') } })
+
+  const created = await ipcMain.handlers.get('skills:create')({}, { name: '../escape', description: 'bad' })
+  expect(created.ok).toBe(false)
+  expect(created.error.code).toBe('INVALID_ARGS')
+
+  const copied = await ipcMain.handlers.get('skills:copyBuiltin')({}, { name: 'demo', destName: '../escape' })
+  expect(copied.ok).toBe(false)
+  expect(copied.error.code).toBe('INVALID_ARGS')
+  expect(fs.existsSync(path.join(process.env.AGENTDEV_USER_SKILLS_DIR, '..', 'escape'))).toBe(false)
+})
+
 test('rules IPC lists and deletes rules', async () => {
   const ipcMain = createIpcMain()
   registerAll(ipcMain)

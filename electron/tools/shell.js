@@ -28,16 +28,17 @@ function appendOutput(target, chunk) {
   target.truncated = true
 }
 
-async function runShellCommand({ command, cwd, timeout_ms = 120000 }, { onLog } = {}) {
-  if (!command || typeof command !== 'string') return { error: { code: 'INVALID_ARGS', message: 'command is required' } }
-  const config = store.getConfig()
+async function runShellCommand({ command, cwd, timeout_ms = 120000 }, { onLog, username, signal } = {}) {
+  if (!command || typeof command !== 'string') return { error: { code: 'INVALID_ARGS', message: '缺少命令' } }
+  if (signal?.aborted) return { error: { code: 'CHAT_CANCELLED', message: '命令已停止' } }
+  const config = username ? store.getUserConfig(username) : store.getConfig()
   const token = firstToken(command)
   const blacklist = new Set([...DEFAULT_BLACKLIST, ...(config.shell_blacklist_extra || []).map((item) => String(item).toLowerCase())])
   const whitelist = new Set([...DEFAULT_WHITELIST, ...(config.shell_whitelist_extra || []).map((item) => String(item).toLowerCase())])
-  if (blacklist.has(token)) return { error: { code: 'PERMISSION_DENIED', message: `command is blocked: ${token}` } }
+  if (blacklist.has(token)) return { error: { code: 'PERMISSION_DENIED', message: `命令已被禁止：${token}` } }
   if (!whitelist.has(token)) {
-    const allowed = await requestConfirm({ kind: 'shell-command', payload: { command, cwd } })
-    if (!allowed) return { error: { code: 'USER_CANCELLED', message: 'command cancelled by user' } }
+    const allowed = await requestConfirm({ kind: 'shell-command', username, payload: { command, cwd } })
+    if (!allowed) return { error: { code: 'USER_CANCELLED', message: '用户已取消命令' } }
   }
 
   const workingDir = cwd || config.workspace_root || process.cwd()
@@ -46,15 +47,34 @@ async function runShellCommand({ command, cwd, timeout_ms = 120000 }, { onLog } 
     const stdout = { text: '', bytes: 0, truncated: false }
     const stderr = { text: '', bytes: 0, truncated: false }
     let timedOut = false
+    let cancelled = false
+    let settled = false
     const child = process.platform === 'win32'
       ? spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-Command', command], { cwd: workingDir, windowsHide: true })
       : spawn('/bin/bash', ['-lc', command], { cwd: workingDir })
+
+    const settle = (value) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      signal?.removeEventListener?.('abort', abortChild)
+      resolve(value)
+    }
+
+    const abortChild = () => {
+      cancelled = true
+      child.kill('SIGTERM')
+      setTimeout(() => { if (!child.killed) child.kill('SIGKILL') }, 2000)
+    }
 
     const timer = setTimeout(() => {
       timedOut = true
       child.kill('SIGTERM')
       setTimeout(() => { if (!child.killed) child.kill('SIGKILL') }, 2000)
     }, Number(timeout_ms) || 120000)
+
+    if (signal?.aborted) abortChild()
+    else signal?.addEventListener?.('abort', abortChild, { once: true })
 
     child.stdout.on('data', (chunk) => {
       appendOutput(stdout, chunk)
@@ -65,13 +85,12 @@ async function runShellCommand({ command, cwd, timeout_ms = 120000 }, { onLog } 
       onLog?.('stderr', chunk.toString('utf8'))
     })
     child.on('error', (error) => {
-      clearTimeout(timer)
-      resolve({ error: { code: error.code === 'ENOENT' ? 'COMMAND_NOT_FOUND' : 'INTERNAL', message: error.message } })
+      settle({ error: { code: error.code === 'ENOENT' ? 'COMMAND_NOT_FOUND' : 'INTERNAL', message: error.message } })
     })
     child.on('close', (code) => {
-      clearTimeout(timer)
-      if (timedOut) resolve({ error: { code: 'COMMAND_TIMEOUT', message: `command timed out after ${timeout_ms}ms` }, stdout: stdout.text, stderr: stderr.text, exit_code: code, truncated: stdout.truncated || stderr.truncated, duration_ms: Date.now() - startedAt })
-      else resolve({ stdout: stdout.text, stderr: stderr.text, exit_code: code, truncated: stdout.truncated || stderr.truncated, duration_ms: Date.now() - startedAt })
+      if (cancelled) settle({ error: { code: 'CHAT_CANCELLED', message: '命令已停止' }, stdout: stdout.text, stderr: stderr.text, exit_code: code, truncated: stdout.truncated || stderr.truncated, duration_ms: Date.now() - startedAt })
+      else if (timedOut) settle({ error: { code: 'COMMAND_TIMEOUT', message: `命令执行超时：${timeout_ms}ms` }, stdout: stdout.text, stderr: stderr.text, exit_code: code, truncated: stdout.truncated || stderr.truncated, duration_ms: Date.now() - startedAt })
+      else settle({ stdout: stdout.text, stderr: stderr.text, exit_code: code, truncated: stdout.truncated || stderr.truncated, duration_ms: Date.now() - startedAt })
     })
   })
 }

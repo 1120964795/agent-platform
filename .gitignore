@@ -2,8 +2,11 @@ node_modules/
 dist/
 dist-electron/
 out/
+coverage/
 data/
 generated/
+.npm-cache/
+user_rules.md
 *.log
 .DS_Store
 .env

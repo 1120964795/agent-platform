@@ -11,18 +11,18 @@ function shellCommandKey(command = '') {
 async function defaultDialogProvider({ kind, payload }) {
   const window = BrowserWindow?.getFocusedWindow?.()
   const detail = kind === 'shell-command'
-    ? `Command:\n${payload.command}\n\nWorking directory:\n${payload.cwd || ''}`
+    ? `命令：\n${payload.command}\n\n工作目录：\n${payload.cwd || ''}`
     : JSON.stringify(payload, null, 2)
   const result = await dialog.showMessageBox(window, {
     type: 'warning',
-    title: 'Confirm local action',
-    message: `Allow ${kind}?`,
+    title: '确认本地操作',
+    message: `是否允许执行 ${kind}？`,
     detail,
-    buttons: ['Allow', 'Cancel'],
+    buttons: ['允许', '取消'],
     defaultId: 1,
     cancelId: 1,
     noLink: true,
-    checkboxLabel: kind === 'shell-command' ? 'Do not ask again for this command this session' : undefined
+    checkboxLabel: kind === 'shell-command' ? '本次会话不再询问这个命令' : undefined
   })
   return {
     allowed: result.response === 0,
@@ -39,10 +39,11 @@ function clearConfirmCache() {
   sessionAllowed.clear()
 }
 
-async function requestConfirm({ kind, payload = {} }) {
-  const config = store.getConfig()
+async function requestConfirm({ kind, payload = {}, username }) {
+  const config = username ? store.getUserConfig(username) : store.getConfig()
   const cacheEnabled = config.session_confirm_cache_enabled !== false
-  const key = kind === 'shell-command' ? shellCommandKey(payload.command) : ''
+  const userKey = String(username || 'guest').trim() || 'guest'
+  const key = kind === 'shell-command' ? `${userKey}:${shellCommandKey(payload.command)}` : ''
   if (cacheEnabled && key && sessionAllowed.has(key)) return true
 
   const response = await dialogProvider({ kind, payload })

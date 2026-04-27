@@ -28,7 +28,7 @@ async function generateDocx({ title, sections }) {
       heading: HeadingLevel.HEADING_1,
       children: [new TextRun({ text: section.heading, font: 'Arial', size: 28, bold: true })]
     }))
-    const paragraphs = String(section.content || '').split(/\n\n+/)
+    const paragraphs = String(section.content || '').split(/\n\n+/).map(item => item.trim()).filter(Boolean)
     for (const paragraph of paragraphs) {
       children.push(new Paragraph({
         alignment: AlignmentType.JUSTIFIED,

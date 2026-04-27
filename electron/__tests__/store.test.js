@@ -27,3 +27,14 @@ test('setConfig persists patches', () => {
   expect(store.getConfig().apiKey).toBe('sk-x')
   expect(store.getConfig().workspace_root).toBe('D:\\work')
 })
+
+test('user config does not inherit global sensitive settings', () => {
+  store.setConfig({ apiKey: 'sk-global', permissionMode: 'full', workspace_root: 'D:\\global' })
+  store.setUserConfig('alice', { apiKey: 'sk-alice', permissionMode: 'full' })
+
+  expect(store.getUserConfig('alice').apiKey).toBe('sk-alice')
+  expect(store.getUserConfig('alice').permissionMode).toBe('full')
+  expect(store.getUserConfig('bob').apiKey).toBe('')
+  expect(store.getUserConfig('bob').permissionMode).toBe('default')
+  expect(store.getUserConfig('bob').workspace_root).toBe(os.homedir())
+})

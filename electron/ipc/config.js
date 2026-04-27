@@ -15,10 +15,16 @@ function sanitizeConfigPatch(input = {}) {
 }
 
 function register(ipcMain) {
-  ipcMain.handle('config:get', async () => ({ ok: true, config: store.getMaskedConfig() }))
+  ipcMain.handle('config:get', async (_event, payload = {}) => {
+    const username = typeof payload === 'string' ? payload : payload.username
+    return { ok: true, config: store.getMaskedConfig(username) }
+  })
   ipcMain.handle('config:set', async (_event, payload = {}) => {
-    const next = store.setConfig(sanitizeConfigPatch(payload))
-    return { ok: true, config: { ...next, apiKey: next.apiKey ? '***' : '' } }
+    const username = typeof payload.username === 'string' ? payload.username : ''
+    const patch = sanitizeConfigPatch(payload)
+    const next = username ? store.setUserConfig(username, patch) : store.setConfig(patch)
+    const { userConfigs, ...safeConfig } = next
+    return { ok: true, config: { ...safeConfig, apiKey: next.apiKey ? '***' : '' } }
   })
 }
 

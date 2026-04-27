@@ -34,6 +34,18 @@ test('registry lets user skill override builtin by name', () => {
   expect(registry.listSkills()).toHaveLength(1)
 })
 
+test('registry skill index includes usage hints and tools', () => {
+  const index = registry.buildSkillIndex()
+  expect(index).toContain('shared: user desc')
+  expect(index).toContain('tools: read_file')
+})
+
+test('registry ignores invalid skill names', () => {
+  writeSkill(process.env.AGENTDEV_USER_SKILLS_DIR, 'bad', '../bad', 'bad desc')
+  registry.reload()
+  expect(registry.findSkill('../bad')).toBe(null)
+})
+
 test('load_skill returns markdown once per conversation and expands resources', () => {
   const first = loadSkill({ name: 'shared' }, { convId: 'conv-1' })
   expect(first.content).toContain('# User')

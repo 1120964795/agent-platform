@@ -9,7 +9,7 @@ process.env.AGENTDEV_DATA_DIR = path.join(TMP, 'data')
 process.env.AGENTDEV_GENERATED_DIR = path.join(TMP, 'generated')
 const require = createRequire(import.meta.url)
 const { execute, TOOL_SCHEMAS, TOOLS } = require('../tools')
-const { setDialogProvider, clearConfirmCache } = require('../confirm')
+const { requestConfirm, setDialogProvider, clearConfirmCache } = require('../confirm')
 const { store } = require('../store')
 
 beforeEach(() => {
@@ -59,6 +59,20 @@ test('shell policy blocks blacklisted commands and confirms gray commands', asyn
   const gray = await execute('run_shell_command', { command: 'unknowncmd --version' })
   expect(gray.error.code).toBe('USER_CANCELLED')
   expect(confirmCount).toBe(1)
+})
+
+test('confirmation cache is scoped by user', async () => {
+  let confirmCount = 0
+  setDialogProvider(async () => {
+    confirmCount += 1
+    return { allowed: true, remember: true }
+  })
+
+  await requestConfirm({ kind: 'shell-command', username: 'alice', payload: { command: 'unknowncmd --version' } })
+  await requestConfirm({ kind: 'shell-command', username: 'alice', payload: { command: 'unknowncmd --version' } })
+  await requestConfirm({ kind: 'shell-command', username: 'bob', payload: { command: 'unknowncmd --version' } })
+
+  expect(confirmCount).toBe(2)
 })
 
 test('remember tools persist and remove user rules', async () => {

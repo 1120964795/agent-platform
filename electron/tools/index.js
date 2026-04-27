@@ -12,11 +12,11 @@ function register(schema, fn) {
 
 async function execute(name, args, context = {}) {
   const fn = TOOLS[name]
-  if (!fn) return { error: { code: 'INVALID_ARGS', message: `unknown tool ${name}` } }
+  if (!fn) return { error: { code: 'INVALID_ARGS', message: `未知工具：${name}` } }
   try {
     return await fn(args || {}, context)
   } catch (error) {
-    return { error: { code: error.code || 'INTERNAL', message: error.message || 'Tool execution failed' } }
+    return { error: { code: error.code || 'INTERNAL', message: error.message || '工具执行失败' } }
   }
 }
 

@@ -59,6 +59,80 @@ test('chat:send executes function calls in full mode and sends tool events', asy
   expect(send).toHaveBeenCalledWith('chat:done', { convId: 'conv-1' })
 })
 
+test('chat:cancel aborts an in-flight model request', async () => {
+  const ipcMain = createIpcMain()
+  const send = vi.fn()
+  const chat = vi.fn(({ signal }) => new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => {
+      const error = new Error('aborted')
+      error.name = 'AbortError'
+      reject(error)
+    }, { once: true })
+  }))
+  const register = createRegister({
+    storeRef: { getConfig: () => ({ permissionMode: 'default' }) },
+    deepseek: { chat },
+    userRules: { buildSystemPromptSection: () => '' },
+    skillRegistry: { listSkills: () => [], buildSkillIndex: () => '' }
+  })
+  register(ipcMain)
+
+  const pending = ipcMain.handlers.get('chat:send')(
+    { sender: { send } },
+    { convId: 'conv-cancel', messages: [{ role: 'user', content: 'hi' }] }
+  )
+  await Promise.resolve()
+
+  const result = await ipcMain.handlers.get('chat:cancel')({}, { convId: 'conv-cancel' })
+  await expect(pending).resolves.toEqual({ ok: true, cancelled: true })
+  expect(result).toEqual({ ok: true, cancelled: true })
+  expect(send).toHaveBeenCalledWith('chat:cancelled', { convId: 'conv-cancel' })
+})
+
+test('chat:send persists conversation at start and after completion', async () => {
+  const ipcMain = createIpcMain()
+  const send = vi.fn()
+  const upsertConversation = vi.fn((conversation) => conversation)
+  const register = createRegister({
+    storeRef: {
+      getConfig: () => ({ permissionMode: 'default' }),
+      getUserConfig: () => ({ permissionMode: 'default' }),
+      getConversation: () => null,
+      upsertConversation
+    },
+    deepseek: {
+      chat: async ({ onDelta }) => {
+        onDelta('hello')
+        onDelta(' world')
+        return { content: 'hello world', assistant_message: { role: 'assistant', content: 'hello world' }, tool_calls: [] }
+      }
+    },
+    userRules: { buildSystemPromptSection: () => '' },
+    skillRegistry: { listSkills: () => [], buildSkillIndex: () => '' }
+  })
+  register(ipcMain)
+
+  await ipcMain.handlers.get('chat:send')(
+    { sender: { send } },
+    { convId: 'conv-save', username: 'alice', messages: [{ role: 'user', content: 'hi' }] }
+  )
+
+  expect(upsertConversation).toHaveBeenCalledTimes(2)
+  expect(upsertConversation.mock.calls[0][0]).toMatchObject({
+    id: 'conv-save',
+    username: 'alice',
+    messages: [{ role: 'user', content: 'hi' }]
+  })
+  expect(upsertConversation.mock.calls[1][0]).toMatchObject({
+    id: 'conv-save',
+    username: 'alice',
+    messages: [
+      { role: 'user', content: 'hi' },
+      { role: 'assistant', content: 'hello world' }
+    ]
+  })
+})
+
 test('buildSystemPrompt includes rules and skill index only in full mode', () => {
   const deps = { userRules: { buildSystemPromptSection: () => 'rules' }, skillRegistry: { listSkills: () => [{ name: 'x', description: 'y' }], buildSkillIndex: () => 'skills' } }
   expect(buildSystemPrompt({ permissionMode: 'default' }, deps)).toContain('rules')

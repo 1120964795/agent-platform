@@ -19,6 +19,7 @@ const DATA_DIR = process.env.AGENTDEV_DATA_DIR || path.join(userData, 'agentdev-
 const GENERATED_DIR = process.env.AGENTDEV_GENERATED_DIR || path.join(path.dirname(DATA_DIR), 'generated')
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json')
 const DATA_PATH = path.join(DATA_DIR, 'data.json')
+const AUTH_PATH = path.join(DATA_DIR, 'auth.json')
 
 const DEFAULT_CONFIG = {
   apiKey: '',
@@ -39,8 +40,25 @@ const DEFAULT_DATA = {
   scheduledTasks: []
 }
 
+const DEFAULT_AUTH = {
+  version: 1,
+  accounts: [],
+  loginHistory: [],
+  loginPrefs: {
+    username: '',
+    password: '',
+    rememberPassword: false,
+    autoLogin: false
+  },
+  session: null
+}
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value))
+}
+
+function normalizeUsername(username) {
+  return String(username || 'guest').trim() || 'guest'
 }
 
 function ensureDirs() {
@@ -84,11 +102,45 @@ const store = {
     return next
   },
 
-  getMaskedConfig() {
+  getUserConfig(username) {
     const config = this.getConfig()
-    const key = config.apiKey || ''
+    const userKey = normalizeUsername(username)
+    const userConfigs = config.userConfigs && typeof config.userConfigs === 'object'
+      ? config.userConfigs
+      : {}
+
     return {
+      ...DEFAULT_CONFIG,
+      ...(userConfigs[userKey] || {})
+    }
+  },
+
+  setUserConfig(username, patch) {
+    const userKey = normalizeUsername(username)
+    const config = this.getConfig()
+    const userConfigs = config.userConfigs && typeof config.userConfigs === 'object'
+      ? config.userConfigs
+      : {}
+    const currentUserConfig = userConfigs[userKey] || {}
+    const nextUserConfig = { ...currentUserConfig, ...(patch || {}) }
+    const next = {
       ...config,
+      userConfigs: {
+        ...userConfigs,
+        [userKey]: nextUserConfig
+      }
+    }
+
+    writeJson(CONFIG_PATH, next)
+    return { ...DEFAULT_CONFIG, ...nextUserConfig }
+  },
+
+  getMaskedConfig(username) {
+    const config = username ? this.getUserConfig(username) : this.getConfig()
+    const key = config.apiKey || ''
+    const { userConfigs, ...safeConfig } = config
+    return {
+      ...safeConfig,
       apiKey: key.length > 10 ? `${key.slice(0, 6)}***${key.slice(-4)}` : (key ? '***' : '')
     }
   },
@@ -99,6 +151,14 @@ const store = {
 
   saveData(data) {
     writeJson(DATA_PATH, data)
+  },
+
+  getAuth() {
+    return readJson(AUTH_PATH, DEFAULT_AUTH)
+  },
+
+  saveAuth(auth) {
+    writeJson(AUTH_PATH, auth)
   },
 
   upsertConversation(conversation) {
@@ -125,8 +185,11 @@ const store = {
     return artifact
   },
 
-  listArtifacts() {
-    return this.getData().artifacts
+  listArtifacts(username) {
+    const artifacts = this.getData().artifacts
+    if (!username) return artifacts
+    const userKey = normalizeUsername(username)
+    return artifacts.filter((item) => item.username === userKey)
   },
 
   listScheduledTasks() {
@@ -160,4 +223,4 @@ const store = {
   }
 }
 
-module.exports = { store, DEFAULT_CONFIG, DEFAULT_DATA }
+module.exports = { store, DEFAULT_CONFIG, DEFAULT_DATA, DEFAULT_AUTH }

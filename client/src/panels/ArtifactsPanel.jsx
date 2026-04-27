@@ -28,7 +28,8 @@ function formatTime(value) {
   return date.toLocaleString('zh-CN')
 }
 
-export default function ArtifactsPanel() {
+export default function ArtifactsPanel({ currentUser }) {
+  const username = currentUser?.username || 'guest'
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -37,14 +38,14 @@ export default function ArtifactsPanel() {
     setLoading(true)
     setError('')
     try {
-      const result = await api.get('/api/artifacts')
+      const result = await api.invoke('artifacts:list', { username })
       setItems(result.items || [])
     } catch (e) {
       setError(e.message || '读取产物列表失败')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [username])
 
   useEffect(() => {
     load()
@@ -52,12 +53,13 @@ export default function ArtifactsPanel() {
 
   useEffect(() => {
     function handleArtifactCreated(event) {
+      if (event.detail?.username !== username) return
       setItems(current => mergeArtifact(current, event.detail))
     }
 
     window.addEventListener('agentdev:artifact-created', handleArtifactCreated)
     return () => window.removeEventListener('agentdev:artifact-created', handleArtifactCreated)
-  }, [])
+  }, [username])
 
   async function handleOpen(artifact) {
     if (!artifact?.path) return
@@ -76,7 +78,8 @@ export default function ArtifactsPanel() {
           type="button"
           onClick={load}
           className="p-1 rounded hover:bg-[color:var(--bg-tertiary)]"
-          aria-label="refresh artifacts"
+          aria-label="刷新产物"
+          title="刷新产物"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>

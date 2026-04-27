@@ -4,22 +4,32 @@ import SettingsPanel from '../../panels/SettingsPanel.jsx'
 import ArtifactsPanel from '../../panels/ArtifactsPanel.jsx'
 import FileBrowser from '../../panels/FileBrowser.jsx'
 
-function usePermissionMode() {
-  const [mode, setMode] = useState(() => localStorage.getItem('agentdev-permission-mode') || 'default')
+function permissionModeKey(username) {
+  return `agentdev-permission-mode:${username || 'guest'}`
+}
+
+function usePermissionMode(currentUser) {
+  const username = currentUser?.username || 'guest'
+  const [mode, setMode] = useState(() => localStorage.getItem(permissionModeKey(username)) || 'default')
+
+  useEffect(() => {
+    setMode(localStorage.getItem(permissionModeKey(username)) || 'default')
+  }, [username])
 
   useEffect(() => {
     function handleChange(e) {
+      if (e.detail?.username && e.detail.username !== username) return
       setMode(e.detail?.mode || 'default')
     }
     window.addEventListener('agentdev:permission-changed', handleChange)
     return () => window.removeEventListener('agentdev:permission-changed', handleChange)
-  }, [])
+  }, [username])
 
   return mode
 }
 
-export default function RightDrawer({ view, onClose }) {
-  const permissionMode = usePermissionMode()
+export default function RightDrawer({ view, onClose, currentUser }) {
+  const permissionMode = usePermissionMode(currentUser)
   const [activeTab, setActiveTab] = useState(view || 'settings')
 
   const tabs = [
@@ -52,7 +62,8 @@ export default function RightDrawer({ view, onClose }) {
               type="button"
               onClick={onClose}
               className="p-1 rounded hover:bg-[color:var(--bg-tertiary)]"
-              aria-label="close drawer"
+              aria-label="关闭侧边面板"
+              title="关闭侧边面板"
             >
               <X size={16} />
             </button>
@@ -74,9 +85,9 @@ export default function RightDrawer({ view, onClose }) {
             ))}
           </div>
         </div>
-        {activeTab === 'settings' && <SettingsPanel />}
-        {activeTab === 'files' && permissionMode === 'full' && <FileBrowser />}
-        {activeTab === 'artifacts' && <ArtifactsPanel />}
+        {activeTab === 'settings' && <SettingsPanel currentUser={currentUser} />}
+        {activeTab === 'files' && permissionMode === 'full' && <FileBrowser currentUser={currentUser} />}
+        {activeTab === 'artifacts' && <ArtifactsPanel currentUser={currentUser} />}
       </aside>
     </>
   )

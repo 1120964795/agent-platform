@@ -60,6 +60,7 @@ npm test
 
 - `data/config.json`：模型配置、权限模式、工作区、shell 白/黑名单。
 - `data/data.json`：会话和生成文件索引。
+- `data/auth.json`：本地账号、登录历史、记住密码和自动登录状态。
 - `user_rules.md`：用户持久偏好。
 - `skills/`：用户自定义 skill。
 

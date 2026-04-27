@@ -7,11 +7,27 @@ function StatusIcon({ status }) {
   return <CheckCircle2 size={14} className="text-[color:var(--success)]" />
 }
 
+function statusLabel(status) {
+  if (status === 'running') return '运行中'
+  if (status === 'error') return '失败'
+  return '完成'
+}
+
+function fieldLabel(label) {
+  const labels = {
+    args: '参数',
+    logs: '日志',
+    result: '结果',
+    error: '错误'
+  }
+  return labels[label] || label
+}
+
 function JsonBlock({ label, value }) {
   if (value == null) return null
   return (
     <div className="space-y-1">
-      <div className="text-[11px] uppercase tracking-wide text-[color:var(--text-muted)]">{label}</div>
+      <div className="text-[11px] tracking-wide text-[color:var(--text-muted)]">{fieldLabel(label)}</div>
       <pre className="max-h-48 overflow-auto rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap break-words">
         {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
       </pre>
@@ -33,8 +49,8 @@ export default function ToolCard({ message }) {
       >
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         <StatusIcon status={status} />
-        <span className="text-sm font-medium">{message.toolName || 'tool'}</span>
-        <span className="ml-auto text-xs text-[color:var(--text-muted)]">{status}</span>
+        <span className="text-sm font-medium">{message.toolName || '工具'}</span>
+        <span className="ml-auto text-xs text-[color:var(--text-muted)]">{statusLabel(status)}</span>
       </button>
       {open && (
         <div className="space-y-3 border-t border-[color:var(--border)] px-3 py-3">

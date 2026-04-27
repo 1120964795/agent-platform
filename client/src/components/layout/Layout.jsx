@@ -1,33 +1,50 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Sidebar from './Sidebar.jsx'
 import MainArea from './MainArea.jsx'
 import RightDrawer from './RightDrawer.jsx'
 
-const ACTIVE_CONVERSATION_KEY = 'agentdev-active-conversation-id'
-
-function createConversationId() {
-  if (window.crypto?.randomUUID) return `conv_${window.crypto.randomUUID()}`
-  return `conv_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-}
-
-function getInitialConversationId() {
-  const saved = localStorage.getItem(ACTIVE_CONVERSATION_KEY)
-  if (saved) return saved
-  const next = createConversationId()
-  localStorage.setItem(ACTIVE_CONVERSATION_KEY, next)
-  return next
-}
-
-export default function Layout() {
+export default function Layout({
+  currentUser,
+  onLogout,
+  conversations,
+  activeConversationId,
+  activeConversation,
+  onNewConversation,
+  onSelectConversation,
+  onConversationSaved
+}) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [drawer, setDrawer] = useState(null)
-  const [conversationId, setConversationId] = useState(getInitialConversationId)
 
-  function handleNewConversation() {
-    const next = createConversationId()
-    localStorage.setItem(ACTIVE_CONVERSATION_KEY, next)
-    setConversationId(next)
-  }
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.on?.('app-menu:action', (payload = {}) => {
+      switch (payload.action) {
+        case 'new-chat':
+          onNewConversation?.()
+          setDrawer(null)
+          break
+        case 'open-settings':
+          setDrawer('settings')
+          break
+        case 'open-files':
+          setDrawer('files')
+          break
+        case 'open-artifacts':
+          setDrawer('artifacts')
+          break
+        case 'toggle-sidebar':
+          setSidebarCollapsed(value => !value)
+          break
+        case 'logout':
+          onLogout?.()
+          break
+        default:
+          break
+      }
+    })
+
+    return () => unsubscribe?.()
+  }, [onLogout, onNewConversation])
 
   return (
     <div className="flex h-full w-full bg-[color:var(--bg-primary)] text-[color:var(--text-primary)]">
@@ -35,10 +52,20 @@ export default function Layout() {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(v => !v)}
         onOpenDrawer={setDrawer}
-        onNewConversation={handleNewConversation}
+        conversations={conversations}
+        activeConversationId={activeConversationId}
+        onNewConversation={onNewConversation}
+        onSelectConversation={onSelectConversation}
       />
-      <MainArea conversationId={conversationId} onOpenDrawer={setDrawer} />
-      <RightDrawer view={drawer} onClose={() => setDrawer(null)} />
+      <MainArea
+        onOpenDrawer={setDrawer}
+        currentUser={currentUser}
+        onLogout={onLogout}
+        conversationId={activeConversationId}
+        activeConversation={activeConversation}
+        onConversationSaved={onConversationSaved}
+      />
+      <RightDrawer view={drawer} onClose={() => setDrawer(null)} currentUser={currentUser} />
     </div>
   )
 }

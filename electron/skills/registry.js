@@ -7,6 +7,7 @@ let electronApp = null
 try { electronApp = require('electron').app } catch { electronApp = null }
 
 let cache = null
+const SKILL_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]{1,63}$/
 
 function builtinSkillsRoot() {
   if (process.env.AGENTDEV_BUILTIN_SKILLS_DIR) return process.env.AGENTDEV_BUILTIN_SKILLS_DIR
@@ -26,7 +27,7 @@ function parseSkill(skillDir, readonly) {
     const parsed = matter(fs.readFileSync(skillPath, 'utf-8'))
     const name = parsed.data.name || path.basename(skillDir)
     const description = parsed.data.description
-    if (!name || !description) return null
+    if (!name || !description || !isValidSkillName(name)) return null
     return {
       name,
       description,
@@ -42,6 +43,17 @@ function parseSkill(skillDir, readonly) {
     console.warn('[skills] failed to parse', skillPath, error.message)
     return null
   }
+}
+
+function isValidSkillName(name) {
+  return SKILL_NAME_RE.test(String(name || '').trim())
+}
+
+function assertValidSkillName(name, label = '技能名称') {
+  if (isValidSkillName(name)) return String(name).trim()
+  const error = new Error(`${label}只能使用 2-64 位英文、数字、短横线或下划线，并且必须以英文或数字开头。`)
+  error.code = 'INVALID_ARGS'
+  throw error
 }
 
 function scanRoot(root, readonly) {
@@ -72,7 +84,16 @@ function findSkill(name) {
 
 function buildSkillIndex(skills = listSkills()) {
   if (!skills.length) return ''
-  return ['## Available Skills', 'Call load_skill(name) when a skill matches the user task.', ...skills.map((skill) => `- ${skill.name}: ${skill.description}`)].join('\n')
+  return [
+    '## Available Skills',
+    'Call load_skill(name) when a skill matches the user task. Prefer the most specific matching skill.',
+    ...skills.map((skill) => {
+      const details = []
+      if (skill.when_to_use) details.push(`when: ${skill.when_to_use}`)
+      if (skill.tools?.length) details.push(`tools: ${skill.tools.join(', ')}`)
+      return `- ${skill.name}: ${skill.description}${details.length ? ` (${details.join('; ')})` : ''}`
+    })
+  ].join('\n')
 }
 
-module.exports = { builtinSkillsRoot, userSkillsRoot, reload, listSkills, findSkill, buildSkillIndex }
+module.exports = { builtinSkillsRoot, userSkillsRoot, reload, listSkills, findSkill, buildSkillIndex, isValidSkillName, assertValidSkillName }
