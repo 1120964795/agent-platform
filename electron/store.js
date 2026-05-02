@@ -20,6 +20,8 @@ const GENERATED_DIR = process.env.AGENTDEV_GENERATED_DIR || path.join(path.dirna
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json')
 const DATA_PATH = path.join(DATA_DIR, 'data.json')
 const AUTH_PATH = path.join(DATA_DIR, 'auth.json')
+const EXPERIENCES_PATH = path.join(DATA_DIR, 'experiences.json')
+const DIAGNOSTICS_PATH = path.join(DATA_DIR, 'diagnostics.json')
 
 const DEFAULT_CONFIG = {
   apiKey: '',
@@ -53,12 +55,26 @@ const DEFAULT_AUTH = {
   session: null
 }
 
+const DEFAULT_EXPERIENCES = {
+  version: 1,
+  experiences: []
+}
+
+const DEFAULT_DIAGNOSTICS = {
+  version: 1,
+  diagnostics: []
+}
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value))
 }
 
 function normalizeUsername(username) {
   return String(username || 'guest').trim() || 'guest'
+}
+
+function normalizeRecordUsername(record, fallback = 'guest') {
+  return normalizeUsername(record?.username || fallback)
 }
 
 function ensureDirs() {
@@ -161,6 +177,132 @@ const store = {
     writeJson(AUTH_PATH, auth)
   },
 
+  getExperiencesData() {
+    return readJson(EXPERIENCES_PATH, DEFAULT_EXPERIENCES)
+  },
+
+  saveExperiencesData(data) {
+    writeJson(EXPERIENCES_PATH, {
+      version: 1,
+      experiences: Array.isArray(data?.experiences) ? data.experiences : []
+    })
+  },
+
+  listExperiences(username, filters = {}) {
+    const userKey = normalizeUsername(username)
+    let items = this.getExperiencesData().experiences
+      .filter((item) => normalizeRecordUsername(item) === userKey)
+    if (filters.status) items = items.filter((item) => item.status === filters.status)
+    return items.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
+  },
+
+  getExperience(id, username) {
+    const userKey = normalizeUsername(username)
+    return this.getExperiencesData().experiences
+      .find((item) => item.id === id && normalizeRecordUsername(item) === userKey) || null
+  },
+
+  upsertExperience(experience) {
+    const data = this.getExperiencesData()
+    const now = new Date().toISOString()
+    const next = {
+      status: 'draft',
+      sceneType: 'development',
+      errorKeywords: [],
+      projectDirs: [],
+      commands: [],
+      notes: [],
+      successCount: 0,
+      createdAt: now,
+      updatedAt: now,
+      ...(experience || {})
+    }
+    next.username = normalizeUsername(next.username)
+    next.id = next.id || this.genId('exp_')
+    next.updatedAt = experience?.updatedAt || now
+    const index = data.experiences.findIndex((item) => item.id === next.id && normalizeRecordUsername(item) === next.username)
+    if (index === -1) data.experiences.unshift(next)
+    else data.experiences[index] = { ...data.experiences[index], ...next }
+    this.saveExperiencesData(data)
+    return next
+  },
+
+  deleteExperience(id, username) {
+    const userKey = normalizeUsername(username)
+    const data = this.getExperiencesData()
+    const before = data.experiences.length
+    data.experiences = data.experiences.filter((item) => !(item.id === id && normalizeRecordUsername(item) === userKey))
+    this.saveExperiencesData(data)
+    return data.experiences.length !== before
+  },
+
+  searchExperiences(username, query, filters = {}) {
+    const needle = String(query || '').trim().toLowerCase()
+    const items = this.listExperiences(username, filters)
+    if (!needle) return items
+    return items.filter((item) => {
+      const haystack = [
+        item.title,
+        item.errorSignature,
+        item.originalError,
+        item.cause,
+        ...(item.errorKeywords || []),
+        ...(item.projectDirs || []),
+        ...(item.notes || [])
+      ].filter(Boolean).join('\n').toLowerCase()
+      return haystack.includes(needle)
+    })
+  },
+
+  getDiagnosticsData() {
+    return readJson(DIAGNOSTICS_PATH, DEFAULT_DIAGNOSTICS)
+  },
+
+  saveDiagnosticsData(data) {
+    writeJson(DIAGNOSTICS_PATH, {
+      version: 1,
+      diagnostics: Array.isArray(data?.diagnostics) ? data.diagnostics.slice(0, 200) : []
+    })
+  },
+
+  listDiagnostics(username) {
+    const userKey = normalizeUsername(username)
+    return this.getDiagnosticsData().diagnostics
+      .filter((item) => normalizeRecordUsername(item) === userKey)
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+  },
+
+  getDiagnosis(id, username) {
+    const userKey = normalizeUsername(username)
+    return this.getDiagnosticsData().diagnostics
+      .find((item) => item.id === id && normalizeRecordUsername(item) === userKey) || null
+  },
+
+  upsertDiagnosis(diagnosis) {
+    const data = this.getDiagnosticsData()
+    const now = new Date().toISOString()
+    const next = {
+      createdAt: now,
+      ...(diagnosis || {})
+    }
+    next.username = normalizeUsername(next.username)
+    next.id = next.id || this.genId('diag_')
+    const index = data.diagnostics.findIndex((item) => item.id === next.id && normalizeRecordUsername(item) === next.username)
+    if (index === -1) data.diagnostics.unshift(next)
+    else data.diagnostics[index] = { ...data.diagnostics[index], ...next }
+    this.saveDiagnosticsData(data)
+    return next
+  },
+
+  deleteOldDiagnostics(limit = 200) {
+    const data = this.getDiagnosticsData()
+    data.diagnostics = data.diagnostics
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+      .slice(0, Number(limit) || 200)
+    this.saveDiagnosticsData(data)
+    return data.diagnostics.length
+  },
+
   upsertConversation(conversation) {
     const data = this.getData()
     const index = data.conversations.findIndex((item) => item.id === conversation.id)
@@ -223,4 +365,11 @@ const store = {
   }
 }
 
-module.exports = { store, DEFAULT_CONFIG, DEFAULT_DATA, DEFAULT_AUTH }
+module.exports = {
+  store,
+  DEFAULT_CONFIG,
+  DEFAULT_DATA,
+  DEFAULT_AUTH,
+  DEFAULT_EXPERIENCES,
+  DEFAULT_DIAGNOSTICS
+}
