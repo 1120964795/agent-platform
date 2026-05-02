@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Sidebar from './Sidebar.jsx'
 import MainArea from './MainArea.jsx'
 import RightDrawer from './RightDrawer.jsx'
+import { useDiagnostics } from '../../hooks/useDiagnostics.js'
 
 export default function Layout({
   currentUser,
@@ -15,6 +16,7 @@ export default function Layout({
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [drawer, setDrawer] = useState(null)
+  const diagnosticsState = useDiagnostics(currentUser)
 
   useEffect(() => {
     const unsubscribe = window.electronAPI?.on?.('app-menu:action', (payload = {}) => {
@@ -33,7 +35,7 @@ export default function Layout({
           setDrawer('artifacts')
           break
         case 'toggle-sidebar':
-          setSidebarCollapsed(value => !value)
+          setSidebarCollapsed((value) => !value)
           break
         case 'logout':
           onLogout?.()
@@ -43,14 +45,22 @@ export default function Layout({
       }
     })
 
-    return () => unsubscribe?.()
+    function handleOpenDiagnostics() {
+      setDrawer('diagnostics')
+    }
+
+    window.addEventListener('agentdev:open-diagnostics', handleOpenDiagnostics)
+    return () => {
+      unsubscribe?.()
+      window.removeEventListener('agentdev:open-diagnostics', handleOpenDiagnostics)
+    }
   }, [onLogout, onNewConversation])
 
   return (
     <div className="flex h-full w-full bg-[color:var(--bg-primary)] text-[color:var(--text-primary)]">
       <Sidebar
         collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(v => !v)}
+        onToggle={() => setSidebarCollapsed((value) => !value)}
         onOpenDrawer={setDrawer}
         conversations={conversations}
         activeConversationId={activeConversationId}
@@ -64,8 +74,14 @@ export default function Layout({
         conversationId={activeConversationId}
         activeConversation={activeConversation}
         onConversationSaved={onConversationSaved}
+        diagnosticsState={diagnosticsState}
       />
-      <RightDrawer view={drawer} onClose={() => setDrawer(null)} currentUser={currentUser} />
+      <RightDrawer
+        view={drawer}
+        onClose={() => setDrawer(null)}
+        currentUser={currentUser}
+        diagnosticsState={diagnosticsState}
+      />
     </div>
   )
 }

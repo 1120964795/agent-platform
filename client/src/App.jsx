@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Layout from './components/layout/Layout.jsx'
 import AuthPage from './pages/AuthPage.jsx'
 import { api } from './lib/api.js'
+import CompanionPopup from './popup/CompanionPopup.jsx'
+
+const IS_POPUP_MODE = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('popup') === '1'
 
 const ACCOUNT_STORAGE_KEY = 'agentdev-lite.accounts'
 const SESSION_STORAGE_KEY = 'agentdev-lite.session'
@@ -122,6 +125,10 @@ function sortConversations(conversations) {
 }
 
 export default function App() {
+  if (IS_POPUP_MODE) {
+    return <CompanionPopup />
+  }
+
   const [authReady, setAuthReady] = useState(false)
   const [authMessage, setAuthMessage] = useState(null)
   const [authState, setAuthState] = useState(() => normalizeAuthState())

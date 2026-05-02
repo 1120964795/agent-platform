@@ -32,7 +32,9 @@ const DEFAULT_CONFIG = {
   workspace_root: os.homedir(),
   shell_whitelist_extra: [],
   shell_blacklist_extra: [],
-  session_confirm_cache_enabled: true
+  session_confirm_cache_enabled: true,
+  advancedRiskExecutionEnabled: false,
+  lastExperienceCleanupDate: ''
 }
 
 const DEFAULT_DATA = {
@@ -205,6 +207,15 @@ const store = {
   upsertExperience(experience) {
     const data = this.getExperiencesData()
     const now = new Date().toISOString()
+    const normalizedUsername = normalizeUsername(experience?.username)
+    const existing = data.experiences.find((item) => {
+      if (experience?.id) {
+        return item.id === experience.id && normalizeRecordUsername(item) === normalizedUsername
+      }
+      return item.errorSignature && experience?.errorSignature &&
+        item.errorSignature === experience.errorSignature &&
+        normalizeRecordUsername(item) === normalizedUsername
+    })
     const next = {
       status: 'draft',
       sceneType: 'development',
@@ -217,14 +228,22 @@ const store = {
       updatedAt: now,
       ...(experience || {})
     }
-    next.username = normalizeUsername(next.username)
-    next.id = next.id || this.genId('exp_')
+    next.username = normalizedUsername
+    next.id = next.id || existing?.id || this.genId('exp_')
+    next.createdAt = existing?.createdAt || next.createdAt || now
     next.updatedAt = experience?.updatedAt || now
     const index = data.experiences.findIndex((item) => item.id === next.id && normalizeRecordUsername(item) === next.username)
     if (index === -1) data.experiences.unshift(next)
     else data.experiences[index] = { ...data.experiences[index], ...next }
     this.saveExperiencesData(data)
     return next
+  },
+
+  findExperienceBySignature(username, errorSignature) {
+    const userKey = normalizeUsername(username)
+    return this.getExperiencesData().experiences.find((item) => (
+      item.errorSignature === errorSignature && normalizeRecordUsername(item) === userKey
+    )) || null
   },
 
   deleteExperience(id, username) {
@@ -281,12 +300,15 @@ const store = {
   upsertDiagnosis(diagnosis) {
     const data = this.getDiagnosticsData()
     const now = new Date().toISOString()
+    const normalizedUsername = normalizeUsername(diagnosis?.username)
+    const existing = data.diagnostics.find((item) => item.id === diagnosis?.id && normalizeRecordUsername(item) === normalizedUsername)
     const next = {
       createdAt: now,
       ...(diagnosis || {})
     }
-    next.username = normalizeUsername(next.username)
+    next.username = normalizedUsername
     next.id = next.id || this.genId('diag_')
+    next.createdAt = existing?.createdAt || next.createdAt || now
     const index = data.diagnostics.findIndex((item) => item.id === next.id && normalizeRecordUsername(item) === next.username)
     if (index === -1) data.diagnostics.unshift(next)
     else data.diagnostics[index] = { ...data.diagnostics[index], ...next }
@@ -301,6 +323,30 @@ const store = {
       .slice(0, Number(limit) || 200)
     this.saveDiagnosticsData(data)
     return data.diagnostics.length
+  },
+
+  cleanupExpiredExperiences({ now = new Date(), username } = {}) {
+    const cutoff = now.getTime() - (30 * 24 * 60 * 60 * 1000)
+    const data = this.getExperiencesData()
+    const before = data.experiences.length
+    const userKey = username ? normalizeUsername(username) : ''
+    data.experiences = data.experiences.filter((item) => {
+      if (userKey && normalizeRecordUsername(item) !== userKey) return true
+      if (item.pinned || item.status === 'resolved') return true
+      const updatedAt = new Date(item.updatedAt || item.createdAt || 0).getTime()
+      return updatedAt >= cutoff
+    })
+    this.saveExperiencesData(data)
+    return { removed: before - data.experiences.length }
+  },
+
+  exportExperiences(username, { now = new Date() } = {}) {
+    return {
+      version: 1,
+      exportedAt: now.toISOString(),
+      username: normalizeUsername(username),
+      experiences: this.listExperiences(username)
+    }
   },
 
   upsertConversation(conversation) {

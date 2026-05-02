@@ -1,15 +1,29 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, dialog, desktopCapturer, nativeImage, screen, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const { pathToFileURL } = require('url')
 const { registerAll } = require('./ipc')
 const { installChineseMenu } = require('./menu')
+const { createCompanionService } = require('./services/diagnostics/companionService')
 const packageJson = require('../package.json')
 
 const isDev = !app.isPackaged
 let mainWindow = null
+let companionService = null
 
 const rootDir = isDev ? path.join(__dirname, '..') : process.resourcesPath
 const devUrl = process.env.AGENTDEV_DEV_SERVER_URL || 'http://127.0.0.1:5173'
+
+function getRendererUrl() {
+  if (isDev) return devUrl
+  const indexPath = path.join(rootDir, 'client', 'dist', 'index.html')
+  return pathToFileURL(indexPath).toString()
+}
+
+function getPopupUrl() {
+  const rendererUrl = getRendererUrl()
+  return rendererUrl.includes('?') ? `${rendererUrl}&popup=1` : `${rendererUrl}?popup=1`
+}
 
 function getTargetWindow() {
   return BrowserWindow.getFocusedWindow() || mainWindow || BrowserWindow.getAllWindows()[0] || null
@@ -25,10 +39,10 @@ function showAboutDialog() {
   const targetWindow = getTargetWindow()
   const options = {
     type: 'info',
-    title: '关于 AgentDev Lite',
+    title: 'About AgentDev Lite',
     message: 'AgentDev Lite',
-    detail: `版本 ${packageJson.version || '0.1.0'}\n本地智能学习助手。`,
-    buttons: ['确定']
+    detail: `Version ${packageJson.version || '0.1.0'}\nLocal learning assistant with diagnostics support.`,
+    buttons: ['OK']
   }
 
   if (targetWindow && !targetWindow.isDestroyed()) {
@@ -41,7 +55,7 @@ function showAboutDialog() {
 
 function renderLoadFailure(reason) {
   if (!mainWindow || mainWindow.isDestroyed()) return
-  const safeReason = String(reason || '未知错误').replace(/[<>&]/g, '')
+  const safeReason = String(reason || 'Unknown error').replace(/[<>&]/g, '')
   const html = `
     <!doctype html>
     <html>
@@ -58,12 +72,12 @@ function renderLoadFailure(reason) {
       </head>
       <body>
         <div class="wrap">
-          <h1>界面加载失败</h1>
+          <h1>Renderer Failed To Load</h1>
           <div class="card">
-            <p>渲染界面无法加载。</p>
-            <p><strong>原因</strong></p>
+            <p>The UI could not be loaded.</p>
+            <p><strong>Reason</strong></p>
             <code>${safeReason}</code>
-            <p>开发模式下请先启动 Vite 服务；生产模式下请重新构建前端资源。</p>
+            <p>In development mode, make sure the Vite dev server is running. In production mode, rebuild the client bundle.</p>
           </div>
         </div>
       </body>
@@ -80,7 +94,7 @@ async function loadRenderer() {
 
   const indexPath = path.join(rootDir, 'client', 'dist', 'index.html')
   if (!fs.existsSync(indexPath)) {
-    throw new Error(`未找到前端构建产物：${indexPath}`)
+    throw new Error(`Renderer build artifact not found: ${indexPath}`)
   }
   await mainWindow.loadFile(indexPath)
 }
@@ -97,19 +111,39 @@ function createWindow() {
     }
   })
 
+  companionService?.setMainWindow(mainWindow)
   mainWindow.setAutoHideMenuBar(true)
   mainWindow.setMenuBarVisibility(false)
 
   loadRenderer().catch((error) => {
-    renderLoadFailure(error?.message || '界面加载失败。')
+    renderLoadFailure(error?.message || 'Renderer load failed.')
   })
 
   if (isDev) mainWindow.webContents.openDevTools()
 }
 
 app.whenReady().then(() => {
+  companionService = createCompanionService({
+    BrowserWindow,
+    desktopCapturer,
+    nativeImage,
+    screen,
+    ipcMain,
+    popupUrl: getPopupUrl(),
+    appTitle: 'AgentDev Lite',
+    mainWindow,
+    getFocusedWindow: () => BrowserWindow.getFocusedWindow()
+  })
+
   installChineseMenu(Menu, { isDev, sendAction: sendMenuAction, showAbout: showAboutDialog })
-  registerAll(ipcMain)
+  registerAll(ipcMain, {
+    app,
+    dialog,
+    shell,
+    mainWindowRef: () => mainWindow,
+    companionService
+  })
+
   ipcMain.handle('app-menu:set-visible', (event, payload = {}) => {
     const targetWindow = BrowserWindow.fromWebContents(event.sender) || mainWindow
     const visible = Boolean(payload.visible)
@@ -121,11 +155,16 @@ app.whenReady().then(() => {
 
     return { ok: true, visible }
   })
+
   createWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('before-quit', async () => {
+  await companionService?.dispose?.()
 })
 
 app.on('window-all-closed', () => {

@@ -17,8 +17,8 @@ function register(ipcMain, deps = {}) {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile'],
       filters: options.filters || [
-        { name: '文档', extensions: ['docx', 'pptx', 'pdf', 'txt', 'md'] },
-        { name: '所有文件', extensions: ['*'] }
+        { name: 'Documents', extensions: ['docx', 'pptx', 'pdf', 'txt', 'md'] },
+        { name: 'All Files', extensions: ['*'] }
       ]
     })
     return result.canceled ? null : result.filePaths[0]
@@ -32,24 +32,28 @@ function register(ipcMain, deps = {}) {
 
   ipcMain.handle('dialog:saveFileAs', async (_event, payload = {}) => {
     const sourcePath = String(payload.sourcePath || payload.path || '')
-    if (!sourcePath) return error('INVALID_ARGS', '缺少源文件路径')
-    if (!fs.existsSync(sourcePath) || !fs.statSync(sourcePath).isFile()) {
-      return error('PATH_NOT_FOUND', '源文件不存在')
+    const content = typeof payload.content === 'string' ? payload.content : null
+    if (!sourcePath && content === null) return error('INVALID_ARGS', 'Missing source file or content.')
+    if (sourcePath && (!fs.existsSync(sourcePath) || !fs.statSync(sourcePath).isFile())) {
+      return error('PATH_NOT_FOUND', 'Source file does not exist.')
     }
 
     const { dialog, mainWindow } = { ...getDefaultDeps(), ...deps }
-    const defaultPath = payload.defaultPath || payload.filename || path.basename(sourcePath)
+    const defaultPath = payload.defaultPath || payload.filename || (sourcePath ? path.basename(sourcePath) : 'export.json')
+    const extension = sourcePath ? path.extname(sourcePath).slice(1) || '*' : path.extname(defaultPath).slice(1) || '*'
     const result = await dialog.showSaveDialog(mainWindow, {
       defaultPath,
       filters: payload.filters || [
-        { name: '原文件格式', extensions: [path.extname(sourcePath).slice(1) || '*'] },
-        { name: '所有文件', extensions: ['*'] }
+        { name: 'Original Format', extensions: [extension] },
+        { name: 'All Files', extensions: ['*'] }
       ]
     })
     if (result.canceled || !result.filePath) return { ok: true, canceled: true }
 
     fs.mkdirSync(path.dirname(result.filePath), { recursive: true })
-    if (path.resolve(sourcePath) !== path.resolve(result.filePath)) {
+    if (content !== null) {
+      fs.writeFileSync(result.filePath, content, 'utf-8')
+    } else if (path.resolve(sourcePath) !== path.resolve(result.filePath)) {
       fs.copyFileSync(sourcePath, result.filePath)
     }
     return { ok: true, path: result.filePath }

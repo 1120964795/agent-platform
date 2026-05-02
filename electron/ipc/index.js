@@ -7,8 +7,22 @@ const dialog = require('./dialog')
 const chat = require('./chat')
 const skills = require('./skills')
 const rules = require('./rules')
+const diagnostics = require('./diagnostics')
+const experiences = require('./experiences')
 
-const MODULES = [config, auth, conversations, artifacts, files, dialog, chat, skills, rules]
+const MODULES = [
+  config,
+  auth,
+  conversations,
+  artifacts,
+  files,
+  dialog,
+  chat,
+  skills,
+  rules,
+  diagnostics,
+  experiences
+]
 
 function registerAll(ipcMain, deps = {}) {
   for (const mod of MODULES) {

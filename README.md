@@ -1,82 +1,303 @@
 # AgentDev Lite
 
-AgentDev Lite 是一个 Electron 桌面 Agent。当前架构已经移除 Express 常驻后端，聊天循环、工具执行、skill 加载和本地能力都运行在 Electron 主进程中，前端通过 `window.electronAPI.invoke/on` 与主进程通信。
+AgentDev Lite is an Electron desktop assistant. This build adds a Windows-only companion diagnostics system for development terminals: after the user explicitly authorizes a window or a screen region, the app observes terminal output, detects common development errors, creates diagnosis cards, auto-saves experience cards, and suggests reusing past fixes when similar errors appear again.
 
-## 功能
+## What Was Added
 
-- DeepSeek 聊天，支持流式输出。
-- 全权限模式下启用本地工具：读写文件、目录浏览、文件搜索、shell 命令、环境探测、Word/PPT 生成、用户偏好记忆。
-- 工具调用会在聊天区显示为工具卡片，shell 输出会流式显示。
-- Skill 系统支持内置 skill 和用户自定义 skill。用户 skill 位于应用数据目录，且同名覆盖内置 skill。
-- 用户持久偏好写入 `user_rules.md`，新会话会自动加入 system prompt。
+This implementation focuses on the V1 companion diagnostics scope:
 
-## 启动
+- Windows only.
+- Development scenarios only.
+- User must manually start observation.
+- Observe only the user-selected window or region.
+- Default interval: `5000ms`, options: `3000ms`, `5000ms`, `10000ms`.
+- Window mode: UI Automation first, OCR fallback.
+- Region mode: OCR only.
+- Raw screenshots are not stored.
+- Diagnosis is rule-based first.
+- Model explanation is only requested when the user clicks `详细解释`.
+- Fix commands always require user confirmation.
+- High-risk download/script commands follow a stronger confirmation policy.
+- Experience cards are auto-saved only after a diagnosis card is created.
 
-首次安装依赖：
+## Diagnostics Workflow
+
+1. Open the app and log in.
+2. Open `设置` and configure the DeepSeek API key if you want model explanation and reuse-plan rewriting.
+3. Switch to `完全权限` if you want local shell execution and diagnostics automation.
+4. Click the top-bar `诊断` button.
+5. In the diagnostics panel:
+   - Click `刷新窗口` to list terminal windows, or
+   - Click `框选区域` to select a screen region.
+6. Set `项目目录` and choose the interval.
+7. Click `开始观察`.
+8. Trigger a known development error in the observed target.
+9. Review the generated diagnosis card.
+10. Click `确认执行` for a recommended fix, or `详细解释` for a model explanation, or `复用上次方案` if there is a matching experience card.
+
+## Supported Error Types
+
+Current rule-based detection covers:
+
+- Python `ModuleNotFoundError`
+- Node `Cannot find module`
+- npm `ERR! code ...`
+- Port in use (`EADDRINUSE`)
+- Git merge conflicts
+- Java command not found (`java`, `javac`, `mvn`, `gradle`)
+- Java class not found / main class not found
+- Java unsupported class version
+- Maven build failure
+- Gradle build failure
+- Generic shell command not found
+- `ENOENT`
+
+## Risk Policy
+
+- All diagnosis fix commands require explicit confirmation.
+- High-risk fixes use a dedicated `Yes / No` confirmation with default `No`.
+- `advancedRiskExecutionEnabled` defaults to `false`.
+- When advanced mode is off:
+  - non-HTTPS downloads are blocked,
+  - `.bat` and `.ps1` downloads are blocked,
+  - download-and-execute chains are blocked.
+- Extreme-risk commands remain blocked.
+
+## Data Files
+
+App data lives under Electron `userData`:
+
+- `data/config.json`
+- `data/data.json`
+- `data/auth.json`
+- `data/experiences.json`
+- `data/diagnostics.json`
+- `skills/`
+- `user_rules.md`
+
+## Packaging Outputs
+
+Build outputs after `npm run electron:build` or `npx electron-builder --win portable`:
+
+- Installer: `dist-electron/AgentDev Lite Setup 0.1.0.exe`
+- Portable exe: `dist-electron/AgentDev Lite 0.1.0.exe`
+
+The latest portable build was also copied to:
+
+- `C:\Users\DELL2024\Desktop\AgentDev Lite 0.1.0.exe`
+
+## Commands
+
+Install dependencies:
 
 ```powershell
 npm run setup
 ```
 
-开发模式启动 Electron：
+Run Electron in development mode:
 
 ```powershell
 npm run electron:dev
 ```
 
-构建 Windows 安装包：
-
-```powershell
-npm run electron:build
-```
-
-运行测试：
+Run tests:
 
 ```powershell
 npm test
 ```
 
-## 使用
+Build the client only:
 
-1. 打开设置面板，填写 DeepSeek API Key。
-2. 需要本地文件、shell、skill 能力时，将权限模式切到 `Full Permission` 并保存。
-3. 在聊天框自然描述任务，例如：
-   - `总结 "D:\docs\paper.pdf"`
-   - `帮我装 uv`
-   - `写一份关于点云目标检测的 Word 报告`
-4. 模型会按需调用工具或加载 skill。破坏性文件操作和灰名单 shell 命令会弹出确认。
+```powershell
+npm --prefix client run build
+```
 
-## 内置 Skills
+Build the Windows installer:
 
-- `word-writer`：生成 Word 文档、报告、论文草稿。
-- `ppt-builder`：生成 PPT 演示文稿。
-- `study-helper`：学习解释、练习题、学习计划。
-- `file-explorer`：理解目录结构、查找文件、摘要本地文件。
-- `dep-installer`：检查和安装本地开发依赖，标准流程是 `get_os_info -> which -> run_shell_command`。
+```powershell
+npm run electron:build
+```
 
-## 数据位置
+Build the portable exe:
 
-应用数据位于 Electron `userData` 目录下，主要文件包括：
+```powershell
+npx electron-builder --win portable
+```
 
-- `data/config.json`：模型配置、权限模式、工作区、shell 白/黑名单。
-- `data/data.json`：会话和生成文件索引。
-- `data/auth.json`：本地账号、登录历史、记住密码和自动登录状态。
-- `user_rules.md`：用户持久偏好。
-- `skills/`：用户自定义 skill。
+## How To Use Companion Diagnostics
 
-## 手动回归 Checklist
+### 1. Configure settings
 
-- [ ] exe 安装后首次启动能看到 5 个内置 skill。
-- [ ] 给本地 pdf 路径说“总结这个文件”后，模型调 `read_file` 并总结正确。
-- [ ] 说“帮我装 uv”后，模型按 `get_os_info -> which uv -> run_shell_command(...)` 执行，shell 卡片实时显示输出。
-- [ ] 说“删掉 D:\temp”后，模型调 `delete_path` 并弹出原生确认 dialog。
-- [ ] 说“写一份关于 XX 的 Word 报告”后，模型调 `load_skill("word-writer")` 并按工作流生成文档。
-- [ ] 切到 `normal` 模式后，同样问题只文字回答，不调工具。
-- [ ] 自己写 `SKILL.md` 放到用户 `skills/` 目录后，重启或 reload 后列表可见。
-- [ ] 对模型说“之后我做写报告时请调用 word-writer”后，`user_rules.md` 新增规则，新会话能读取该规则。
+- Open `设置`.
+- Fill in the DeepSeek API key if you want `详细解释` and reuse-plan rewriting.
+- Switch to `完全权限`.
+- Optionally enable `高级风险执行模式`.
 
-## 当前限制
+### 2. Start observing
 
-- 第一版不做多 Agent、PTY/xterm 终端、Skill 市场、远程 skill 仓库、RAG 或文件监听。
-- `workspace_root` 是默认工作目录，不是硬访问边界。
-- 旧 `/word`、`/ppt`、`/local` slash 命令已移除，请用自然语言触发工具和 skill。
+- Click the top-bar `诊断` button.
+- Click `刷新窗口` and select a terminal window, or click `框选区域`.
+- Fill in the project directory.
+- Click `开始观察`.
+
+### 3. Trigger a known error
+
+Examples:
+
+```powershell
+Write-Output "ModuleNotFoundError: No module named flask"
+```
+
+```powershell
+Write-Output "Error: Cannot find module 'vite'"
+```
+
+```powershell
+Write-Output "'javac' is not recognized as an internal or external command"
+```
+
+### 4. Use diagnosis cards
+
+Each diagnosis card shows:
+
+- original error snippet,
+- rule-based meaning,
+- possible causes,
+- recommended fixes,
+- matched past experiences,
+- optional model explanation.
+
+### 5. Use experience cards
+
+Open the `经验` tab to:
+
+- search experiences,
+- filter by status,
+- edit title / cause / notes / steps,
+- delete cards,
+- export all experiences as JSON.
+
+## Implementation Map
+
+### Updated Files
+
+- `package.json`
+- `package-lock.json`
+- `client/package-lock.json`
+- `electron/store.js`
+- `electron/main.js`
+- `electron/confirm.js`
+- `electron/ipc/config.js`
+- `electron/ipc/dialog.js`
+- `electron/ipc/index.js`
+- `electron/tools/shell.js`
+- `client/src/App.jsx`
+- `client/src/lib/api.js`
+- `client/src/panels/SettingsPanel.jsx`
+- `client/src/components/chat/ChatArea.jsx`
+- `client/src/components/chat/MessageList.jsx`
+- `client/src/components/layout/Layout.jsx`
+- `client/src/components/layout/MainArea.jsx`
+- `client/src/components/layout/RightDrawer.jsx`
+- `client/src/components/layout/TopBar.jsx`
+
+### New Main-Process Diagnostics Files
+
+- `electron/services/diagnostics/errorDetector.js`
+- `electron/services/diagnostics/experienceMatcher.js`
+- `electron/services/diagnostics/executionPlanService.js`
+- `electron/services/diagnostics/diagnosisService.js`
+- `electron/services/diagnostics/observerSessionManager.js`
+- `electron/services/diagnostics/windowTargetService.js`
+- `electron/services/diagnostics/regionSelectionService.js`
+- `electron/services/diagnostics/uiaCollector.js`
+- `electron/services/diagnostics/ocrCollector.js`
+- `electron/services/diagnostics/companionPopupManager.js`
+- `electron/services/diagnostics/companionService.js`
+- `electron/services/diagnostics/index.js`
+- `electron/ipc/diagnostics.js`
+- `electron/ipc/experiences.js`
+- `electron/region-selection-preload.js`
+
+### New Renderer Files
+
+- `client/src/hooks/useDiagnostics.js`
+- `client/src/components/chat/DiagnosisCard.jsx`
+- `client/src/components/chat/ExperienceCard.jsx`
+- `client/src/panels/DiagnosticsPanel.jsx`
+- `client/src/panels/ExperienceLibraryPanel.jsx`
+- `client/src/popup/CompanionPopup.jsx`
+
+### New Tests
+
+- `electron/__tests__/diagnostics-store.test.js`
+- `electron/__tests__/diagnostics-detector.test.js`
+- `electron/__tests__/diagnostics-lifecycle.test.js`
+- `electron/__tests__/diagnostics-ipc.test.js`
+- `electron/__tests__/companion-popup.test.js`
+- `electron/__tests__/diagnostics-region.test.js`
+- `electron/__tests__/diagnostics-collectors.test.js`
+
+## File Responsibilities
+
+### Main process
+
+- `errorDetector.js`: rule-based text-to-error detection.
+- `experienceMatcher.js`: keyword/signature similarity matching.
+- `executionPlanService.js`: risk classification and execution plan normalization.
+- `diagnosisService.js`: diagnosis generation, auto-save experience, fix result persistence, model client helpers.
+- `observerSessionManager.js`: session lifecycle, dedupe, ignore cache, cooldown, repeated-failure pause.
+- `windowTargetService.js`: enumerate observable windows with thumbnails.
+- `regionSelectionService.js`: transparent overlay for region selection.
+- `uiaCollector.js`: Windows UI Automation text capture.
+- `ocrCollector.js`: OCR over captured window or region images.
+- `companionPopupManager.js`: top-right queued popup notifications.
+- `companionService.js`: orchestration entry point for collection, detection, popup emission, diagnosis persistence.
+
+### IPC
+
+- `diagnostics.js`: observer lifecycle, diagnosis retrieval, fix execution, explain, rewrite plan, popup actions.
+- `experiences.js`: experience CRUD, search, export.
+- `dialog.js`: extended to support saving generated JSON content directly.
+- `config.js`: extended to persist `advancedRiskExecutionEnabled`.
+
+### Renderer
+
+- `useDiagnostics.js`: subscribes to diagnostics events and exposes diagnostics state/actions.
+- `DiagnosticsPanel.jsx`: target selection, session controls, diagnostics list.
+- `ExperienceLibraryPanel.jsx`: searchable/editable/exportable experience library.
+- `DiagnosisCard.jsx`: explain / execute / reuse interactions.
+- `ExperienceCard.jsx`: editable experience display.
+- `CompanionPopup.jsx`: popup window UI for queued notifications.
+- `TopBar.jsx`: diagnostics and experience entry buttons plus status indicator.
+- `Layout.jsx` / `RightDrawer.jsx`: diagnostics tab wiring.
+- `ChatArea.jsx` / `MessageList.jsx`: inject diagnosis/experience cards into the chat stream.
+
+## Verification Completed
+
+The following commands were executed successfully during this implementation:
+
+```powershell
+npm test
+npm --prefix client run build
+npm run electron:build
+npx electron-builder --win portable
+```
+
+## Notes
+
+- OCR now uses `tesseract.js` in the main process.
+- Region mode does not persist raw screenshots.
+- The popup uses the same renderer build with `?popup=1`.
+- The app is not code-signed, so Windows SmartScreen may show a warning before launch.
+
+## Manual Acceptance Checklist
+
+- exe 安装后首次启动能看到 5 个内置 skill。
+- 给本地 pdf 路径说“总结这个文件”。
+- 说“帮我装 uv”。
+- 说“删掉 D:\temp”。
+- 说“写一份关于 XX 的 Word 报告”。
+- 切到 `normal` 模式。
+- 自己写 `SKILL.md` 放到用户 `skills/` 目录。
+- `user_rules.md` 新增规则。

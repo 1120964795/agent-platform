@@ -138,3 +138,22 @@ export async function saveFileAs(payload) {
 
 export function listFiles(dir, username) { return invoke('files:list', username ? { dir, username } : { dir }) }
 export function searchFiles(query, dir, username) { return invoke('files:search', username ? { query, dir, username } : { query, dir }) }
+export function listDiagnostics(username) { return invoke('diagnostics:list', { username: username || 'guest' }) }
+export function getDiagnosis(diagnosisId, username) { return invoke('diagnostics:get', { diagnosisId, username: username || 'guest' }) }
+export function getDiagnosticsStatus(username) { return invoke('diagnostics:status', { username: username || 'guest' }) }
+export function listDiagnosticTargets() { return invoke('diagnostics:targets') }
+export function selectDiagnosticsRegion() { return invoke('diagnostics:selectRegion') }
+export function startDiagnostics(payload) { return invoke('diagnostics:start', payload) }
+export function stopDiagnostics() { return invoke('diagnostics:stop') }
+export function resumeDiagnosticsNow() { return invoke('diagnostics:resumeNow') }
+export function ignoreDiagnosisSignature(signature, username) { return invoke('diagnostics:ignore', { signature, username: username || 'guest' }) }
+export function executeDiagnosisFix(payload) { return invoke('diagnostics:executeFix', payload) }
+export function explainDiagnosis(diagnosisId, username) { return invoke('diagnostics:explain', { diagnosisId, username: username || 'guest' }) }
+export function rewriteDiagnosisPlan(diagnosisId, experienceId, username) { return invoke('diagnostics:rewritePlan', { diagnosisId, experienceId, username: username || 'guest' }) }
+export function sendPopupAction(payload) { return invoke('diagnostics:popup-action', payload) }
+export function listExperiences(username, status) { return invoke('experiences:list', { username: username || 'guest', status }) }
+export function getExperience(id, username) { return invoke('experiences:get', { id, username: username || 'guest' }) }
+export function updateExperience(payload, username) { return invoke('experiences:update', { ...payload, username: username || 'guest' }) }
+export function deleteExperience(id, username) { return invoke('experiences:delete', { id, username: username || 'guest' }) }
+export function searchExperiences(query, username, status) { return invoke('experiences:search', { query, username: username || 'guest', status }) }
+export function exportExperiences(username) { return invoke('experiences:export', { username: username || 'guest' }) }

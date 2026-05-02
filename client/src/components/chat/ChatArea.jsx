@@ -49,11 +49,24 @@ export default function ChatArea({
     return () => window.removeEventListener('agentdev:config-changed', handleConfigChanged)
   }, [loadApiKeyStatus, username])
 
+  useEffect(() => {
+    function handleDiagnosisCreated(event) {
+      const diagnosis = event.detail?.diagnosis
+      const experience = event.detail?.experience
+      if (diagnosis?.username && diagnosis.username !== username) return
+      addCard('diagnosis', { diagnosis })
+      if (experience) addCard('experience', { experience })
+    }
+
+    window.addEventListener('agentdev:diagnosis-created', handleDiagnosisCreated)
+    return () => window.removeEventListener('agentdev:diagnosis-created', handleDiagnosisCreated)
+  }, [addCard, username])
+
   const apiKeyMissing = apiKeyStatus === 'missing'
   const apiKeyUnavailable = apiKeyStatus !== 'ready'
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex min-h-0 flex-1 flex-col">
       {apiKeyMissing && (
         <div className="mx-6 mt-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <KeyRound size={17} className="mt-0.5 shrink-0 text-amber-600" />
@@ -74,6 +87,7 @@ export default function ChatArea({
       )}
       <MessageList
         messages={messages}
+        currentUser={currentUser}
         onUpdateCard={updateCard}
         onFileGenerated={addFileCard}
       />

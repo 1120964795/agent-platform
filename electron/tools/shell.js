@@ -28,17 +28,28 @@ function appendOutput(target, chunk) {
   target.truncated = true
 }
 
-async function runShellCommand({ command, cwd, timeout_ms = 120000 }, { onLog, username, signal } = {}) {
-  if (!command || typeof command !== 'string') return { error: { code: 'INVALID_ARGS', message: '缺少命令' } }
-  if (signal?.aborted) return { error: { code: 'CHAT_CANCELLED', message: '命令已停止' } }
+async function runShellCommand({ command, cwd, timeout_ms = 120000 }, { onLog, username, signal, alreadyConfirmed = false } = {}) {
+  if (!command || typeof command !== 'string') {
+    return { error: { code: 'INVALID_ARGS', message: 'Missing command.' } }
+  }
+  if (signal?.aborted) {
+    return { error: { code: 'CHAT_CANCELLED', message: 'Command cancelled.' } }
+  }
+
   const config = username ? store.getUserConfig(username) : store.getConfig()
   const token = firstToken(command)
   const blacklist = new Set([...DEFAULT_BLACKLIST, ...(config.shell_blacklist_extra || []).map((item) => String(item).toLowerCase())])
   const whitelist = new Set([...DEFAULT_WHITELIST, ...(config.shell_whitelist_extra || []).map((item) => String(item).toLowerCase())])
-  if (blacklist.has(token)) return { error: { code: 'PERMISSION_DENIED', message: `命令已被禁止：${token}` } }
-  if (!whitelist.has(token)) {
+
+  if (blacklist.has(token)) {
+    return { error: { code: 'PERMISSION_DENIED', message: `Blocked command: ${token}` } }
+  }
+
+  if (!alreadyConfirmed && !whitelist.has(token)) {
     const allowed = await requestConfirm({ kind: 'shell-command', username, payload: { command, cwd } })
-    if (!allowed) return { error: { code: 'USER_CANCELLED', message: '用户已取消命令' } }
+    if (!allowed) {
+      return { error: { code: 'USER_CANCELLED', message: 'User cancelled command.' } }
+    }
   }
 
   const workingDir = cwd || config.workspace_root || process.cwd()
@@ -64,13 +75,17 @@ async function runShellCommand({ command, cwd, timeout_ms = 120000 }, { onLog, u
     const abortChild = () => {
       cancelled = true
       child.kill('SIGTERM')
-      setTimeout(() => { if (!child.killed) child.kill('SIGKILL') }, 2000)
+      setTimeout(() => {
+        if (!child.killed) child.kill('SIGKILL')
+      }, 2000)
     }
 
     const timer = setTimeout(() => {
       timedOut = true
       child.kill('SIGTERM')
-      setTimeout(() => { if (!child.killed) child.kill('SIGKILL') }, 2000)
+      setTimeout(() => {
+        if (!child.killed) child.kill('SIGKILL')
+      }, 2000)
     }, Number(timeout_ms) || 120000)
 
     if (signal?.aborted) abortChild()
@@ -85,16 +100,47 @@ async function runShellCommand({ command, cwd, timeout_ms = 120000 }, { onLog, u
       onLog?.('stderr', chunk.toString('utf8'))
     })
     child.on('error', (error) => {
-      settle({ error: { code: error.code === 'ENOENT' ? 'COMMAND_NOT_FOUND' : 'INTERNAL', message: error.message } })
+      settle({
+        error: {
+          code: error.code === 'ENOENT' ? 'COMMAND_NOT_FOUND' : 'INTERNAL',
+          message: error.message
+        }
+      })
     })
     child.on('close', (code) => {
-      if (cancelled) settle({ error: { code: 'CHAT_CANCELLED', message: '命令已停止' }, stdout: stdout.text, stderr: stderr.text, exit_code: code, truncated: stdout.truncated || stderr.truncated, duration_ms: Date.now() - startedAt })
-      else if (timedOut) settle({ error: { code: 'COMMAND_TIMEOUT', message: `命令执行超时：${timeout_ms}ms` }, stdout: stdout.text, stderr: stderr.text, exit_code: code, truncated: stdout.truncated || stderr.truncated, duration_ms: Date.now() - startedAt })
-      else settle({ stdout: stdout.text, stderr: stderr.text, exit_code: code, truncated: stdout.truncated || stderr.truncated, duration_ms: Date.now() - startedAt })
+      const base = {
+        stdout: stdout.text,
+        stderr: stderr.text,
+        exit_code: code,
+        truncated: stdout.truncated || stderr.truncated,
+        duration_ms: Date.now() - startedAt
+      }
+
+      if (cancelled) {
+        settle({ ...base, error: { code: 'CHAT_CANCELLED', message: 'Command cancelled.' } })
+        return
+      }
+      if (timedOut) {
+        settle({ ...base, error: { code: 'COMMAND_TIMEOUT', message: `Command timed out after ${timeout_ms}ms.` } })
+        return
+      }
+      settle(base)
     })
   })
 }
 
-register({ name: 'run_shell_command', description: 'Run a local shell command using the configured three-tier shell policy.', parameters: { type: 'object', properties: { command: { type: 'string' }, cwd: { type: 'string' }, timeout_ms: { type: 'number' } }, required: ['command'] } }, runShellCommand)
+register({
+  name: 'run_shell_command',
+  description: 'Run a local shell command using the configured three-tier shell policy.',
+  parameters: {
+    type: 'object',
+    properties: {
+      command: { type: 'string' },
+      cwd: { type: 'string' },
+      timeout_ms: { type: 'number' }
+    },
+    required: ['command']
+  }
+}, runShellCommand)
 
 module.exports = { runShellCommand, firstToken, DEFAULT_WHITELIST, DEFAULT_BLACKLIST }

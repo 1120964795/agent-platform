@@ -11,6 +11,7 @@ function sanitizeConfigPatch(input = {}) {
   if (Array.isArray(input.shell_whitelist_extra)) patch.shell_whitelist_extra = input.shell_whitelist_extra.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim())
   if (Array.isArray(input.shell_blacklist_extra)) patch.shell_blacklist_extra = input.shell_blacklist_extra.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim())
   if (typeof input.session_confirm_cache_enabled === 'boolean') patch.session_confirm_cache_enabled = input.session_confirm_cache_enabled
+  if (typeof input.advancedRiskExecutionEnabled === 'boolean') patch.advancedRiskExecutionEnabled = input.advancedRiskExecutionEnabled
   return patch
 }
 
@@ -19,6 +20,7 @@ function register(ipcMain) {
     const username = typeof payload === 'string' ? payload : payload.username
     return { ok: true, config: store.getMaskedConfig(username) }
   })
+
   ipcMain.handle('config:set', async (_event, payload = {}) => {
     const username = typeof payload.username === 'string' ? payload.username : ''
     const patch = sanitizeConfigPatch(payload)
