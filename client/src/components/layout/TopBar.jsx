@@ -1,4 +1,4 @@
-import { Activity, BookOpen, FolderOpen, LogOut, Settings, UserCircle } from 'lucide-react'
+import { Activity, BookOpen, FolderOpen, FolderSearch, LogOut, Settings, UserCircle } from 'lucide-react'
 
 function statusTone(status) {
   if (status === 'running') return 'bg-emerald-500'
@@ -23,6 +23,18 @@ export default function TopBar({ title = '新对话', onOpenDrawer, currentUser,
             <span className="truncate">{currentUser.username}</span>
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => onOpenDrawer?.('projects')}
+          className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          aria-label="项目助手"
+          title="项目助手"
+        >
+          <span className="inline-flex items-center gap-2">
+            <FolderSearch size={14} />
+            项目
+          </span>
+        </button>
         <button
           type="button"
           onClick={() => onOpenDrawer?.('diagnostics')}

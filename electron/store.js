@@ -22,11 +22,13 @@ const DATA_PATH = path.join(DATA_DIR, 'data.json')
 const AUTH_PATH = path.join(DATA_DIR, 'auth.json')
 const EXPERIENCES_PATH = path.join(DATA_DIR, 'experiences.json')
 const DIAGNOSTICS_PATH = path.join(DATA_DIR, 'diagnostics.json')
+const PROJECTS_PATH = path.join(DATA_DIR, 'projects.json')
 
 const DEFAULT_CONFIG = {
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
   model: 'deepseek-chat',
+  embeddingModel: '',
   temperature: 0.7,
   permissionMode: 'default',
   workspace_root: os.homedir(),
@@ -67,6 +69,17 @@ const DEFAULT_DIAGNOSTICS = {
   diagnostics: []
 }
 
+const DEFAULT_PROJECTS = {
+  version: 1,
+  projects: [],
+  settings: [],
+  profiles: [],
+  files: [],
+  chunks: [],
+  indexStats: [],
+  patchRecords: []
+}
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value))
 }
@@ -77,6 +90,19 @@ function normalizeUsername(username) {
 
 function normalizeRecordUsername(record, fallback = 'guest') {
   return normalizeUsername(record?.username || fallback)
+}
+
+function normalizePathForCompare(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  const pathApi = (process.platform === 'win32' || /^[a-zA-Z]:($|[\\/])/.test(text) || /^\\\\/.test(text))
+    ? path.win32
+    : path
+  return pathApi.normalize(text).replace(/[\\/]+$/, '').toLowerCase()
+}
+
+function normalizeProjectRelativePath(value) {
+  return String(value || '').replace(/\\/g, '/').replace(/^\/+/, '')
 }
 
 function ensureDirs() {
@@ -325,6 +351,302 @@ const store = {
     return data.diagnostics.length
   },
 
+  getProjectsData() {
+    const data = readJson(PROJECTS_PATH, DEFAULT_PROJECTS)
+    return {
+      version: 1,
+      projects: Array.isArray(data.projects) ? data.projects : [],
+      settings: Array.isArray(data.settings) ? data.settings : [],
+      profiles: Array.isArray(data.profiles) ? data.profiles : [],
+      files: Array.isArray(data.files) ? data.files : [],
+      chunks: Array.isArray(data.chunks) ? data.chunks : [],
+      indexStats: Array.isArray(data.indexStats) ? data.indexStats : [],
+      patchRecords: Array.isArray(data.patchRecords) ? data.patchRecords : []
+    }
+  },
+
+  saveProjectsData(data) {
+    writeJson(PROJECTS_PATH, {
+      version: 1,
+      projects: Array.isArray(data?.projects) ? data.projects : [],
+      settings: Array.isArray(data?.settings) ? data.settings : [],
+      profiles: Array.isArray(data?.profiles) ? data.profiles : [],
+      files: Array.isArray(data?.files) ? data.files : [],
+      chunks: Array.isArray(data?.chunks) ? data.chunks : [],
+      indexStats: Array.isArray(data?.indexStats) ? data.indexStats : [],
+      patchRecords: Array.isArray(data?.patchRecords) ? data.patchRecords : []
+    })
+  },
+
+  listProjects(username) {
+    const userKey = normalizeUsername(username)
+    return this.getProjectsData().projects
+      .filter((item) => normalizeRecordUsername(item) === userKey)
+      .sort((a, b) => new Date(b.lastOpenedAt || b.createdAt || 0) - new Date(a.lastOpenedAt || a.createdAt || 0))
+  },
+
+  getProject(id, username) {
+    const userKey = normalizeUsername(username)
+    return this.getProjectsData().projects
+      .find((item) => item.id === id && normalizeRecordUsername(item) === userKey) || null
+  },
+
+  findProjectByRoot(username, rootPath) {
+    const userKey = normalizeUsername(username)
+    const rootKey = normalizePathForCompare(rootPath)
+    return this.getProjectsData().projects.find((item) => (
+      normalizeRecordUsername(item) === userKey &&
+      normalizePathForCompare(item.rootPath) === rootKey
+    )) || null
+  },
+
+  upsertProject(project) {
+    const data = this.getProjectsData()
+    const now = new Date().toISOString()
+    const username = normalizeUsername(project?.username)
+    const rootPath = String(project?.rootPath || '').trim()
+    const existing = project?.id
+      ? data.projects.find((item) => item.id === project.id && normalizeRecordUsername(item) === username)
+      : this.findProjectByRoot(username, rootPath)
+    const next = {
+      createdAt: now,
+      lastOpenedAt: now,
+      ...(existing || {}),
+      ...(project || {})
+    }
+    next.username = username
+    next.id = next.id || existing?.id || this.genId('proj_')
+    next.rootPath = rootPath || existing?.rootPath || ''
+    next.name = String(next.name || path.basename(next.rootPath) || 'Project')
+    next.createdAt = existing?.createdAt || next.createdAt || now
+    next.lastOpenedAt = project?.lastOpenedAt || now
+
+    const index = data.projects.findIndex((item) => item.id === next.id && normalizeRecordUsername(item) === username)
+    if (index === -1) data.projects.unshift(next)
+    else data.projects[index] = { ...data.projects[index], ...next }
+    this.saveProjectsData(data)
+    return next
+  },
+
+  removeProject(id, username) {
+    const userKey = normalizeUsername(username)
+    const data = this.getProjectsData()
+    const existing = data.projects.find((item) => item.id === id && normalizeRecordUsername(item) === userKey)
+    if (!existing) return false
+    data.projects = data.projects.filter((item) => !(item.id === id && normalizeRecordUsername(item) === userKey))
+    data.settings = data.settings.filter((item) => item.projectId !== id)
+    data.profiles = data.profiles.filter((item) => item.projectId !== id)
+    data.files = data.files.filter((item) => item.projectId !== id)
+    data.chunks = data.chunks.filter((item) => item.projectId !== id)
+    data.indexStats = data.indexStats.filter((item) => item.projectId !== id)
+    data.patchRecords = data.patchRecords.filter((item) => item.projectId !== id)
+    this.saveProjectsData(data)
+    return true
+  },
+
+  getProjectSettings(projectId) {
+    return this.getProjectsData().settings.find((item) => item.projectId === projectId) || null
+  },
+
+  upsertProjectSettings(settings) {
+    const data = this.getProjectsData()
+    const now = new Date().toISOString()
+    const next = {
+      ...(settings || {}),
+      projectId: settings?.projectId,
+      updatedAt: settings?.updatedAt || now
+    }
+    const index = data.settings.findIndex((item) => item.projectId === next.projectId)
+    if (index === -1) data.settings.push(next)
+    else data.settings[index] = { ...data.settings[index], ...next }
+    this.saveProjectsData(data)
+    return next
+  },
+
+  getProjectProfile(projectId) {
+    return this.getProjectsData().profiles.find((item) => item.projectId === projectId) || null
+  },
+
+  upsertProjectProfile(profile) {
+    const data = this.getProjectsData()
+    const now = new Date().toISOString()
+    const next = {
+      ...(profile || {}),
+      projectId: profile?.projectId,
+      updatedAt: profile?.updatedAt || now
+    }
+    const index = data.profiles.findIndex((item) => item.projectId === next.projectId)
+    if (index === -1) data.profiles.push(next)
+    else data.profiles[index] = { ...data.profiles[index], ...next }
+    this.saveProjectsData(data)
+    return next
+  },
+
+  listProjectFiles(projectId) {
+    return this.getProjectsData().files.filter((item) => item.projectId === projectId)
+  },
+
+  listProjectChunks(projectId) {
+    return this.getProjectsData().chunks.filter((item) => item.projectId === projectId)
+  },
+
+  getProjectIndexStats(projectId) {
+    return this.getProjectsData().indexStats.find((item) => item.projectId === projectId) || null
+  },
+
+  upsertProjectIndexStats(stats) {
+    const data = this.getProjectsData()
+    const now = new Date().toISOString()
+    const next = {
+      status: 'idle',
+      fileCount: 0,
+      chunkCount: 0,
+      ftsRowCount: 0,
+      failedFiles: 0,
+      pendingFiles: 0,
+      processedFiles: 0,
+      lastError: '',
+      ...(stats || {}),
+      projectId: stats?.projectId,
+      updatedAt: stats?.updatedAt || now
+    }
+    const index = data.indexStats.findIndex((item) => item.projectId === next.projectId)
+    if (index === -1) data.indexStats.push(next)
+    else data.indexStats[index] = { ...data.indexStats[index], ...next }
+    this.saveProjectsData(data)
+    return next
+  },
+
+  clearProjectIndex(projectId) {
+    const data = this.getProjectsData()
+    data.files = data.files.filter((item) => item.projectId !== projectId)
+    data.chunks = data.chunks.filter((item) => item.projectId !== projectId)
+    const now = new Date().toISOString()
+    const nextStats = {
+      projectId,
+      status: 'cleared',
+      fileCount: 0,
+      chunkCount: 0,
+      ftsRowCount: 0,
+      failedFiles: 0,
+      pendingFiles: 0,
+      processedFiles: 0,
+      lastError: '',
+      updatedAt: now,
+      lastIndexedAt: ''
+    }
+    const index = data.indexStats.findIndex((item) => item.projectId === projectId)
+    if (index === -1) data.indexStats.push(nextStats)
+    else data.indexStats[index] = { ...data.indexStats[index], ...nextStats }
+    this.saveProjectsData(data)
+    return nextStats
+  },
+
+  replaceProjectFileIndex(projectId, files, chunks, stats = {}) {
+    const data = this.getProjectsData()
+    data.files = data.files.filter((item) => item.projectId !== projectId)
+    data.chunks = data.chunks.filter((item) => item.projectId !== projectId)
+    data.files.push(...(Array.isArray(files) ? files : []))
+    data.chunks.push(...(Array.isArray(chunks) ? chunks : []))
+
+    const now = new Date().toISOString()
+    const nextStats = {
+      projectId,
+      status: 'indexed',
+      fileCount: data.files.filter((item) => item.projectId === projectId).length,
+      chunkCount: data.chunks.filter((item) => item.projectId === projectId).length,
+      ftsRowCount: data.chunks.filter((item) => item.projectId === projectId).length,
+      failedFiles: 0,
+      pendingFiles: 0,
+      processedFiles: data.files.filter((item) => item.projectId === projectId).length,
+      lastError: '',
+      ...(stats || {}),
+      updatedAt: stats.updatedAt || now,
+      lastIndexedAt: stats.lastIndexedAt || now
+    }
+    const index = data.indexStats.findIndex((item) => item.projectId === projectId)
+    if (index === -1) data.indexStats.push(nextStats)
+    else data.indexStats[index] = { ...data.indexStats[index], ...nextStats }
+    this.saveProjectsData(data)
+    return nextStats
+  },
+
+  mergeProjectFileIndex(projectId, files = [], chunks = [], removedPaths = [], stats = {}) {
+    const data = this.getProjectsData()
+    const touched = new Set([
+      ...(removedPaths || []),
+      ...(files || []).map((item) => item.relativePath)
+    ].map(normalizeProjectRelativePath).filter(Boolean))
+
+    if (touched.size > 0) {
+      data.files = data.files.filter((item) => (
+        item.projectId !== projectId || !touched.has(normalizeProjectRelativePath(item.relativePath))
+      ))
+      data.chunks = data.chunks.filter((item) => (
+        item.projectId !== projectId || !touched.has(normalizeProjectRelativePath(item.relativePath))
+      ))
+    }
+
+    data.files.push(...(Array.isArray(files) ? files : []))
+    data.chunks.push(...(Array.isArray(chunks) ? chunks : []))
+
+    const now = new Date().toISOString()
+    const fileCount = data.files.filter((item) => item.projectId === projectId).length
+    const chunkCount = data.chunks.filter((item) => item.projectId === projectId).length
+    const nextStats = {
+      projectId,
+      status: 'indexed',
+      fileCount,
+      chunkCount,
+      ftsRowCount: chunkCount,
+      failedFiles: 0,
+      pendingFiles: 0,
+      processedFiles: touched.size,
+      lastError: '',
+      ...(stats || {}),
+      fileCount,
+      chunkCount,
+      ftsRowCount: chunkCount,
+      updatedAt: stats.updatedAt || now,
+      lastIndexedAt: stats.lastIndexedAt || now
+    }
+    const index = data.indexStats.findIndex((item) => item.projectId === projectId)
+    if (index === -1) data.indexStats.push(nextStats)
+    else data.indexStats[index] = { ...data.indexStats[index], ...nextStats }
+    this.saveProjectsData(data)
+    return nextStats
+  },
+
+  listPatchRecords(projectId) {
+    return this.getProjectsData().patchRecords
+      .filter((item) => item.projectId === projectId)
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+  },
+
+  getPatchRecord(projectId, id) {
+    return this.getProjectsData().patchRecords
+      .find((item) => item.projectId === projectId && item.id === id) || null
+  },
+
+  upsertPatchRecord(record) {
+    const data = this.getProjectsData()
+    const now = new Date().toISOString()
+    const next = {
+      status: 'draft',
+      affectedFiles: [],
+      createdAt: now,
+      ...(record || {})
+    }
+    next.id = next.id || this.genId('patch_')
+    next.createdAt = record?.createdAt || next.createdAt || now
+    next.updatedAt = record?.updatedAt || now
+    const index = data.patchRecords.findIndex((item) => item.projectId === next.projectId && item.id === next.id)
+    if (index === -1) data.patchRecords.unshift(next)
+    else data.patchRecords[index] = { ...data.patchRecords[index], ...next }
+    this.saveProjectsData(data)
+    return next
+  },
+
   cleanupExpiredExperiences({ now = new Date(), username } = {}) {
     const cutoff = now.getTime() - (30 * 24 * 60 * 60 * 1000)
     const data = this.getExperiencesData()
@@ -417,5 +739,6 @@ module.exports = {
   DEFAULT_DATA,
   DEFAULT_AUTH,
   DEFAULT_EXPERIENCES,
-  DEFAULT_DIAGNOSTICS
+  DEFAULT_DIAGNOSTICS,
+  DEFAULT_PROJECTS
 }

@@ -8,6 +8,7 @@ const DEFAULT_FORM = {
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
   model: 'deepseek-chat',
+  embeddingModel: '',
   temperature: 0.7,
   permissionMode: 'default',
   workspace_root: '',
@@ -57,6 +58,7 @@ export default function SettingsPanel({ currentUser }) {
           apiKey: '',
           baseUrl: config.baseUrl || DEFAULT_FORM.baseUrl,
           model: config.model || DEFAULT_FORM.model,
+          embeddingModel: config.embeddingModel || DEFAULT_FORM.embeddingModel,
           temperature: config.temperature ?? DEFAULT_FORM.temperature,
           permissionMode: mode,
           workspace_root: config.workspace_root || '',
@@ -204,6 +206,15 @@ export default function SettingsPanel({ currentUser }) {
               value={form.temperature}
               onChange={(event) => setForm({ ...form, temperature: Number(event.target.value) })}
               className="w-full"
+            />
+          </label>
+          <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
+            Embedding 模型（可选）
+            <input
+              value={form.embeddingModel}
+              onChange={(event) => setForm({ ...form, embeddingModel: event.target.value })}
+              placeholder="兼容 /v1/embeddings 的模型名"
+              className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
             />
           </label>
         </div>

@@ -10,6 +10,17 @@ function createId(prefix, seed) {
   return `${prefix}${crypto.createHash('md5').update(String(seed || Math.random())).digest('hex').slice(0, 12)}`
 }
 
+function citationToEvidence(source, reason) {
+  if (!source?.path) return null
+  return {
+    path: source.path,
+    lineStart: source.lineStart || 1,
+    lineEnd: source.lineEnd || source.lineStart || 1,
+    chunkType: source.chunkType || 'config',
+    reason: reason || source.reason || 'Project evidence'
+  }
+}
+
 function buildTemplate(errorEvent) {
   const packageName = errorEvent.signature.split('.').pop()
   switch (errorEvent.type) {
@@ -257,6 +268,54 @@ function createDiagnosisFromError(errorEvent, options = {}) {
   const experiences = Array.isArray(options.experiences) ? options.experiences : []
   const now = options.now || new Date()
   const template = buildTemplate(errorEvent)
+  const projectEvidenceKeys = []
+  const projectEvidence = []
+  for (const source of options.projectEvidence || []) {
+    const evidence = citationToEvidence(source)
+    if (!evidence) continue
+    const key = `${evidence.path}:${evidence.lineStart}:${evidence.lineEnd}`
+    if (projectEvidenceKeys.includes(key)) continue
+    projectEvidenceKeys.push(key)
+    projectEvidence.push(evidence)
+  }
+
+  const dependencyFiles = options.projectProfile?.dependencyFiles || []
+  const packageManagers = options.projectProfile?.packageManagers || []
+  const projectFixes = []
+  if (errorEvent.type === 'ModuleNotFoundError' && dependencyFiles.some((item) => item.path === 'requirements.txt')) {
+    projectFixes.push({
+      id: 'fix_project_requirements',
+      label: '按项目依赖文件安装',
+      command: 'pip install -r requirements.txt',
+      cwd: errorEvent.projectDir || options.project?.rootPath || '',
+      evidence: dependencyFiles
+        .filter((item) => item.path === 'requirements.txt')
+        .map((item) => citationToEvidence(item, 'Project declares Python dependencies.'))
+        .filter(Boolean)
+    })
+  }
+  if (errorEvent.type === 'NodeModuleNotFound' && dependencyFiles.some((item) => item.path === 'package.json')) {
+    const manager = packageManagers.includes('pnpm') ? 'pnpm' : packageManagers.includes('yarn') ? 'yarn' : 'npm'
+    projectFixes.push({
+      id: 'fix_project_install',
+      label: '按项目依赖文件安装',
+      command: manager === 'yarn' ? 'yarn install' : `${manager} install`,
+      cwd: errorEvent.projectDir || options.project?.rootPath || '',
+      evidence: dependencyFiles
+        .filter((item) => item.path === 'package.json')
+        .map((item) => citationToEvidence(item, 'Project declares Node dependencies.'))
+        .filter(Boolean)
+    })
+  }
+  for (const fix of projectFixes) {
+    for (const evidence of fix.evidence || []) {
+      const key = `${evidence.path}:${evidence.lineStart}:${evidence.lineEnd}`
+      if (projectEvidenceKeys.includes(key)) continue
+      projectEvidenceKeys.push(key)
+      projectEvidence.push(evidence)
+    }
+  }
+
   const experienceMatches = matchExperiences(errorEvent, experiences).map((item) => ({
     experienceId: item.experienceId,
     title: item.title,
@@ -264,7 +323,7 @@ function createDiagnosisFromError(errorEvent, options = {}) {
     matchedKeywords: item.matchedKeywords
   }))
 
-  const recommendedFixes = (template.fixes || []).map((fix, index) => ({
+  const recommendedFixes = [...projectFixes, ...(template.fixes || [])].map((fix, index) => ({
     ...buildExecutionPlan({
       id: fix.id || `fix_${index + 1}`,
       label: fix.label,
@@ -272,7 +331,8 @@ function createDiagnosisFromError(errorEvent, options = {}) {
       cwd: fix.cwd || errorEvent.projectDir || ''
     }, options),
     id: fix.id || `fix_${index + 1}`,
-    label: fix.label
+    label: fix.label,
+    evidence: fix.evidence || []
   }))
 
   return {
@@ -290,6 +350,8 @@ function createDiagnosisFromError(errorEvent, options = {}) {
     meaning: template.meaning,
     possibleCauses: template.possibleCauses || [],
     recommendedFixes,
+    projectId: options.project?.id || '',
+    projectEvidence,
     experienceMatches,
     modelExplanation: options.modelExplanation || '',
     status: 'ready',

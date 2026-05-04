@@ -157,3 +157,22 @@ export function updateExperience(payload, username) { return invoke('experiences
 export function deleteExperience(id, username) { return invoke('experiences:delete', { id, username: username || 'guest' }) }
 export function searchExperiences(query, username, status) { return invoke('experiences:search', { query, username: username || 'guest', status }) }
 export function exportExperiences(username) { return invoke('experiences:export', { username: username || 'guest' }) }
+export function listProjects(username) { return invoke('projects:list', { username: username || 'guest' }) }
+export function addProject(payload, username) { return invoke('projects:add', { ...(payload || {}), username: username || 'guest' }) }
+export function getProject(projectId, username) { return invoke('projects:get', { projectId, username: username || 'guest' }) }
+export function removeProject(projectId, username) { return invoke('projects:remove', { projectId, username: username || 'guest' }) }
+export function getProjectSettings(projectId, username) { return invoke('projects:settings:get', { projectId, username: username || 'guest' }) }
+export function updateProjectSettings(projectId, patch, username) { return invoke('projects:settings:update', { projectId, patch, username: username || 'guest' }) }
+export function refreshProjectProfile(projectId, username) { return invoke('projects:profile:refresh', { projectId, username: username || 'guest' }) }
+export function startProjectIndex(projectId, username) { return invoke('projects:index:start', { projectId, username: username || 'guest' }) }
+export function pauseProjectIndex(projectId, username) { return invoke('projects:index:pause', { projectId, username: username || 'guest' }) }
+export function clearProjectIndex(projectId, username) { return invoke('projects:index:clear', { projectId, username: username || 'guest' }) }
+export function getProjectIndexStatus(projectId, username) { return invoke('projects:index:status', { projectId, username: username || 'guest' }) }
+export function searchProject(projectId, query, username, filters) { return invoke('projects:search', { projectId, query, filters, username: username || 'guest' }) }
+export function askProject(projectId, question, username) { return invoke('projects:ask', { projectId, question, username: username || 'guest' }) }
+export function previewProjectPatch(projectId, payload, username) { return invoke('projects:patch:preview', { ...(payload || {}), projectId, username: username || 'guest' }) }
+export function applyProjectPatch(projectId, patchId, username) { return invoke('projects:patch:apply', { projectId, patchId, confirmed: true, username: username || 'guest' }) }
+export function listProjectPatches(projectId, username) { return invoke('projects:patch:list', { projectId, username: username || 'guest' }) }
+export function matchProjectExperiences(projectId, payload, username) { return invoke('projects:experiences:match', { ...(payload || {}), projectId, username: username || 'guest' }) }
+export function getProjectEmbeddingStatus(projectId, username) { return invoke('projects:embedding:status', { projectId, username: username || 'guest' }) }
+export function refreshProjectEmbedding(projectId, username) { return invoke('projects:embedding:refresh', { projectId, username: username || 'guest' }) }

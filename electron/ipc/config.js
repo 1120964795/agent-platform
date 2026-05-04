@@ -5,6 +5,7 @@ function sanitizeConfigPatch(input = {}) {
   if (typeof input.apiKey === 'string' && input.apiKey && !input.apiKey.includes('***')) patch.apiKey = input.apiKey.trim()
   if (typeof input.baseUrl === 'string' && input.baseUrl) patch.baseUrl = input.baseUrl.trim()
   if (typeof input.model === 'string' && input.model) patch.model = input.model.trim()
+  if (typeof input.embeddingModel === 'string') patch.embeddingModel = input.embeddingModel.trim()
   if (typeof input.temperature === 'number') patch.temperature = input.temperature
   if (input.permissionMode === 'default' || input.permissionMode === 'full') patch.permissionMode = input.permissionMode
   if (typeof input.workspace_root === 'string' && input.workspace_root) patch.workspace_root = input.workspace_root.trim()

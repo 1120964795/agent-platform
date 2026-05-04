@@ -5,6 +5,7 @@ import ArtifactsPanel from '../../panels/ArtifactsPanel.jsx'
 import FileBrowser from '../../panels/FileBrowser.jsx'
 import DiagnosticsPanel from '../../panels/DiagnosticsPanel.jsx'
 import ExperienceLibraryPanel from '../../panels/ExperienceLibraryPanel.jsx'
+import ProjectAssistantPanel from '../../panels/ProjectAssistantPanel.jsx'
 
 function permissionModeKey(username) {
   return `agentdev-permission-mode:${username || 'guest'}`
@@ -35,6 +36,7 @@ export default function RightDrawer({ view, onClose, currentUser, diagnosticsSta
   const [activeTab, setActiveTab] = useState(view || 'settings')
 
   const tabs = [
+    { id: 'projects', label: '项目' },
     { id: 'diagnostics', label: '诊断' },
     { id: 'experiences', label: '经验' },
     { id: 'settings', label: '设置' },
@@ -88,6 +90,7 @@ export default function RightDrawer({ view, onClose, currentUser, diagnosticsSta
             ))}
           </div>
         </div>
+        {activeTab === 'projects' && <ProjectAssistantPanel currentUser={currentUser} />}
         {activeTab === 'diagnostics' && <DiagnosticsPanel currentUser={currentUser} diagnosticsState={diagnosticsState} />}
         {activeTab === 'experiences' && <ExperienceLibraryPanel currentUser={currentUser} diagnosticsState={diagnosticsState} />}
         {activeTab === 'settings' && <SettingsPanel currentUser={currentUser} />}

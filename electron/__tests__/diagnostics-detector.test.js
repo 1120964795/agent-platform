@@ -167,3 +167,40 @@ test('createDiagnosisFromError builds rule diagnosis and fix plans', () => {
     ]
   })
 })
+
+test('createDiagnosisFromError prefers project dependency files when evidence exists', () => {
+  const diagnosis = createDiagnosisFromError({
+    id: 'err_1',
+    signature: 'python.module_not_found.flask',
+    title: 'Python 依赖缺失',
+    type: 'ModuleNotFoundError',
+    projectDir: 'D:\\demo',
+    rawSnippet: 'ModuleNotFoundError: No module named flask',
+    keywords: ['ModuleNotFoundError', 'flask', 'Python']
+  }, {
+    username: 'alice',
+    project: { id: 'proj_1', rootPath: 'D:\\demo' },
+    projectProfile: {
+      dependencyFiles: [
+        { path: 'requirements.txt', lineStart: 1, lineEnd: 3, chunkType: 'config', reason: 'Declares Python dependencies.' }
+      ],
+      packageManagers: ['pip']
+    }
+  })
+
+  expect(diagnosis).toMatchObject({
+    projectId: 'proj_1',
+    projectEvidence: [
+      expect.objectContaining({ path: 'requirements.txt' })
+    ],
+    recommendedFixes: [
+      expect.objectContaining({
+        id: 'fix_project_requirements',
+        command: 'pip install -r requirements.txt'
+      }),
+      expect.objectContaining({
+        command: 'pip install flask'
+      })
+    ]
+  })
+})

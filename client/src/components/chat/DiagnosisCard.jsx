@@ -98,6 +98,20 @@ export default function DiagnosisCard({ diagnosis: initialDiagnosis, currentUser
         </div>
       </div>
 
+      {(diagnosis.projectEvidence || []).length > 0 && (
+        <div className="mt-3 rounded-lg bg-white/90 p-3">
+          <div className="font-semibold text-slate-900">项目相关证据</div>
+          <div className="mt-2 space-y-2">
+            {(diagnosis.projectEvidence || []).map((item, index) => (
+              <div key={`${item.path}-${item.lineStart}-${index}`} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                <div className="text-xs font-medium text-slate-900">{item.path}:{item.lineStart}-{item.lineEnd}</div>
+                <div className="mt-1 text-xs text-slate-600">{item.reason}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-3 rounded-lg bg-white/90 p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="font-semibold text-slate-900">推荐修复</div>

@@ -23,6 +23,43 @@ function uniqueStrings(items = []) {
   return [...new Set(items.map((item) => String(item || '').trim()).filter(Boolean))]
 }
 
+function buildProjectContext(storeRef, username, errorEvent) {
+  if (!errorEvent.projectDir || typeof storeRef.findProjectByRoot !== 'function') {
+    return {}
+  }
+
+  const project = storeRef.findProjectByRoot(username, errorEvent.projectDir)
+  if (!project) return {}
+
+  const profile = storeRef.getProjectProfile(project.id) || null
+  const packageName = String(errorEvent.signature || '').split('.').pop()
+  const evidence = [
+    ...(profile?.dependencyFiles || []),
+    ...(profile?.entryFiles || [])
+  ]
+
+  const chunks = typeof storeRef.listProjectChunks === 'function'
+    ? storeRef.listProjectChunks(project.id)
+    : []
+  for (const chunk of chunks) {
+    const haystack = `${chunk.relativePath}\n${chunk.text}`.toLowerCase()
+    if (!haystack.includes(packageName.toLowerCase())) continue
+    evidence.push({
+      path: chunk.relativePath,
+      lineStart: chunk.lineStart,
+      lineEnd: chunk.lineEnd,
+      chunkType: chunk.chunkType,
+      reason: `Project index mentions ${packageName}.`
+    })
+  }
+
+  return {
+    project,
+    projectProfile: profile,
+    projectEvidence: evidence.slice(0, 6)
+  }
+}
+
 class CompanionService {
   constructor(options = {}) {
     this.storeRef = options.storeRef || store
@@ -111,9 +148,11 @@ class CompanionService {
     if (this.sessionManager.isIgnored(errorEvent.signature) || this.sessionManager.isDuplicate(errorEvent.signature)) return null
 
     const experiences = this.storeRef.listExperiences(session.username)
+    const projectContext = buildProjectContext(this.storeRef, session.username, errorEvent)
     const diagnosis = createDiagnosisFromError(errorEvent, {
       username: session.username,
       experiences,
+      ...projectContext,
       advancedRiskExecutionEnabled: this.storeRef.getUserConfig(session.username).advancedRiskExecutionEnabled === true
     })
     const savedDiagnosis = this.storeRef.upsertDiagnosis(diagnosis)
