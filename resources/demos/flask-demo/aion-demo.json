@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "flask-demo",
+  "name": "Flask Demo",
+  "technologyStack": ["Python", "Flask"],
+  "entryFiles": ["app.py", "requirements.txt"],
+  "demoQuestions": [
+    "这个项目怎么启动？",
+    "requirements.txt 里声明了什么依赖？"
+  ],
+  "expectedErrors": ["ModuleNotFoundError"],
+  "workflowTemplateId": "official-flask-local-start"
+}

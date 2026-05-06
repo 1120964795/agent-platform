@@ -2,8 +2,11 @@ import { useChat } from '../../hooks/useChat.js'
 import MessageList from './MessageList.jsx'
 import InputBar from './InputBar.jsx'
 
-export default function ChatArea({ conversationId }) {
-  const { messages, streaming, sendUserMessage, sendCommand, updateCard, addFileCard } = useChat(conversationId)
+export default function ChatArea({ conversationId, currentUser }) {
+  const { messages, streaming, sendUserMessage, sendCommand, updateCard, addFileCard } = useChat({
+    conversationId,
+    username: currentUser?.username
+  })
 
   function handleCommand(parsed) {
     sendCommand(parsed)

@@ -64,7 +64,7 @@ export default function ArtifactsPanel() {
     try {
       await openFile(artifact.path)
     } catch (e) {
-      setError('打开失败: ' + (e.message || '未知错误'))
+      setError('打开失败：' + (e.message || '未知错误'))
     }
   }
 
@@ -76,7 +76,8 @@ export default function ArtifactsPanel() {
           type="button"
           onClick={load}
           className="p-1 rounded hover:bg-[color:var(--bg-tertiary)]"
-          aria-label="refresh artifacts"
+          aria-label="刷新产物"
+          title="刷新"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>

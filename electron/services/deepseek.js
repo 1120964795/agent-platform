@@ -8,11 +8,12 @@ class DeepSeekError extends Error {
   }
 }
 
-function mapErrorCode(status) {
-  if (status === 401 || status === 403) return 'DEEPSEEK_AUTH'
-  if (status === 429) return 'DEEPSEEK_RATE_LIMIT'
-  if (status >= 500) return 'DEEPSEEK_SERVER'
-  return 'DEEPSEEK_UNKNOWN'
+function mapErrorCode(status, provider = 'deepseek') {
+  const prefix = provider === 'minimax' ? 'MINIMAX' : 'DEEPSEEK'
+  if (status === 401 || status === 403) return `${prefix}_AUTH`
+  if (status === 429) return `${prefix}_RATE_LIMIT`
+  if (status >= 500) return `${prefix}_SERVER`
+  return `${prefix}_UNKNOWN`
 }
 
 function getFetch() {
@@ -34,10 +35,36 @@ function normalizeTools(tools = []) {
   })
 }
 
-function buildBody({ messages, json = false, temperature = 0.7, stream = false, tools }) {
-  const config = store.getConfig()
+function resolveProviderConfig(config = store.getConfig()) {
+  const provider = config.modelProvider === 'minimax' ? 'minimax' : 'deepseek'
+  if (provider === 'minimax') {
+    return {
+      provider,
+      apiKey: config.minimaxApiKey || '',
+      baseUrl: config.minimaxBaseUrl || 'https://api.minimax.io',
+      model: config.minimaxModel || 'MiniMax-M2.7'
+    }
+  }
   return {
-    model: config.model || 'deepseek-chat',
+    provider,
+    apiKey: config.apiKey || '',
+    baseUrl: config.baseUrl || 'https://api.deepseek.com',
+    model: config.model || 'deepseek-v4-flash'
+  }
+}
+
+function chatCompletionsUrl(baseUrl, provider = 'deepseek') {
+  const normalized = String(baseUrl || '').replace(/\/+$/, '')
+  if (normalized.endsWith('/chat/completions')) return normalized
+  if (normalized.endsWith('/v1')) return `${normalized}/chat/completions`
+  if (provider === 'minimax') return `${normalized}/v1/chat/completions`
+  return `${normalized}/chat/completions`
+}
+
+function buildBody({ messages, json = false, temperature = 0.7, stream = false, tools }) {
+  const providerConfig = resolveProviderConfig()
+  return {
+    model: providerConfig.model,
     messages,
     temperature,
     stream,
@@ -76,14 +103,15 @@ function messageToChatResult(message = {}) {
 }
 
 async function postChat(body, timeout = 60000) {
-  const config = store.getConfig()
-  if (!config.apiKey) throw new DeepSeekError('DEEPSEEK_AUTH', 'API key is not configured.')
+  const providerConfig = resolveProviderConfig()
+  const label = providerConfig.provider === 'minimax' ? 'MiniMax' : 'DeepSeek'
+  if (!providerConfig.apiKey) throw new DeepSeekError(mapErrorCode(401, providerConfig.provider), `${label} API key is not configured.`)
   let resp
   try {
-    resp = await getFetch()(`${config.baseUrl}/v1/chat/completions`, {
+    resp = await getFetch()(chatCompletionsUrl(providerConfig.baseUrl, providerConfig.provider), {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${providerConfig.apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body),
@@ -95,7 +123,7 @@ async function postChat(body, timeout = 60000) {
   }
   if (!resp.ok) {
     const text = await resp.text().catch(() => '')
-    throw new DeepSeekError(mapErrorCode(resp.status), `DeepSeek ${resp.status}: ${text.slice(0, 200)}`, resp.status)
+    throw new DeepSeekError(mapErrorCode(resp.status, providerConfig.provider), `${label} ${resp.status}: ${text.slice(0, 200)}`, resp.status)
   }
   return resp
 }
@@ -179,4 +207,15 @@ async function chatJson(messages, opts = {}) {
   }
 }
 
-module.exports = { DeepSeekError, chat, chatStream, chatJson, parseJsonStrict, normalizeTools, normalizeToolCalls }
+module.exports = {
+  DeepSeekError,
+  chat,
+  chatStream,
+  chatJson,
+  parseJsonStrict,
+  normalizeTools,
+  normalizeToolCalls,
+  resolveProviderConfig,
+  chatCompletionsUrl,
+  buildBody
+}

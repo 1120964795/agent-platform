@@ -4,10 +4,14 @@ AgentDev Lite 是一个 Electron 桌面 Agent。当前架构已经移除 Express
 
 ## 功能
 
-- DeepSeek 聊天，支持流式输出。
+- DeepSeek V4 聊天，支持流式输出；也可在设置里切换到 MiniMax OpenAI 兼容接口。
 - 全权限模式下启用本地工具：读写文件、目录浏览、文件搜索、shell 命令、环境探测、Word/PPT 生成、用户偏好记忆。
 - 工具调用会在聊天区显示为工具卡片，shell 输出会流式显示。
 - Skill 系统支持内置 skill 和用户自定义 skill。用户 skill 位于应用数据目录，且同名覆盖内置 skill。
+- Workflow Skill 支持版本、受控运行、`start_service`、模板源和 `.aionworkflow` 导入导出预览。
+- `.aionbackup` 支持本地元数据备份、预览和合并恢复，不包含源码、密钥、`.env`、二进制或完整运行日志。
+- 内置 Flask、Vite、Java 三个演示项目和官方 Workflow 模板资源。
+- 多模态能力当前采用“OCR/文件提取后交给文本模型”的稳定路径；图片理解可继续接 MiniMax 官方 MCP 或独立视觉接口。
 - 用户持久偏好写入 `user_rules.md`，新会话会自动加入 system prompt。
 
 ## 启动
@@ -76,6 +80,12 @@ npm test
 
 ## 当前限制
 
-- 第一版不做多 Agent、PTY/xterm 终端、Skill 市场、远程 skill 仓库、RAG 或文件监听。
+- V4 最终版不做账号登录、云同步、自动更新、代码签名证书、在线模板市场、评论评分、macOS/Linux、移动端或多 Agent 编码。
+- 当前代码仍未完整覆盖计划书中的伴随诊断、项目级 RAG 索引和严格文件沙盒。
+- 备份恢复已提供设置面板入口；更细的恢复冲突对比 UI 可继续增强。
 - `workspace_root` 是默认工作目录，不是硬访问边界。
 - 旧 `/word`、`/ppt`、`/local` slash 命令已移除，请用自然语言触发工具和 skill。
+
+## 最终交付文档
+
+V4 收尾文档位于 `docs/final-delivery/`，包含安装说明、安全策略、测试报告、性能报告、Demo 脚本、数据结构和 release checklist。

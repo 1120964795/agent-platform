@@ -35,10 +35,16 @@ function reducer(state, action) {
 
 function makeTitle(messages) {
   const firstUser = messages.find((message) => message.role === 'user' && message.content)
-  return firstUser?.content.slice(0, 24) || 'New Chat'
+  return firstUser?.content.slice(0, 24) || '新对话'
 }
 
-export function useChat(conversationId) {
+export function useChat(options) {
+  const {
+    conversationId,
+    username = 'guest',
+    assistant = 'general',
+    onConversationSaved
+  } = typeof options === 'object' ? (options || {}) : { conversationId: options }
   const [state, dispatch] = useReducer(reducer, initialState)
   const abortRef = useRef(null)
   const conversationIdRef = useRef(conversationId)
@@ -56,7 +62,7 @@ export function useChat(conversationId) {
 
     async function loadConversation() {
       try {
-        const response = await api.get(`/api/conversations/${conversationId}`)
+        const response = await api.invoke('conversations:get', { id: conversationId, username })
         if (ignored || !response.conversation?.messages) return
         response.conversation.messages
           .filter((message) => message.role === 'user' || message.role === 'assistant')
@@ -72,15 +78,16 @@ export function useChat(conversationId) {
       abortRef.current?.()
       abortRef.current = null
     }
-  }, [conversationId])
+  }, [conversationId, username])
 
   const saveConversation = useCallback(async (convId, messages) => {
     try {
-      await api.post('/api/conversations', { id: convId, title: makeTitle(messages), assistant: 'general', messages })
+      const response = await api.post('/api/conversations', { id: convId, title: makeTitle(messages), assistant, username, messages })
+      if (response.conversation) onConversationSaved?.(response.conversation)
     } catch (error) {
       console.error('[chat] save conversation failed:', error)
     }
-  }, [])
+  }, [assistant, onConversationSaved, username])
 
   const sendUserMessage = useCallback((text) => {
     const convId = conversationIdRef.current
@@ -110,7 +117,7 @@ export function useChat(conversationId) {
 
     abortRef.current = api.stream({
       channel: 'chat:send',
-      payload: { convId, messages: history },
+      payload: { convId, username, messages: history },
       onDelta: (delta) => {
         assistantContent += delta
         dispatch({ type: 'APPEND_DELTA', id: assistantId, delta })
@@ -137,13 +144,13 @@ export function useChat(conversationId) {
       },
       onDone: finish,
       onError: (error) => {
-        const errorText = `\n\n[Error] ${error.message}`
+        const errorText = `\n\n[错误] ${error.message}`
         assistantContent += errorText
         dispatch({ type: 'APPEND_DELTA', id: assistantId, delta: errorText })
         finish()
       }
     })
-  }, [state.messages, saveConversation])
+  }, [state.messages, saveConversation, username])
 
   const sendCommand = useCallback(({ command, prompt, referencePath }) => {
     const convId = conversationIdRef.current
@@ -151,7 +158,7 @@ export function useChat(conversationId) {
 
     const displayText = referencePath ? `/${command} "${referencePath}" ${prompt}` : `/${command} ${prompt}`
     const userMessage = { id: uid(), role: 'user', content: displayText }
-    const assistantContent = 'This slash command has been removed. In full permission mode, describe the task in natural language instead.'
+    const assistantContent = '这个斜杠命令已移除。请在完整权限模式下直接用自然语言描述任务。'
     dispatch({ type: 'ADD', msg: userMessage })
     dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', content: assistantContent } })
     const history = [...state.messages, userMessage].filter((message) => message.role === 'user' || message.role === 'assistant').map((message) => ({ role: message.role, content: message.content }))

@@ -11,7 +11,7 @@ export default function Sidebar({ collapsed, onToggle, onOpenDrawer, onNewConver
           type="button"
           onClick={onToggle}
           className="p-1 rounded hover:bg-[color:var(--bg-tertiary)]"
-          aria-label="toggle sidebar"
+          aria-label="折叠或展开侧栏"
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>

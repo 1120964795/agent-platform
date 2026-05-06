@@ -1,0 +1,42 @@
+{
+  "name": "Vite 本地启动助手",
+  "description": "检查 Node、安装依赖、启动 Vite，并在端口占用时提示插入临时检查步骤。",
+  "technologyStack": ["Node.js", "Vite"],
+  "source": {
+    "kind": "official_template",
+    "templateId": "official-vite-local-start"
+  },
+  "steps": [
+    {
+      "id": "step_check_node",
+      "type": "check_command",
+      "title": "检查 Node",
+      "command": "node --version",
+      "riskLevel": "low",
+      "requiresConfirmation": false
+    },
+    {
+      "id": "step_install_packages",
+      "type": "confirm_command",
+      "title": "安装 npm 依赖",
+      "command": "npm install",
+      "riskLevel": "medium",
+      "requiresNetwork": true,
+      "requiresConfirmation": true,
+      "source": {
+        "kind": "project_file",
+        "path": "package.json"
+      }
+    },
+    {
+      "id": "step_start_vite",
+      "type": "start_service",
+      "title": "启动 Vite",
+      "command": "npm run dev",
+      "riskLevel": "medium",
+      "requiresConfirmation": true,
+      "successPatterns": ["Local:", "ready in"],
+      "errorPatterns": ["EADDRINUSE", "Port", "address already in use"]
+    }
+  ]
+}

@@ -32,7 +32,6 @@ export default function RightDrawer({ view, onClose }) {
     if (view) setActiveTab(view)
   }, [view])
 
-  // 如果切到了 files tab 但权限被关闭了，回退到 settings
   useEffect(() => {
     if (activeTab === 'files' && permissionMode !== 'full') {
       setActiveTab('settings')
@@ -52,7 +51,7 @@ export default function RightDrawer({ view, onClose }) {
               type="button"
               onClick={onClose}
               className="p-1 rounded hover:bg-[color:var(--bg-tertiary)]"
-              aria-label="close drawer"
+              aria-label="关闭侧边面板"
             >
               <X size={16} />
             </button>

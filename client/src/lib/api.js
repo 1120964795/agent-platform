@@ -109,6 +109,20 @@ export function copyBuiltinSkill(payload) { return invoke('skills:copyBuiltin', 
 export function openSkillsFolder() { return invoke('skills:openFolder') }
 export function listRules() { return invoke('rules:list') }
 export function deleteRule(payload) { return invoke('rules:delete', payload) }
+export function listWorkflowSkills() { return invoke('workflow-skills:list') }
+export function saveWorkflowDraft(payload) { return invoke('workflow-skills:saveDraft', payload) }
+export function disableWorkflowSkill(workflowId) { return invoke('workflow-skills:disable', { workflowId }) }
+export function deleteWorkflowSkill(workflowId) { return invoke('workflow-skills:delete', { workflowId }) }
+export function exportWorkflowSkill(workflowId) { return invoke('workflow-skills:export', { workflowId }) }
+export function startWorkflowRun(workflowId) { return invoke('workflow-runs:start', { workflowId }) }
+export function confirmWorkflowStep(runId, accepted) { return invoke('workflow-runs:confirmStep', { runId, accepted }) }
+export function terminateWorkflowRun(runId) { return invoke('workflow-runs:terminate', { runId }) }
+export function listWorkflowTemplateSources() { return invoke('workflow-template-sources:list') }
+export function addWorkflowTemplateSource(payload) { return invoke('workflow-template-sources:add', payload) }
+export function listWorkflowTemplates() { return invoke('workflow-templates:list') }
+export function exportBackup(payload = {}) { return invoke('backup:export', payload) }
+export function previewBackup(packagePath) { return invoke('backup:preview', { packagePath }) }
+export function restoreBackup(packagePath, options = {}) { return invoke('backup:restore', { packagePath, options }) }
 
 export async function openFile(filePath) {
   if (window.electronAPI?.openPath) return unwrap(await window.electronAPI.openPath(filePath))

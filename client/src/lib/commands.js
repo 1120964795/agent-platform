@@ -1,9 +1,9 @@
 import { BookOpen, CalendarClock, CalendarDays } from 'lucide-react'
 
 export const COMMANDS = [
-  { id: 'paper', label: '/paper', description: 'Paper assistant card', icon: BookOpen, cardType: 'paper' },
-  { id: 'plan', label: '/plan', description: 'Planning assistant card', icon: CalendarDays, cardType: 'plan' },
-  { id: 'schedule', label: '/schedule', description: 'Scheduled task card', icon: CalendarClock, cardType: 'schedule' }
+  { id: 'paper', label: '/paper', description: '论文助手卡片', icon: BookOpen, cardType: 'paper' },
+  { id: 'plan', label: '/plan', description: '计划助手卡片', icon: CalendarDays, cardType: 'plan' },
+  { id: 'schedule', label: '/schedule', description: '定时任务卡片', icon: CalendarClock, cardType: 'schedule' }
 ]
 
 export function matchCommands(input) {

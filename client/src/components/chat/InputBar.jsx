@@ -56,7 +56,7 @@ export default function InputBar({ onSend, onCommand, disabled }) {
   async function handleAttachFile() {
     const filePath = window.electronAPI?.selectFile
       ? await window.electronAPI.selectFile()
-      : window.prompt('Enter an absolute file path:')
+      : window.prompt('请输入绝对文件路径：')
     if (filePath) setText((current) => insertPath(current, filePath))
   }
 
@@ -85,7 +85,7 @@ export default function InputBar({ onSend, onCommand, disabled }) {
       <div className="relative flex items-end gap-3 bg-[color:var(--bg-primary)] border border-[color:var(--border)] rounded-lg px-3 py-2 focus-within:border-[color:var(--accent)]">
         {command.active && <CommandPalette matches={command.matches} index={command.index} onSelect={handleSelectCommand} onHover={command.setIndex} />}
         {isFull && (
-          <button type="button" onClick={handleAttachFile} className="h-8 w-8 flex items-center justify-center rounded-md text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-tertiary)]" aria-label="Attach file" title="Attach local file path">
+          <button type="button" onClick={handleAttachFile} className="h-8 w-8 flex items-center justify-center rounded-md text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-tertiary)]" aria-label="附加文件" title="附加本地文件路径">
             <Paperclip size={14} />
           </button>
         )}
@@ -93,11 +93,11 @@ export default function InputBar({ onSend, onCommand, disabled }) {
           value={text}
           onChange={handleChange}
           onKeyDown={handleKey}
-          placeholder={isFull ? 'Describe the task naturally, e.g. summarize "D:\\docs\\paper.pdf" or install uv. Shift+Enter for newline.' : 'Send a message. Shift+Enter for newline.'}
+          placeholder={isFull ? '自然描述任务，例如：总结 "D:\\docs\\paper.pdf" 或安装 uv。Shift+Enter 换行。' : '发送消息。Shift+Enter 换行。'}
           rows={1}
           className="flex-1 resize-none bg-transparent outline-none text-sm max-h-40 py-1"
         />
-        <button type="submit" disabled={disabled || !text.trim()} className="h-8 w-8 flex items-center justify-center rounded-md bg-[color:var(--accent)] text-white disabled:opacity-40" aria-label="send">
+        <button type="submit" disabled={disabled || !text.trim()} className="h-8 w-8 flex items-center justify-center rounded-md bg-[color:var(--accent)] text-white disabled:opacity-40" aria-label="发送">
           <Send size={14} />
         </button>
       </div>

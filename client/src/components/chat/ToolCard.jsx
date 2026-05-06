@@ -1,6 +1,14 @@
 import { ChevronDown, ChevronRight, CheckCircle2, Loader2, XCircle } from 'lucide-react'
 import { useState } from 'react'
 
+const STATUS_LABELS = {
+  running: '运行中',
+  error: '失败',
+  ok: '已完成',
+  done: '已完成',
+  completed: '已完成'
+}
+
 function StatusIcon({ status }) {
   if (status === 'running') return <Loader2 size={14} className="animate-spin text-[color:var(--accent)]" />
   if (status === 'error') return <XCircle size={14} className="text-[color:var(--error)]" />
@@ -33,15 +41,15 @@ export default function ToolCard({ message }) {
       >
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         <StatusIcon status={status} />
-        <span className="text-sm font-medium">{message.toolName || 'tool'}</span>
-        <span className="ml-auto text-xs text-[color:var(--text-muted)]">{status}</span>
+        <span className="text-sm font-medium">{message.toolName || '工具'}</span>
+        <span className="ml-auto text-xs text-[color:var(--text-muted)]">{STATUS_LABELS[status] || status}</span>
       </button>
       {open && (
         <div className="space-y-3 border-t border-[color:var(--border)] px-3 py-3">
-          <JsonBlock label="args" value={message.args} />
-          {logs.length > 0 && <JsonBlock label="logs" value={logs.map((item) => `[${item.stream}] ${item.chunk}`).join('')} />}
-          <JsonBlock label="result" value={message.result} />
-          <JsonBlock label="error" value={message.error} />
+          <JsonBlock label="参数" value={message.args} />
+          {logs.length > 0 && <JsonBlock label="日志" value={logs.map((item) => `[${item.stream}] ${item.chunk}`).join('')} />}
+          <JsonBlock label="结果" value={message.result} />
+          <JsonBlock label="错误" value={message.error} />
         </div>
       )}
     </div>

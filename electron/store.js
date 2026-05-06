@@ -19,11 +19,16 @@ const DATA_DIR = process.env.AGENTDEV_DATA_DIR || path.join(userData, 'agentdev-
 const GENERATED_DIR = process.env.AGENTDEV_GENERATED_DIR || path.join(path.dirname(DATA_DIR), 'generated')
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json')
 const DATA_PATH = path.join(DATA_DIR, 'data.json')
+const AUTH_PATH = path.join(DATA_DIR, 'auth.json')
 
 const DEFAULT_CONFIG = {
+  modelProvider: 'deepseek',
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
-  model: 'deepseek-chat',
+  model: 'deepseek-v4-flash',
+  minimaxApiKey: '',
+  minimaxBaseUrl: 'https://api.minimax.io',
+  minimaxModel: 'MiniMax-M2.7',
   temperature: 0.7,
   permissionMode: 'default',
   workspace_root: os.homedir(),
@@ -37,6 +42,19 @@ const DEFAULT_DATA = {
   conversations: [],
   artifacts: [],
   scheduledTasks: []
+}
+
+const DEFAULT_AUTH = {
+  version: 1,
+  accounts: [],
+  loginHistory: [],
+  loginPrefs: {
+    username: '',
+    password: '',
+    rememberPassword: false,
+    autoLogin: false
+  },
+  session: null
 }
 
 function clone(value) {
@@ -87,9 +105,11 @@ const store = {
   getMaskedConfig() {
     const config = this.getConfig()
     const key = config.apiKey || ''
+    const minimaxKey = config.minimaxApiKey || ''
     return {
       ...config,
-      apiKey: key.length > 10 ? `${key.slice(0, 6)}***${key.slice(-4)}` : (key ? '***' : '')
+      apiKey: key.length > 10 ? `${key.slice(0, 6)}***${key.slice(-4)}` : (key ? '***' : ''),
+      minimaxApiKey: minimaxKey.length > 10 ? `${minimaxKey.slice(0, 6)}***${minimaxKey.slice(-4)}` : (minimaxKey ? '***' : '')
     }
   },
 
@@ -99,6 +119,14 @@ const store = {
 
   saveData(data) {
     writeJson(DATA_PATH, data)
+  },
+
+  getAuth() {
+    return readJson(AUTH_PATH, DEFAULT_AUTH)
+  },
+
+  saveAuth(auth) {
+    writeJson(AUTH_PATH, auth)
   },
 
   upsertConversation(conversation) {
@@ -160,4 +188,4 @@ const store = {
   }
 }
 
-module.exports = { store, DEFAULT_CONFIG, DEFAULT_DATA }
+module.exports = { store, DEFAULT_CONFIG, DEFAULT_DATA, DEFAULT_AUTH }

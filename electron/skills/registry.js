@@ -19,6 +19,11 @@ function userSkillsRoot() {
   return path.join(path.dirname(store.DATA_DIR), 'skills')
 }
 
+function workflowSkillsRoot() {
+  if (process.env.AGENTDEV_WORKFLOW_SKILLS_DIR) return process.env.AGENTDEV_WORKFLOW_SKILLS_DIR
+  return path.join(path.dirname(store.DATA_DIR), 'workflow-skills')
+}
+
 function parseSkill(skillDir, readonly) {
   const skillPath = path.join(skillDir, 'SKILL.md')
   if (!fs.existsSync(skillPath)) return null
@@ -56,6 +61,7 @@ function reload() {
   const merged = new Map()
   for (const skill of scanRoot(builtinSkillsRoot(), true)) merged.set(skill.name, skill)
   for (const skill of scanRoot(userSkillsRoot(), false)) merged.set(skill.name, skill)
+  for (const skill of scanRoot(workflowSkillsRoot(), false)) merged.set(skill.name, { ...skill, workflow: true })
   cache = [...merged.values()].sort((a, b) => a.name.localeCompare(b.name))
   return cache
 }
@@ -75,4 +81,4 @@ function buildSkillIndex(skills = listSkills()) {
   return ['## Available Skills', 'Call load_skill(name) when a skill matches the user task.', ...skills.map((skill) => `- ${skill.name}: ${skill.description}`)].join('\n')
 }
 
-module.exports = { builtinSkillsRoot, userSkillsRoot, reload, listSkills, findSkill, buildSkillIndex }
+module.exports = { builtinSkillsRoot, userSkillsRoot, workflowSkillsRoot, reload, listSkills, findSkill, buildSkillIndex }
