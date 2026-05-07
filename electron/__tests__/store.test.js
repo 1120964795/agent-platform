@@ -15,6 +15,10 @@ beforeEach(() => {
 
 test('getConfig returns defaults including new fields', () => {
   const config = store.getConfig()
+  expect(config.modelProvider).toBe('deepseek')
+  expect(config.model).toBe('deepseek-v4-flash')
+  expect(config.minimaxBaseUrl).toBe('https://api.minimax.io')
+  expect(config.minimaxModel).toBe('MiniMax-M2.7')
   expect(config.permissionMode).toBe('default')
   expect(config.workspace_root).toBe(os.homedir())
   expect(config.shell_whitelist_extra).toEqual([])
@@ -22,9 +26,26 @@ test('getConfig returns defaults including new fields', () => {
   expect(config.session_confirm_cache_enabled).toBe(true)
 })
 
+test('getAuth returns auth defaults', () => {
+  expect(store.getAuth()).toEqual({
+    version: 1,
+    accounts: [],
+    loginHistory: [],
+    loginPrefs: {
+      username: '',
+      password: '',
+      rememberPassword: false,
+      autoLogin: false
+    },
+    session: null
+  })
+})
+
 test('setConfig persists patches', () => {
-  store.setConfig({ apiKey: 'sk-x', workspace_root: 'D:\\work' })
+  store.setConfig({ apiKey: 'sk-x', minimaxApiKey: 'mini-x', modelProvider: 'minimax', workspace_root: 'D:\\work' })
   expect(store.getConfig().apiKey).toBe('sk-x')
+  expect(store.getConfig().minimaxApiKey).toBe('mini-x')
+  expect(store.getConfig().modelProvider).toBe('minimax')
   expect(store.getConfig().workspace_root).toBe('D:\\work')
 })
 

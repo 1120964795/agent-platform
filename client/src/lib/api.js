@@ -136,6 +136,10 @@ export async function saveFileAs(payload) {
   return invoke('dialog:saveFileAs', payload)
 }
 
+export function exportBackup(payload = {}) { return invoke('backup:export', payload) }
+export function previewBackup(packagePath) { return invoke('backup:preview', { packagePath }) }
+export function restoreBackup(packagePath, options = {}) { return invoke('backup:restore', { packagePath, ...options }) }
+
 export function listFiles(dir, username) { return invoke('files:list', username ? { dir, username } : { dir }) }
 export function searchFiles(query, dir, username) { return invoke('files:search', username ? { query, dir, username } : { query, dir }) }
 export function listDiagnostics(username) { return invoke('diagnostics:list', { username: username || 'guest' }) }

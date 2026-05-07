@@ -1,0 +1,39 @@
+{
+  "name": "Java 构建检查助手",
+  "description": "检查 Java/Javac/Maven/Gradle 环境，并运行 Maven 测试构建来定位常见版本和类路径问题。",
+  "technologyStack": ["Java", "Maven", "Gradle"],
+  "source": {
+    "kind": "official_template",
+    "templateId": "official-java-build-check"
+  },
+  "steps": [
+    {
+      "id": "step_java_version",
+      "type": "check_command",
+      "title": "检查 java",
+      "command": "java -version",
+      "riskLevel": "low",
+      "requiresConfirmation": false
+    },
+    {
+      "id": "step_javac_version",
+      "type": "check_command",
+      "title": "检查 javac",
+      "command": "javac -version",
+      "riskLevel": "low",
+      "requiresConfirmation": false
+    },
+    {
+      "id": "step_maven_build",
+      "type": "confirm_command",
+      "title": "运行 Maven 测试",
+      "command": "mvn test",
+      "riskLevel": "medium",
+      "requiresConfirmation": true,
+      "source": {
+        "kind": "project_file",
+        "path": "pom.xml"
+      }
+    }
+  ]
+}

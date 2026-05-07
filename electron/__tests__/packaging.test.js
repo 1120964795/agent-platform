@@ -20,6 +20,7 @@ test('desktop scripts no longer start the legacy server', () => {
 })
 
 test('desktop build bundles renderer and skills resources', () => {
+  expect(pkg.build.win.signAndEditExecutable).toBe(false)
   expect(pkg.build.files).toEqual(expect.arrayContaining([
     'electron/**/*',
     '!electron/__tests__/**/*',
@@ -27,15 +28,33 @@ test('desktop build bundles renderer and skills resources', () => {
   ]))
   expect(pkg.build.extraResources).toEqual(expect.arrayContaining([
     expect.objectContaining({ from: 'resources/skills', to: 'skills' }),
+    expect.objectContaining({ from: 'resources/workflow-templates', to: 'workflow-templates' }),
+    expect.objectContaining({ from: 'resources/demos', to: 'demos' }),
+    expect.objectContaining({ from: 'docs/final-delivery', to: 'docs/final-delivery' }),
     expect.objectContaining({ from: 'client/dist', to: 'client/dist' })
   ]))
 })
 
 
 test('main-process runtime modules are production dependencies', () => {
-  for (const dependency of ['docx', 'gray-matter', 'mammoth', 'pptxgenjs']) {
+  for (const dependency of ['docx', 'gray-matter', 'jszip', 'mammoth', 'pptxgenjs']) {
     expect(pkg.dependencies[dependency]).toBeTruthy()
     expect(pkg.devDependencies[dependency]).toBeUndefined()
+  }
+})
+
+test('final delivery resources exist for packaging', () => {
+  const requiredPaths = [
+    'docs/final-delivery/README-final.md',
+    'docs/final-delivery/release-checklist.md',
+    'resources/workflow-templates/manifest.json',
+    'resources/demos/flask-demo/aion-demo.json',
+    'resources/demos/vite-demo/aion-demo.json',
+    'resources/demos/java-demo/aion-demo.json'
+  ]
+
+  for (const relativePath of requiredPaths) {
+    expect(fs.existsSync(path.join(repoRoot, relativePath))).toBe(true)
   }
 })
 test('README keeps the manual acceptance checklist', () => {

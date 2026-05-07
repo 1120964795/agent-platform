@@ -2,6 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const matter = require('gray-matter')
 const { store } = require('../store')
+const { workflowSkillsRoot } = require('../workflows/storage')
 
 let electronApp = null
 try { electronApp = require('electron').app } catch { electronApp = null }
@@ -20,14 +21,19 @@ function userSkillsRoot() {
   return path.join(path.dirname(store.DATA_DIR), 'skills')
 }
 
-function parseSkill(skillDir, readonly) {
+function parseSkill(skillDir, readonly, options = {}) {
   const skillPath = path.join(skillDir, 'SKILL.md')
   if (!fs.existsSync(skillPath)) return null
   try {
     const parsed = matter(fs.readFileSync(skillPath, 'utf-8'))
     const name = parsed.data.name || path.basename(skillDir)
     const description = parsed.data.description
-    if (!name || !description || !isValidSkillName(name)) return null
+    if (!name || !description) return null
+    if (options.allowDisplayName) {
+      if (!String(name).trim()) return null
+    } else if (!isValidSkillName(name)) {
+      return null
+    }
     return {
       name,
       description,
@@ -56,11 +62,11 @@ function assertValidSkillName(name, label = '技能名称') {
   throw error
 }
 
-function scanRoot(root, readonly) {
+function scanRoot(root, readonly, options = {}) {
   if (!fs.existsSync(root)) return []
   return fs.readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .map((entry) => parseSkill(path.join(root, entry.name), readonly))
+    .map((entry) => parseSkill(path.join(root, entry.name), readonly, options))
     .filter(Boolean)
 }
 
@@ -68,6 +74,7 @@ function reload() {
   const merged = new Map()
   for (const skill of scanRoot(builtinSkillsRoot(), true)) merged.set(skill.name, skill)
   for (const skill of scanRoot(userSkillsRoot(), false)) merged.set(skill.name, skill)
+  for (const skill of scanRoot(workflowSkillsRoot(), false, { allowDisplayName: true })) merged.set(skill.name, skill)
   cache = [...merged.values()].sort((a, b) => a.name.localeCompare(b.name))
   return cache
 }

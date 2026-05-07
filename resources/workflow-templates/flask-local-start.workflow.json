@@ -1,0 +1,42 @@
+{
+  "name": "Flask 本地启动助手",
+  "description": "检查 Python、安装依赖、启动 Flask，并诊断 ModuleNotFoundError 等常见失败。",
+  "technologyStack": ["Python", "Flask"],
+  "source": {
+    "kind": "official_template",
+    "templateId": "official-flask-local-start"
+  },
+  "steps": [
+    {
+      "id": "step_check_python",
+      "type": "check_command",
+      "title": "检查 Python",
+      "command": "python --version",
+      "riskLevel": "low",
+      "requiresConfirmation": false
+    },
+    {
+      "id": "step_install_requirements",
+      "type": "confirm_command",
+      "title": "安装 requirements.txt",
+      "command": "pip install -r requirements.txt",
+      "riskLevel": "medium",
+      "requiresNetwork": true,
+      "requiresConfirmation": true,
+      "source": {
+        "kind": "project_file",
+        "path": "requirements.txt"
+      }
+    },
+    {
+      "id": "step_start_flask",
+      "type": "start_service",
+      "title": "启动 Flask",
+      "command": "python app.py",
+      "riskLevel": "medium",
+      "requiresConfirmation": true,
+      "successPatterns": ["Running on", "Debugger is active"],
+      "errorPatterns": ["ModuleNotFoundError", "Traceback", "Address already in use"]
+    }
+  ]
+}

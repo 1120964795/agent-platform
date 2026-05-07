@@ -25,9 +25,13 @@ const DIAGNOSTICS_PATH = path.join(DATA_DIR, 'diagnostics.json')
 const PROJECTS_PATH = path.join(DATA_DIR, 'projects.json')
 
 const DEFAULT_CONFIG = {
+  modelProvider: 'deepseek',
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
-  model: 'deepseek-chat',
+  model: 'deepseek-v4-flash',
+  minimaxApiKey: '',
+  minimaxBaseUrl: 'https://api.minimax.io',
+  minimaxModel: 'MiniMax-M2.7',
   embeddingModel: '',
   temperature: 0.7,
   permissionMode: 'default',
@@ -182,10 +186,12 @@ const store = {
   getMaskedConfig(username) {
     const config = username ? this.getUserConfig(username) : this.getConfig()
     const key = config.apiKey || ''
+    const minimaxKey = config.minimaxApiKey || ''
     const { userConfigs, ...safeConfig } = config
     return {
       ...safeConfig,
-      apiKey: key.length > 10 ? `${key.slice(0, 6)}***${key.slice(-4)}` : (key ? '***' : '')
+      apiKey: key.length > 10 ? `${key.slice(0, 6)}***${key.slice(-4)}` : (key ? '***' : ''),
+      minimaxApiKey: minimaxKey.length > 10 ? `${minimaxKey.slice(0, 6)}***${minimaxKey.slice(-4)}` : (minimaxKey ? '***' : '')
     }
   },
 

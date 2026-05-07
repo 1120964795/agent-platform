@@ -8,11 +8,12 @@ class DeepSeekError extends Error {
   }
 }
 
-function mapErrorCode(status) {
-  if (status === 401 || status === 403) return 'DEEPSEEK_AUTH'
-  if (status === 429) return 'DEEPSEEK_RATE_LIMIT'
-  if (status >= 500) return 'DEEPSEEK_SERVER'
-  return 'DEEPSEEK_UNKNOWN'
+function mapErrorCode(status, provider = 'deepseek') {
+  const prefix = provider === 'minimax' ? 'MINIMAX' : 'DEEPSEEK'
+  if (status === 401 || status === 403) return `${prefix}_AUTH`
+  if (status === 429) return `${prefix}_RATE_LIMIT`
+  if (status >= 500) return `${prefix}_SERVER`
+  return `${prefix}_UNKNOWN`
 }
 
 function getFetch() {
@@ -50,13 +51,44 @@ function normalizeTools(tools = []) {
   })
 }
 
+function resolveProviderConfig(config = store.getConfig()) {
+  const provider = config.modelProvider === 'minimax' ? 'minimax' : 'deepseek'
+  if (provider === 'minimax') {
+    return {
+      provider,
+      label: 'MiniMax',
+      apiKey: config.minimaxApiKey || '',
+      baseUrl: config.minimaxBaseUrl || 'https://api.minimax.io',
+      model: config.minimaxModel || 'MiniMax-M2.7',
+      temperature: typeof config.temperature === 'number' ? config.temperature : 0.7
+    }
+  }
+
+  return {
+    provider,
+    label: 'DeepSeek',
+    apiKey: config.apiKey || '',
+    baseUrl: config.baseUrl || 'https://api.deepseek.com',
+    model: config.model || 'deepseek-v4-flash',
+    temperature: typeof config.temperature === 'number' ? config.temperature : 0.7
+  }
+}
+
+function chatCompletionsUrl(baseUrl, provider = 'deepseek') {
+  const normalized = String(baseUrl || '').replace(/\/+$/, '')
+  if (normalized.endsWith('/chat/completions')) return normalized
+  if (normalized.endsWith('/v1')) return `${normalized}/chat/completions`
+  if (provider === 'minimax') return `${normalized}/v1/chat/completions`
+  return `${normalized}/chat/completions`
+}
+
 function buildBody({ messages, json = false, temperature, stream = false, tools, config }) {
-  const activeConfig = config || store.getConfig()
+  const providerConfig = resolveProviderConfig(config || store.getConfig())
   const resolvedTemperature = typeof temperature === 'number'
     ? temperature
-    : (typeof activeConfig.temperature === 'number' ? activeConfig.temperature : 0.7)
+    : providerConfig.temperature
   return {
-    model: activeConfig.model || 'deepseek-chat',
+    model: providerConfig.model,
     messages,
     temperature: resolvedTemperature,
     stream,
@@ -95,15 +127,17 @@ function messageToChatResult(message = {}) {
 }
 
 async function postChat(body, timeout = 60000, config, signal) {
-  const activeConfig = config || store.getConfig()
-  if (!activeConfig.apiKey) throw new DeepSeekError('DEEPSEEK_AUTH', 'API key is not configured.')
+  const providerConfig = resolveProviderConfig(config || store.getConfig())
+  if (!providerConfig.apiKey) {
+    throw new DeepSeekError(mapErrorCode(401, providerConfig.provider), `${providerConfig.label} API key is not configured.`)
+  }
   let resp
   try {
     const requestSignal = createRequestSignal(timeout, signal)
-    resp = await getFetch()(`${activeConfig.baseUrl}/v1/chat/completions`, {
+    resp = await getFetch()(chatCompletionsUrl(providerConfig.baseUrl, providerConfig.provider), {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${activeConfig.apiKey}`,
+        Authorization: `Bearer ${providerConfig.apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body),
@@ -116,7 +150,7 @@ async function postChat(body, timeout = 60000, config, signal) {
   }
   if (!resp.ok) {
     const text = await resp.text().catch(() => '')
-    throw new DeepSeekError(mapErrorCode(resp.status), `DeepSeek ${resp.status}: ${text.slice(0, 200)}`, resp.status)
+    throw new DeepSeekError(mapErrorCode(resp.status, providerConfig.provider), `${providerConfig.label} ${resp.status}: ${text.slice(0, 200)}`, resp.status)
   }
   return resp
 }
@@ -206,4 +240,15 @@ async function chatJson(messages, opts = {}) {
   }
 }
 
-module.exports = { DeepSeekError, chat, chatStream, chatJson, parseJsonStrict, normalizeTools, normalizeToolCalls }
+module.exports = {
+  DeepSeekError,
+  chat,
+  chatStream,
+  chatJson,
+  parseJsonStrict,
+  normalizeTools,
+  normalizeToolCalls,
+  resolveProviderConfig,
+  chatCompletionsUrl,
+  buildBody
+}

@@ -10,6 +10,8 @@ const rules = require('./rules')
 const diagnostics = require('./diagnostics')
 const experiences = require('./experiences')
 const projects = require('./projects')
+const workflows = require('./workflows')
+const backup = require('./backup')
 
 const MODULES = [
   config,
@@ -23,7 +25,9 @@ const MODULES = [
   rules,
   diagnostics,
   experiences,
-  projects
+  projects,
+  workflows,
+  backup
 ]
 
 function registerAll(ipcMain, deps = {}) {

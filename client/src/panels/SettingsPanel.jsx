@@ -3,11 +3,16 @@ import { FolderOpen, Shield, ShieldCheck } from 'lucide-react'
 import { getConfig, setConfig } from '../lib/api.js'
 import SkillsTab from './SkillsTab.jsx'
 import RulesTab from './RulesTab.jsx'
+import BackupTab from './BackupTab.jsx'
 
 const DEFAULT_FORM = {
+  modelProvider: 'deepseek',
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
-  model: 'deepseek-chat',
+  model: 'deepseek-v4-flash',
+  minimaxApiKey: '',
+  minimaxBaseUrl: 'https://api.minimax.io',
+  minimaxModel: 'MiniMax-M2.7',
   embeddingModel: '',
   temperature: 0.7,
   permissionMode: 'default',
@@ -22,6 +27,7 @@ const TABS = [
   { id: 'model', label: '模型' },
   { id: 'workspace', label: '工作区' },
   { id: 'skills', label: '技能' },
+  { id: 'backup', label: '备份' },
   { id: 'rules', label: '偏好' }
 ]
 
@@ -42,6 +48,7 @@ export default function SettingsPanel({ currentUser }) {
   const [tab, setTab] = useState('model')
   const [form, setForm] = useState(DEFAULT_FORM)
   const [maskedKey, setMaskedKey] = useState('')
+  const [maskedMinimaxKey, setMaskedMinimaxKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -54,10 +61,15 @@ export default function SettingsPanel({ currentUser }) {
         const config = result.config
         const mode = config.permissionMode || 'default'
         setMaskedKey(config.apiKey || '')
+        setMaskedMinimaxKey(config.minimaxApiKey || '')
         setForm({
+          modelProvider: config.modelProvider || DEFAULT_FORM.modelProvider,
           apiKey: '',
           baseUrl: config.baseUrl || DEFAULT_FORM.baseUrl,
           model: config.model || DEFAULT_FORM.model,
+          minimaxApiKey: '',
+          minimaxBaseUrl: config.minimaxBaseUrl || DEFAULT_FORM.minimaxBaseUrl,
+          minimaxModel: config.minimaxModel || DEFAULT_FORM.minimaxModel,
           embeddingModel: config.embeddingModel || DEFAULT_FORM.embeddingModel,
           temperature: config.temperature ?? DEFAULT_FORM.temperature,
           permissionMode: mode,
@@ -90,17 +102,20 @@ export default function SettingsPanel({ currentUser }) {
         shell_blacklist_extra: textToList(form.shell_blacklist_extra)
       }
       if (!patch.apiKey) delete patch.apiKey
+      if (!patch.minimaxApiKey) delete patch.minimaxApiKey
 
       const result = await setConfig(patch, username)
       const mode = result.config?.permissionMode || form.permissionMode
       setMaskedKey(result.config?.apiKey || '')
-      setForm((current) => ({ ...current, apiKey: '' }))
+      setMaskedMinimaxKey(result.config?.minimaxApiKey || '')
+      setForm((current) => ({ ...current, apiKey: '', minimaxApiKey: '' }))
       localStorage.setItem(permissionModeKey(username), mode)
       window.dispatchEvent(new CustomEvent('agentdev:permission-changed', { detail: { mode, username } }))
       window.dispatchEvent(new CustomEvent('agentdev:config-changed', {
         detail: {
           username,
-          apiKeyConfigured: Boolean(result.config?.apiKey)
+          apiKeyConfigured: Boolean(result.config?.apiKey || result.config?.minimaxApiKey),
+          modelProvider: result.config?.modelProvider || form.modelProvider
         }
       }))
       setMessage('已保存。')
@@ -168,34 +183,89 @@ export default function SettingsPanel({ currentUser }) {
 
           <h2 className="text-lg font-semibold">模型配置</h2>
           <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
-            DeepSeek API Key
-            <input
-              type="password"
-              value={form.apiKey}
-              onChange={(event) => setForm({ ...form, apiKey: event.target.value })}
-              placeholder={maskedKey || 'sk-...'}
-              className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
-            />
-          </label>
-          <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
-            接口地址
-            <input
-              value={form.baseUrl}
-              onChange={(event) => setForm({ ...form, baseUrl: event.target.value })}
-              className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
-            />
-          </label>
-          <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
-            模型
+            模型提供商
             <select
-              value={form.model}
-              onChange={(event) => setForm({ ...form, model: event.target.value })}
+              value={form.modelProvider}
+              onChange={(event) => setForm({ ...form, modelProvider: event.target.value })}
               className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
             >
-              <option value="deepseek-chat">deepseek-chat</option>
-              <option value="deepseek-reasoner">deepseek-reasoner</option>
+              <option value="deepseek">DeepSeek V4</option>
+              <option value="minimax">MiniMax</option>
             </select>
           </label>
+          {form.modelProvider === 'deepseek' ? (
+            <>
+              <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
+                DeepSeek API Key
+                <input
+                  type="password"
+                  value={form.apiKey}
+                  onChange={(event) => setForm({ ...form, apiKey: event.target.value })}
+                  placeholder={maskedKey || 'sk-...'}
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
+                />
+              </label>
+              <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
+                DeepSeek Base URL
+                <input
+                  value={form.baseUrl}
+                  onChange={(event) => setForm({ ...form, baseUrl: event.target.value })}
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
+                />
+              </label>
+              <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
+                DeepSeek 模型
+                <select
+                  value={form.model}
+                  onChange={(event) => setForm({ ...form, model: event.target.value })}
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
+                >
+                  <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+                  <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+                  <option value="deepseek-chat">deepseek-chat（兼容）</option>
+                  <option value="deepseek-reasoner">deepseek-reasoner（兼容）</option>
+                </select>
+              </label>
+            </>
+          ) : (
+            <>
+              <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
+                MiniMax API Key
+                <input
+                  type="password"
+                  value={form.minimaxApiKey}
+                  onChange={(event) => setForm({ ...form, minimaxApiKey: event.target.value })}
+                  placeholder={maskedMinimaxKey || 'minimax key'}
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
+                />
+              </label>
+              <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
+                MiniMax Base URL
+                <input
+                  value={form.minimaxBaseUrl}
+                  onChange={(event) => setForm({ ...form, minimaxBaseUrl: event.target.value })}
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
+                />
+              </label>
+              <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
+                MiniMax 模型
+                <select
+                  value={form.minimaxModel}
+                  onChange={(event) => setForm({ ...form, minimaxModel: event.target.value })}
+                  className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
+                >
+                  <option value="MiniMax-M2.7">MiniMax-M2.7</option>
+                  <option value="MiniMax-M2.7-highspeed">MiniMax-M2.7-highspeed</option>
+                  <option value="MiniMax-M2.5">MiniMax-M2.5</option>
+                  <option value="MiniMax-M2.1">MiniMax-M2.1</option>
+                  <option value="MiniMax-M2">MiniMax-M2</option>
+                </select>
+              </label>
+              <div className="rounded-md bg-[color:var(--bg-secondary)] p-2 text-xs text-[color:var(--text-muted)]">
+                MiniMax 文本 Chat 接口用于对话和工具调用；图片理解需要后续接入单独视觉能力。
+              </div>
+            </>
+          )}
           <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
             温度: {form.temperature}
             <input
@@ -277,6 +347,7 @@ export default function SettingsPanel({ currentUser }) {
       )}
 
       {tab === 'skills' && <SkillsTab />}
+      {tab === 'backup' && <BackupTab setMsg={setMessage} />}
       {tab === 'rules' && <RulesTab currentUser={currentUser} />}
 
       {(tab === 'model' || tab === 'workspace') && (
