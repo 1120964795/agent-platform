@@ -130,6 +130,7 @@ app.whenReady().then(() => {
     screen,
     ipcMain,
     popupUrl: getPopupUrl(),
+    preloadPath: path.join(__dirname, 'preload.js'),
     appTitle: 'AgentDev Lite',
     mainWindow,
     getFocusedWindow: () => BrowserWindow.getFocusedWindow()

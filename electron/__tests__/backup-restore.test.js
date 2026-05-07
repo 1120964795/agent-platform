@@ -36,7 +36,7 @@ beforeEach(() => {
 async function seedAndExportBackup() {
   store.setConfig({
     apiKey: 'sk-should-not-export',
-    minimaxApiKey: 'mini-should-not-export',
+    qwenApiKey: 'qwen-should-not-export',
     permissionMode: 'full',
     shell_whitelist_extra: ['npm'],
     shell_blacklist_extra: ['reg']
@@ -73,9 +73,9 @@ test('exports previewable .aionbackup packages without secrets or full run logs'
   const zip = await JSZip.loadAsync(fs.readFileSync(packagePath))
   const userSettings = JSON.parse(await zip.file('aion-backup/user-settings.json').async('string'))
   expect(userSettings.settings.apiKey).toBeUndefined()
-  expect(userSettings.settings.minimaxApiKey).toBeUndefined()
+  expect(userSettings.settings.qwenApiKey).toBeUndefined()
   expect(JSON.stringify(userSettings)).not.toContain('sk-should-not-export')
-  expect(JSON.stringify(userSettings)).not.toContain('mini-should-not-export')
+  expect(JSON.stringify(userSettings)).not.toContain('qwen-should-not-export')
 })
 
 test('restores backup data by merge and recreates workflow skills without project source writes', async () => {

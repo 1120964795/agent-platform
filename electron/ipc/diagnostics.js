@@ -191,6 +191,21 @@ function createRegister(overrides = {}) {
         return { ok: true }
       }
 
+      if (payload.action === 'open-diagnosis-explanation') {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          if (mainWindow.isMinimized?.()) mainWindow.restore?.()
+          mainWindow.show?.()
+          mainWindow.focus?.()
+          mainWindow.webContents.send('diagnostics:event', {
+            type: 'popup-open-diagnosis-explanation',
+            diagnosisId: payload.diagnosisId,
+            diagnosisIds: payload.diagnosisId ? [payload.diagnosisId] : []
+          })
+        }
+        companion.popupManager?.close?.()
+        return { ok: true }
+      }
+
       return { ok: false, error: { code: 'BAD_REQUEST', message: 'Unsupported popup action.' } }
     })
   }

@@ -9,7 +9,7 @@ function useLocalDiagnosis(initialDiagnosis) {
   return [diagnosis, setDiagnosis]
 }
 
-export default function DiagnosisCard({ diagnosis: initialDiagnosis, currentUser }) {
+export default function DiagnosisCard({ diagnosis: initialDiagnosis, currentUser, autoExplain = false, focusNonce = 0 }) {
   const username = currentUser?.username || initialDiagnosis?.username || 'guest'
   const [diagnosis, setDiagnosis] = useLocalDiagnosis(initialDiagnosis)
   const [busyKey, setBusyKey] = useState('')
@@ -65,10 +65,19 @@ export default function DiagnosisCard({ diagnosis: initialDiagnosis, currentUser
     }
   }
 
+  useEffect(() => {
+    if (!autoExplain || !diagnosis?.id) return
+    const element = document.getElementById(`diagnosis-${diagnosis.id}`)
+    element?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    if (!diagnosis.modelExplanation && busyKey !== 'explain') {
+      handleExplain()
+    }
+  }, [autoExplain, focusNonce, diagnosis?.id])
+
   if (!diagnosis) return null
 
   return (
-    <section className="my-3 rounded-xl border border-sky-200 bg-sky-50/70 p-4 text-sm text-slate-800 shadow-sm">
+    <section id={`diagnosis-${diagnosis.id}`} className={`my-3 rounded-xl border p-4 text-sm text-slate-800 shadow-sm ${autoExplain ? 'border-amber-300 bg-amber-50/80' : 'border-sky-200 bg-sky-50/70'}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">Diagnosis</div>

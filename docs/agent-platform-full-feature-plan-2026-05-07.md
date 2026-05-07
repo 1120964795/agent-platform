@@ -58,7 +58,7 @@ Agent Platform 的目标是把“本地开发助手”从普通聊天工具升�
 功能目标：
 
 - 支持 DeepSeek V4 作为默认文本模型。
-- 支持 MiniMax 作为可切换模型提供商。
+- 支持千问 Qwen 作为可切换模型提供商。
 - 支持单独配置 API Key、Base URL、模型名和温度。
 - 支持 DeepSeek 兼容模型保留，避免旧配置失效。
 - 允许未来接入多模态模型能力。
@@ -66,17 +66,17 @@ Agent Platform 的目标是把“本地开发助手”从普通聊天工具升�
 当前模型范围：
 
 - DeepSeek：`deepseek-v4-flash`、`deepseek-v4-pro`、兼容 `deepseek-chat`、`deepseek-reasoner`。
-- MiniMax：`MiniMax-M2.7`、`MiniMax-M2.7-highspeed`、`MiniMax-M2.5`、`MiniMax-M2.1`、`MiniMax-M2`。
+- Qwen：`qwen-plus`、`qwen-turbo`、`qwen-max`、`qwen-long`。
 
 多模态规划：
 
-- 当前 MiniMax 接口用于文本 Chat 和工具调用。
+- 当前 Qwen 接口用于文本 Chat 和工具调用。
 - 图像理解、截图理解和更强 OCR 后续应接入独立视觉模型通道。
 - 多模态能力不应默认上传本地截图，必须由用户显式授权。
 
 验收标准：
 
-- 设置页可切换 DeepSeek V4 / MiniMax。
+- 设置页可切换 DeepSeek V4 / Qwen。
 - 保存配置后密钥以掩码显示。
 - 未配置密钥时返回明确错误。
 - 流式对话仍支持取消。
@@ -373,7 +373,7 @@ npm run electron:build
 ### 6.2 手工验收
 
 - 登录页是否仍存在并可用。
-- 设置页可切换 DeepSeek V4 和 MiniMax。
+- 设置页可切换 DeepSeek V4 和 Qwen。
 - 添加 demo 项目并完成索引。
 - 搜索和问答能返回引用来源。
 - 粘贴错误文本能生成诊断和经验。
@@ -494,7 +494,7 @@ npm run electron:build
 
 - [ ] 登录、注册、记住密码、自动登录可用。
 - [ ] DeepSeek V4 默认模型可保存。
-- [ ] MiniMax provider 可切换并保存。
+- [ ] Qwen provider 可切换并保存。
 - [ ] 普通模式不调用本地工具。
 - [ ] 完整权限模式可启用本地工具。
 - [ ] 项目添加、画像、索引、搜索、问答可用。
@@ -518,7 +518,7 @@ npm run electron:build
 - 诊断助手与经验库。
 - Workflow Skill V3。
 - 最终交付 V4 文档与 demo。
-- DeepSeek V4 和 MiniMax 模型配置。
+- DeepSeek V4 和 Qwen 模型配置。
 - `.aionbackup` 备份恢复。
 - Windows Electron 打包。
 

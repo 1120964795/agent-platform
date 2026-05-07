@@ -61,6 +61,49 @@ test('diagnostics IPC registers observer lifecycle handlers', async () => {
   expect(targets.targets).toEqual([{ id: 'window:1', type: 'window' }])
 })
 
+test('popup action opens one diagnosis explanation in main window', async () => {
+  const ipcMain = createIpcMain()
+  const send = vi.fn()
+  const close = vi.fn()
+  const mainWindow = {
+    isDestroyed: () => false,
+    isMinimized: () => true,
+    restore: vi.fn(),
+    show: vi.fn(),
+    focus: vi.fn(),
+    webContents: { send }
+  }
+  const companionService = {
+    listTargets: vi.fn(async () => []),
+    selectRegion: vi.fn(async () => null),
+    start: vi.fn(async () => null),
+    stop: vi.fn(() => null),
+    resumeNow: vi.fn(() => null),
+    status: vi.fn(() => ({ session: null, hasModel: false, advancedRiskExecutionEnabled: false, libraryNotice: '' })),
+    ignore: vi.fn(),
+    listDiagnostics: vi.fn(() => []),
+    getDiagnosis: vi.fn(() => null),
+    popupManager: { close }
+  }
+
+  diagnostics.createRegister({ companionService, mainWindowRef: () => mainWindow })(ipcMain)
+  const result = await ipcMain.handlers.get('diagnostics:popup-action')({}, {
+    action: 'open-diagnosis-explanation',
+    diagnosisId: 'diag_1'
+  })
+
+  expect(result).toEqual({ ok: true })
+  expect(mainWindow.restore).toHaveBeenCalled()
+  expect(mainWindow.show).toHaveBeenCalled()
+  expect(mainWindow.focus).toHaveBeenCalled()
+  expect(send).toHaveBeenCalledWith('diagnostics:event', {
+    type: 'popup-open-diagnosis-explanation',
+    diagnosisId: 'diag_1',
+    diagnosisIds: ['diag_1']
+  })
+  expect(close).toHaveBeenCalled()
+})
+
 test('default diagnostics register receives companion service deps', async () => {
   const ipcMain = createIpcMain()
   const companionService = {

@@ -9,7 +9,7 @@ class DeepSeekError extends Error {
 }
 
 function mapErrorCode(status, provider = 'deepseek') {
-  const prefix = provider === 'minimax' ? 'MINIMAX' : 'DEEPSEEK'
+  const prefix = provider === 'qwen' ? 'QWEN' : 'DEEPSEEK'
   if (status === 401 || status === 403) return `${prefix}_AUTH`
   if (status === 429) return `${prefix}_RATE_LIMIT`
   if (status >= 500) return `${prefix}_SERVER`
@@ -52,14 +52,14 @@ function normalizeTools(tools = []) {
 }
 
 function resolveProviderConfig(config = store.getConfig()) {
-  const provider = config.modelProvider === 'minimax' ? 'minimax' : 'deepseek'
-  if (provider === 'minimax') {
+  const provider = config.modelProvider === 'qwen' ? 'qwen' : 'deepseek'
+  if (provider === 'qwen') {
     return {
       provider,
-      label: 'MiniMax',
-      apiKey: config.minimaxApiKey || '',
-      baseUrl: config.minimaxBaseUrl || 'https://api.minimax.io',
-      model: config.minimaxModel || 'MiniMax-M2.7',
+      label: 'Qwen',
+      apiKey: config.qwenApiKey || '',
+      baseUrl: config.qwenBaseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      model: config.qwenModel || 'qwen-plus',
       temperature: typeof config.temperature === 'number' ? config.temperature : 0.7
     }
   }
@@ -78,7 +78,7 @@ function chatCompletionsUrl(baseUrl, provider = 'deepseek') {
   const normalized = String(baseUrl || '').replace(/\/+$/, '')
   if (normalized.endsWith('/chat/completions')) return normalized
   if (normalized.endsWith('/v1')) return `${normalized}/chat/completions`
-  if (provider === 'minimax') return `${normalized}/v1/chat/completions`
+  if (provider === 'qwen') return `${normalized}/chat/completions`
   return `${normalized}/chat/completions`
 }
 

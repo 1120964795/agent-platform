@@ -31,7 +31,7 @@ function usePermissionMode(currentUser) {
   return mode
 }
 
-export default function RightDrawer({ view, onClose, currentUser, diagnosticsState }) {
+export default function RightDrawer({ view, onClose, currentUser, diagnosticsState, diagnosticsFocus }) {
   const permissionMode = usePermissionMode(currentUser)
   const [activeTab, setActiveTab] = useState(view || 'settings')
 
@@ -91,7 +91,7 @@ export default function RightDrawer({ view, onClose, currentUser, diagnosticsSta
           </div>
         </div>
         {activeTab === 'projects' && <ProjectAssistantPanel currentUser={currentUser} />}
-        {activeTab === 'diagnostics' && <DiagnosticsPanel currentUser={currentUser} diagnosticsState={diagnosticsState} />}
+        {activeTab === 'diagnostics' && <DiagnosticsPanel currentUser={currentUser} diagnosticsState={diagnosticsState} diagnosticsFocus={diagnosticsFocus} />}
         {activeTab === 'experiences' && <ExperienceLibraryPanel currentUser={currentUser} diagnosticsState={diagnosticsState} />}
         {activeTab === 'settings' && <SettingsPanel currentUser={currentUser} />}
         {activeTab === 'files' && permissionMode === 'full' && <FileBrowser currentUser={currentUser} />}

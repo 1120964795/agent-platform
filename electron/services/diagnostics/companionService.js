@@ -142,8 +142,12 @@ class CompanionService {
   shouldShowPopup() {
     const focused = this.getFocusedWindow()
     if (!this.mainWindow || this.mainWindow.isDestroyed()) return false
-    if (focused === this.mainWindow && !this.mainWindow.isMinimized?.()) return false
+    if (focused?.isFullScreen?.()) return false
     return true
+  }
+
+  shouldKeepListening(session) {
+    return Boolean(session?.continuous)
   }
 
   async captureTarget(session) {
@@ -179,7 +183,48 @@ class CompanionService {
     }
     const experiences = this.storeRef.listExperiences(session.username)
     const textProjectContext = buildProjectContextForText(this.storeRef, session.username, session.projectDir || '', collected.text)
-    let modelUnavailable = false
+
+    const errorEvent = detectError({
+      text: collected.text,
+      context
+    })
+
+    if (errorEvent) {
+      if (this.sessionManager.isIgnored(errorEvent.signature) || this.sessionManager.isDuplicate(errorEvent.signature)) return null
+
+      const projectContext = buildProjectContext(this.storeRef, session.username, errorEvent)
+      const diagnosis = createDiagnosisFromError(errorEvent, {
+        username: session.username,
+        experiences,
+        ...projectContext,
+        advancedRiskExecutionEnabled: this.storeRef.getUserConfig(session.username).advancedRiskExecutionEnabled === true
+      })
+      const savedDiagnosis = this.storeRef.upsertDiagnosis(diagnosis)
+      const experience = upsertExperienceFromDiagnosis(this.storeRef, savedDiagnosis, errorEvent)
+      if (experience?.id) {
+        savedDiagnosis.experienceId = experience.id
+        this.storeRef.upsertDiagnosis(savedDiagnosis)
+      }
+
+      this.sessionManager.noteDetection(errorEvent.signature, {
+        keepListening: this.shouldKeepListening(session)
+      })
+      const eventPayload = {
+        type: 'diagnosis-created',
+        diagnosis: savedDiagnosis,
+        experience
+      }
+      this.emitToWindow('diagnostics:event', eventPayload)
+
+      if (this.shouldShowPopup()) {
+        await this.popupManager.showDiagnosis({
+          username: session.username,
+          diagnosis: savedDiagnosis
+        })
+      }
+
+      return eventPayload
+    }
 
     if (typeof this.modelClient?.diagnoseCapturedError === 'function') {
       try {
@@ -215,7 +260,9 @@ class CompanionService {
           this.storeRef.upsertDiagnosis(savedDiagnosis)
         }
 
-        this.sessionManager.noteDetection(savedDiagnosis.errorSignature)
+        this.sessionManager.noteDetection(savedDiagnosis.errorSignature, {
+          keepListening: this.shouldKeepListening(session)
+        })
         const eventPayload = {
           type: 'diagnosis-created',
           diagnosis: savedDiagnosis,
@@ -232,54 +279,12 @@ class CompanionService {
 
         return eventPayload
       } catch (error) {
-        modelUnavailable = true
         if (this.sessionManager.activeSession) {
           this.sessionManager.activeSession.lastModelError = error.code || error.message || 'MODEL_DIAGNOSIS_FAILED'
         }
       }
     }
-
-    const errorEvent = detectError({
-      text: collected.text,
-      context
-    })
-
-    if (!errorEvent) return null
-    if (this.sessionManager.isIgnored(errorEvent.signature) || this.sessionManager.isDuplicate(errorEvent.signature)) return null
-
-    const projectContext = buildProjectContext(this.storeRef, session.username, errorEvent)
-    const diagnosis = createDiagnosisFromError(errorEvent, {
-      username: session.username,
-      experiences,
-      ...projectContext,
-      advancedRiskExecutionEnabled: this.storeRef.getUserConfig(session.username).advancedRiskExecutionEnabled === true
-    })
-    if (modelUnavailable) {
-      diagnosis.modelFallbackReason = this.sessionManager.activeSession?.lastModelError || 'MODEL_DIAGNOSIS_FAILED'
-    }
-    const savedDiagnosis = this.storeRef.upsertDiagnosis(diagnosis)
-    const experience = upsertExperienceFromDiagnosis(this.storeRef, savedDiagnosis, errorEvent)
-    if (experience?.id) {
-      savedDiagnosis.experienceId = experience.id
-      this.storeRef.upsertDiagnosis(savedDiagnosis)
-    }
-
-    this.sessionManager.noteDetection(errorEvent.signature)
-    const eventPayload = {
-      type: 'diagnosis-created',
-      diagnosis: savedDiagnosis,
-      experience
-    }
-    this.emitToWindow('diagnostics:event', eventPayload)
-
-    if (this.shouldShowPopup()) {
-      await this.popupManager.showDiagnosis({
-        username: session.username,
-        diagnosis: savedDiagnosis
-      })
-    }
-
-    return eventPayload
+    return null
   }
 
   async start(payload = {}) {
@@ -290,6 +295,7 @@ class CompanionService {
       target: payload.target,
       projectDir: payload.projectDir || '',
       intervalMs: payload.intervalMs,
+      continuous: true,
       onTick: (session) => this.collectOnce(session)
     })
   }
@@ -312,7 +318,7 @@ class CompanionService {
     const config = this.storeRef.getUserConfig(username || 'guest')
     return {
       session,
-      hasModel: Boolean(config.apiKey),
+      hasModel: Boolean(config.apiKey || config.qwenApiKey),
       advancedRiskExecutionEnabled: config.advancedRiskExecutionEnabled === true,
       libraryNotice: this.libraryNotice
     }
@@ -383,7 +389,8 @@ function createCompanionService(options = {}) {
     BrowserWindow: options.BrowserWindow,
     screen: options.screen,
     popupUrl: options.popupUrl,
-    autoCloseMs: 15000
+    preloadPath: options.preloadPath,
+    autoCloseMs: 30000
   })
 
   return new CompanionService({

@@ -38,7 +38,7 @@ test('popup manager queues multiple errors and never steals focus', async () => 
   expect(flashFrame).not.toHaveBeenCalled()
   expect(send).toHaveBeenLastCalledWith('diagnostics:popup-data', expect.objectContaining({
     count: 2,
-    headline: '检测到 2 个问题',
+    headline: '2 errors detected',
     diagnosis: expect.objectContaining({ id: 'diag_2' })
   }))
 })

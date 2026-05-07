@@ -77,7 +77,7 @@ function assertAllowedBackupFile(relativePath) {
 
 function backupConfig() {
   const config = store.getConfig()
-  const { apiKey, minimaxApiKey, ...rest } = config
+  const { apiKey, qwenApiKey, minimaxApiKey, ...rest } = config
   return {
     schemaVersion: BACKUP_SCHEMA_VERSION,
     settings: rest,
@@ -362,7 +362,7 @@ async function restoreBackup(packagePath, options = {}) {
   store.saveData(data)
 
   if (options.overwriteSettings === true && userSettings.settings) {
-    const { apiKey, minimaxApiKey, ...settings } = userSettings.settings
+    const { apiKey, qwenApiKey, minimaxApiKey, ...settings } = userSettings.settings
     store.setConfig(settings)
   }
   const restoredRules = appendMissingRules(userSettings.userRules)

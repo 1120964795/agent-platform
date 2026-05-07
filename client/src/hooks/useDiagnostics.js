@@ -131,6 +131,13 @@ export function useDiagnostics(currentUser) {
       if (payload.type === 'popup-open-all') {
         window.dispatchEvent(new CustomEvent('agentdev:open-diagnostics', { detail: payload }))
       }
+
+      if (payload.type === 'popup-open-diagnosis-explanation') {
+        window.dispatchEvent(new CustomEvent('agentdev:open-diagnostics', { detail: {
+          ...payload,
+          explain: true
+        } }))
+      }
     })
 
     return () => {

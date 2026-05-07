@@ -28,12 +28,13 @@ class ObserverSessionManager {
 
   start(options = {}) {
     this.stop()
-    const intervalMs = [3000, 5000, 10000].includes(Number(options.intervalMs)) ? Number(options.intervalMs) : 5000
+    const intervalMs = [500, 1000, 1500, 3000, 5000, 10000].includes(Number(options.intervalMs)) ? Number(options.intervalMs) : 1000
     const nowIso = new Date(this.now()).toISOString()
     this.activeSession = {
       id: this.createId(),
       username: options.username || 'guest',
       status: 'running',
+      continuous: Boolean(options.continuous),
       target: options.target || null,
       projectDir: options.projectDir || '',
       captureMode: options.target?.type === 'region' ? 'ocr-only' : 'uia-first',
@@ -123,10 +124,12 @@ class ObserverSessionManager {
     return true
   }
 
-  noteDetection(signature, ttlMs = 10 * 60 * 1000) {
+  noteDetection(signature, options = {}) {
+    const normalizedOptions = typeof options === 'number' ? { ttlMs: options } : options
+    const ttlMs = Number(normalizedOptions.ttlMs) || 10 * 60 * 1000
     this.dedupeCache.set(signature, this.now() + ttlMs)
     if (this.activeSession) this.activeSession.lastErrorSignature = signature
-    this.enterCooldown()
+    if (!normalizedOptions.keepListening) this.enterCooldown()
   }
 
   async runTick(runner) {
@@ -142,7 +145,7 @@ class ObserverSessionManager {
     } catch (error) {
       if (this.activeSession) {
         this.activeSession.failureCount = Number(this.activeSession.failureCount || 0) + 1
-        if (this.activeSession.failureCount >= 10) {
+        if (!this.activeSession.continuous && this.activeSession.target?.type !== 'region' && this.activeSession.failureCount >= 10) {
           this.pause('too-many-failures')
         }
       }

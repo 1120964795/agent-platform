@@ -56,19 +56,19 @@ function createService({ targetText, modelResult }) {
   return { service, modelClient, emitted }
 }
 
-test('window monitoring sends captured text to the model before creating diagnosis cards', async () => {
-  const targetText = '你好 : 无法将“你好”项识别为 cmdlet、函数、脚本文件或可运行程序的名称。'
+test('window monitoring falls back to model diagnosis only when no local rule matches', async () => {
+  const targetText = 'WEBPACK_BIZARRE_FAILURE_CODE_42: loader pipeline exploded in demo mode'
   const { service, modelClient, emitted } = createService({
     targetText,
     modelResult: {
       isError: true,
-      title: 'PowerShell 命令不存在',
-      errorType: 'PowerShellCommandNotFound',
-      errorSignature: 'model.powershell.command_not_found.hello_cn',
-      meaning: 'PowerShell 把输入内容当成命令执行，但没有找到对应命令。',
-      possibleCauses: ['输入的是普通文本而不是命令', '命令名称拼写错误'],
+      title: 'Webpack loader failure',
+      errorType: 'WebpackLoaderFailure',
+      errorSignature: 'model.webpack.loader_failure.42',
+      meaning: 'A webpack loader failed during compilation.',
+      possibleCauses: ['Loader config is invalid'],
       recommendedFixes: [
-        { id: 'fix_echo', label: '作为文本输出', command: 'Write-Output "你好"', cwd: 'D:\\demo' }
+        { id: 'fix_build', label: 'Run build diagnostics', command: 'npm run build', cwd: 'D:\\demo' }
       ]
     }
   })
@@ -89,36 +89,31 @@ test('window monitoring sends captured text to the model before creating diagnos
     })
   }))
   expect(result.diagnosis).toMatchObject({
-    title: 'PowerShell 命令不存在',
-    errorType: 'PowerShellCommandNotFound',
-    errorSignature: 'model.powershell.command_not_found.hello_cn',
+    title: 'Webpack loader failure',
+    errorType: 'WebpackLoaderFailure',
+    errorSignature: 'model.webpack.loader_failure.42',
     modelGenerated: true,
     recommendedFixes: [
       expect.objectContaining({
-        command: 'Write-Output "你好"',
+        command: 'npm run build',
         riskLevel: 'medium',
         blocked: false
       })
     ]
   })
-  expect(store.listDiagnostics('alice')[0].title).toBe('PowerShell 命令不存在')
+  expect(store.listDiagnostics('alice')[0].title).toBe('Webpack loader failure')
   expect(emitted[0]).toMatchObject({ channel: 'diagnostics:event', payload: { type: 'diagnosis-created' } })
 })
 
-test('region screen monitoring also uses model diagnosis for OCR text', async () => {
+test('known OCR errors use local rules first for faster popup response', async () => {
   const targetText = 'Error: listen EADDRINUSE: address already in use :::5173'
   const { service, modelClient } = createService({
     targetText,
     modelResult: {
       isError: true,
-      title: '端口 5173 被占用',
-      errorType: 'PortInUse',
-      errorSignature: 'model.network.port_in_use.5173',
-      meaning: '开发服务启动时端口已被其他进程占用。',
-      possibleCauses: ['已有 dev server 正在运行'],
-      recommendedFixes: [
-        { label: '查看端口占用', command: 'netstat -ano | findstr :5173', cwd: 'D:\\demo' }
-      ]
+      title: 'Model should not be used',
+      errorType: 'SlowModelPath',
+      errorSignature: 'model.slow.path'
     }
   })
 
@@ -128,18 +123,10 @@ test('region screen monitoring also uses model diagnosis for OCR text', async ()
     projectDir: 'D:\\demo'
   })
 
-  expect(modelClient.diagnoseCapturedError).toHaveBeenCalledWith(expect.objectContaining({
-    text: targetText,
-    context: expect.objectContaining({
-      captureSource: 'ocr',
-      projectDir: 'D:\\demo'
-    })
-  }))
+  expect(modelClient.diagnoseCapturedError).not.toHaveBeenCalled()
   expect(result.diagnosis).toMatchObject({
-    title: '端口 5173 被占用',
-    modelGenerated: true,
-    recommendedFixes: [
-      expect.objectContaining({ command: 'netstat -ano | findstr :5173' })
-    ]
+    errorType: 'PortInUse',
+    errorSignature: 'network.port_in_use.5173',
+    recommendedFixes: expect.any(Array)
   })
 })

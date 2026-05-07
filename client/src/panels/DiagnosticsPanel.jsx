@@ -2,14 +2,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { Play, Pause, RefreshCcw, ScanSearch, Square } from 'lucide-react'
 import DiagnosisCard from '../components/chat/DiagnosisCard.jsx'
 
-const INTERVAL_OPTIONS = [3000, 5000, 10000]
+const INTERVAL_OPTIONS = [500, 1000, 1500, 3000, 5000]
 
-export default function DiagnosticsPanel({ currentUser, diagnosticsState }) {
+export default function DiagnosticsPanel({ currentUser, diagnosticsState, diagnosticsFocus }) {
   const [selectedTargetId, setSelectedTargetId] = useState('')
   const [selectedRegion, setSelectedRegion] = useState(null)
   const [projectDir, setProjectDir] = useState('')
-  const [intervalMs, setIntervalMs] = useState(5000)
+  const [intervalMs, setIntervalMs] = useState(1000)
   const [error, setError] = useState('')
+  const focusedDiagnosisId = diagnosticsFocus?.diagnosisId || ''
 
   const session = diagnosticsState.status.session
   const selectedTarget = useMemo(() => {
@@ -65,6 +66,17 @@ export default function DiagnosticsPanel({ currentUser, diagnosticsState }) {
   async function handleStop() {
     await diagnosticsState.stop()
   }
+
+  useEffect(() => {
+    if (!diagnosticsFocus?.diagnosisId) return
+    diagnosticsState.refreshDiagnostics().catch(() => {})
+    window.setTimeout(() => {
+      document.getElementById(`diagnosis-${diagnosticsFocus.diagnosisId}`)?.scrollIntoView?.({
+        behavior: 'smooth',
+        block: 'start'
+      })
+    }, 120)
+  }, [diagnosticsFocus?.nonce])
 
   return (
     <div className="space-y-5 p-6">
@@ -201,7 +213,13 @@ export default function DiagnosticsPanel({ currentUser, diagnosticsState }) {
           </div>
         )}
         {diagnosticsState.diagnostics.map((diagnosis) => (
-          <DiagnosisCard key={diagnosis.id} diagnosis={diagnosis} currentUser={currentUser} />
+          <DiagnosisCard
+            key={diagnosis.id}
+            diagnosis={diagnosis}
+            currentUser={currentUser}
+            autoExplain={diagnosticsFocus?.explain && diagnosis.id === focusedDiagnosisId}
+            focusNonce={diagnosticsFocus?.nonce || 0}
+          />
         ))}
       </div>
     </div>

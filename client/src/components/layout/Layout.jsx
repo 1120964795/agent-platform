@@ -16,6 +16,7 @@ export default function Layout({
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [drawer, setDrawer] = useState(null)
+  const [diagnosticsFocus, setDiagnosticsFocus] = useState(null)
   const diagnosticsState = useDiagnostics(currentUser)
 
   useEffect(() => {
@@ -45,7 +46,12 @@ export default function Layout({
       }
     })
 
-    function handleOpenDiagnostics() {
+    function handleOpenDiagnostics(event) {
+      setDiagnosticsFocus({
+        diagnosisId: event.detail?.diagnosisId || event.detail?.diagnosisIds?.[0] || '',
+        explain: Boolean(event.detail?.explain),
+        nonce: Date.now()
+      })
       setDrawer('diagnostics')
     }
 
@@ -75,6 +81,7 @@ export default function Layout({
         activeConversation={activeConversation}
         onConversationSaved={onConversationSaved}
         diagnosticsState={diagnosticsState}
+        diagnosticsFocus={diagnosticsFocus}
       />
       <RightDrawer
         view={drawer}

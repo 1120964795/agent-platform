@@ -10,9 +10,9 @@ const DEFAULT_FORM = {
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
   model: 'deepseek-v4-flash',
-  minimaxApiKey: '',
-  minimaxBaseUrl: 'https://api.minimax.io',
-  minimaxModel: 'MiniMax-M2.7',
+  qwenApiKey: '',
+  qwenBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  qwenModel: 'qwen-plus',
   embeddingModel: '',
   temperature: 0.7,
   permissionMode: 'default',
@@ -24,11 +24,11 @@ const DEFAULT_FORM = {
 }
 
 const TABS = [
-  { id: 'model', label: '模型' },
-  { id: 'workspace', label: '工作区' },
-  { id: 'skills', label: '技能' },
-  { id: 'backup', label: '备份' },
-  { id: 'rules', label: '偏好' }
+  { id: 'model', label: 'Model' },
+  { id: 'workspace', label: 'Workspace' },
+  { id: 'skills', label: 'Skills' },
+  { id: 'backup', label: 'Backup' },
+  { id: 'rules', label: 'Rules' }
 ]
 
 function listToText(value) {
@@ -48,7 +48,7 @@ export default function SettingsPanel({ currentUser }) {
   const [tab, setTab] = useState('model')
   const [form, setForm] = useState(DEFAULT_FORM)
   const [maskedKey, setMaskedKey] = useState('')
-  const [maskedMinimaxKey, setMaskedMinimaxKey] = useState('')
+  const [maskedQwenKey, setMaskedQwenKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -61,15 +61,15 @@ export default function SettingsPanel({ currentUser }) {
         const config = result.config
         const mode = config.permissionMode || 'default'
         setMaskedKey(config.apiKey || '')
-        setMaskedMinimaxKey(config.minimaxApiKey || '')
+        setMaskedQwenKey(config.qwenApiKey || '')
         setForm({
           modelProvider: config.modelProvider || DEFAULT_FORM.modelProvider,
           apiKey: '',
           baseUrl: config.baseUrl || DEFAULT_FORM.baseUrl,
           model: config.model || DEFAULT_FORM.model,
-          minimaxApiKey: '',
-          minimaxBaseUrl: config.minimaxBaseUrl || DEFAULT_FORM.minimaxBaseUrl,
-          minimaxModel: config.minimaxModel || DEFAULT_FORM.minimaxModel,
+          qwenApiKey: '',
+          qwenBaseUrl: config.qwenBaseUrl || DEFAULT_FORM.qwenBaseUrl,
+          qwenModel: config.qwenModel || DEFAULT_FORM.qwenModel,
           embeddingModel: config.embeddingModel || DEFAULT_FORM.embeddingModel,
           temperature: config.temperature ?? DEFAULT_FORM.temperature,
           permissionMode: mode,
@@ -81,7 +81,7 @@ export default function SettingsPanel({ currentUser }) {
         })
         localStorage.setItem(permissionModeKey(username), mode)
       } catch (error) {
-        if (!ignored) setMessage(`加载失败: ${error.message}`)
+        if (!ignored) setMessage(`Load failed: ${error.message}`)
       }
     }
 
@@ -102,26 +102,26 @@ export default function SettingsPanel({ currentUser }) {
         shell_blacklist_extra: textToList(form.shell_blacklist_extra)
       }
       if (!patch.apiKey) delete patch.apiKey
-      if (!patch.minimaxApiKey) delete patch.minimaxApiKey
+      if (!patch.qwenApiKey) delete patch.qwenApiKey
 
       const result = await setConfig(patch, username)
       const mode = result.config?.permissionMode || form.permissionMode
       setMaskedKey(result.config?.apiKey || '')
-      setMaskedMinimaxKey(result.config?.minimaxApiKey || '')
-      setForm((current) => ({ ...current, apiKey: '', minimaxApiKey: '' }))
+      setMaskedQwenKey(result.config?.qwenApiKey || '')
+      setForm((current) => ({ ...current, apiKey: '', qwenApiKey: '' }))
       localStorage.setItem(permissionModeKey(username), mode)
       window.dispatchEvent(new CustomEvent('agentdev:permission-changed', { detail: { mode, username } }))
       window.dispatchEvent(new CustomEvent('agentdev:config-changed', {
         detail: {
           username,
-          apiKeyConfigured: Boolean(result.config?.apiKey || result.config?.minimaxApiKey),
+          apiKeyConfigured: Boolean(result.config?.apiKey || result.config?.qwenApiKey),
           modelProvider: result.config?.modelProvider || form.modelProvider
         }
       }))
-      setMessage('已保存。')
+      setMessage('Saved.')
       setTimeout(() => setMessage(''), 2000)
     } catch (error) {
-      setMessage(`保存失败: ${error.message}`)
+      setMessage(`Save failed: ${error.message}`)
     } finally {
       setSaving(false)
     }
@@ -152,7 +152,7 @@ export default function SettingsPanel({ currentUser }) {
       {tab === 'model' && (
         <div className="space-y-5">
           <div className="space-y-3">
-            <h2 className="text-lg font-semibold">权限模式</h2>
+            <h2 className="text-lg font-semibold">Permission Mode</h2>
             <div className="grid gap-2">
               <button
                 type="button"
@@ -161,8 +161,8 @@ export default function SettingsPanel({ currentUser }) {
               >
                 <Shield size={18} className={!isFull ? 'text-[color:var(--accent)]' : 'text-[color:var(--text-muted)]'} />
                 <div>
-                  <div className="text-sm font-medium">普通模式</div>
-                  <div className="text-xs text-[color:var(--text-muted)]">只进行文字对话，不调用本地工具。</div>
+                  <div className="text-sm font-medium">Default mode</div>
+                  <div className="text-xs text-[color:var(--text-muted)]">Chat only, without local tool calls.</div>
                 </div>
               </button>
               <button
@@ -172,8 +172,8 @@ export default function SettingsPanel({ currentUser }) {
               >
                 <ShieldCheck size={18} className={isFull ? 'text-[color:var(--success)]' : 'text-[color:var(--text-muted)]'} />
                 <div>
-                  <div className="text-sm font-medium">完全权限</div>
-                  <div className="text-xs text-[color:var(--text-muted)]">允许调用本地文件、Shell、技能和诊断能力。</div>
+                  <div className="text-sm font-medium">Full permission</div>
+                  <div className="text-xs text-[color:var(--text-muted)]">Allow local files, shell, skills, and diagnostics.</div>
                 </div>
               </button>
             </div>
@@ -181,16 +181,16 @@ export default function SettingsPanel({ currentUser }) {
 
           <div className="border-t border-[color:var(--border)]" />
 
-          <h2 className="text-lg font-semibold">模型配置</h2>
+          <h2 className="text-lg font-semibold">Model Settings</h2>
           <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
-            模型提供商
+            Model provider
             <select
               value={form.modelProvider}
               onChange={(event) => setForm({ ...form, modelProvider: event.target.value })}
               className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
             >
               <option value="deepseek">DeepSeek V4</option>
-              <option value="minimax">MiniMax</option>
+              <option value="qwen">Qwen</option>
             </select>
           </label>
           {form.modelProvider === 'deepseek' ? (
@@ -214,7 +214,7 @@ export default function SettingsPanel({ currentUser }) {
                 />
               </label>
               <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
-                DeepSeek 模型
+                DeepSeek model
                 <select
                   value={form.model}
                   onChange={(event) => setForm({ ...form, model: event.target.value })}
@@ -222,52 +222,51 @@ export default function SettingsPanel({ currentUser }) {
                 >
                   <option value="deepseek-v4-flash">deepseek-v4-flash</option>
                   <option value="deepseek-v4-pro">deepseek-v4-pro</option>
-                  <option value="deepseek-chat">deepseek-chat（兼容）</option>
-                  <option value="deepseek-reasoner">deepseek-reasoner（兼容）</option>
+                  <option value="deepseek-chat">deepseek-chat</option>
+                  <option value="deepseek-reasoner">deepseek-reasoner</option>
                 </select>
               </label>
             </>
           ) : (
             <>
               <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
-                MiniMax API Key
+                Qwen API Key
                 <input
                   type="password"
-                  value={form.minimaxApiKey}
-                  onChange={(event) => setForm({ ...form, minimaxApiKey: event.target.value })}
-                  placeholder={maskedMinimaxKey || 'minimax key'}
+                  value={form.qwenApiKey}
+                  onChange={(event) => setForm({ ...form, qwenApiKey: event.target.value })}
+                  placeholder={maskedQwenKey || 'DashScope API key'}
                   className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
                 />
               </label>
               <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
-                MiniMax Base URL
+                Qwen Base URL
                 <input
-                  value={form.minimaxBaseUrl}
-                  onChange={(event) => setForm({ ...form, minimaxBaseUrl: event.target.value })}
+                  value={form.qwenBaseUrl}
+                  onChange={(event) => setForm({ ...form, qwenBaseUrl: event.target.value })}
                   className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
                 />
               </label>
               <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
-                MiniMax 模型
+                Qwen model
                 <select
-                  value={form.minimaxModel}
-                  onChange={(event) => setForm({ ...form, minimaxModel: event.target.value })}
+                  value={form.qwenModel}
+                  onChange={(event) => setForm({ ...form, qwenModel: event.target.value })}
                   className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
                 >
-                  <option value="MiniMax-M2.7">MiniMax-M2.7</option>
-                  <option value="MiniMax-M2.7-highspeed">MiniMax-M2.7-highspeed</option>
-                  <option value="MiniMax-M2.5">MiniMax-M2.5</option>
-                  <option value="MiniMax-M2.1">MiniMax-M2.1</option>
-                  <option value="MiniMax-M2">MiniMax-M2</option>
+                  <option value="qwen-plus">qwen-plus</option>
+                  <option value="qwen-turbo">qwen-turbo</option>
+                  <option value="qwen-max">qwen-max</option>
+                  <option value="qwen-long">qwen-long</option>
                 </select>
               </label>
               <div className="rounded-md bg-[color:var(--bg-secondary)] p-2 text-xs text-[color:var(--text-muted)]">
-                MiniMax 文本 Chat 接口用于对话和工具调用；图片理解需要后续接入单独视觉能力。
+                Qwen uses the DashScope OpenAI-compatible Chat API for conversations and tool calls.
               </div>
             </>
           )}
           <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
-            温度: {form.temperature}
+            Temperature: {form.temperature}
             <input
               type="range"
               min="0"
@@ -279,11 +278,11 @@ export default function SettingsPanel({ currentUser }) {
             />
           </label>
           <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
-            Embedding 模型（可选）
+            Embedding model
             <input
               value={form.embeddingModel}
               onChange={(event) => setForm({ ...form, embeddingModel: event.target.value })}
-              placeholder="兼容 /v1/embeddings 的模型名"
+              placeholder="OpenAI-compatible /v1/embeddings model name"
               className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
             />
           </label>
@@ -293,8 +292,8 @@ export default function SettingsPanel({ currentUser }) {
       {tab === 'workspace' && (
         <div className="space-y-5">
           <div>
-            <h2 className="text-lg font-semibold">工作区</h2>
-            <p className="text-xs text-[color:var(--text-muted)]">Shell 命令和生成文件的默认目录。</p>
+            <h2 className="text-lg font-semibold">Workspace</h2>
+            <p className="text-xs text-[color:var(--text-muted)]">Default directory for shell commands and generated files.</p>
           </div>
           <div className="flex gap-2">
             <input
@@ -304,7 +303,7 @@ export default function SettingsPanel({ currentUser }) {
             />
             <button type="button" onClick={chooseWorkspace} className="flex h-9 items-center gap-1 rounded-md border border-[color:var(--border)] px-3 text-sm hover:bg-[color:var(--bg-tertiary)]">
               <FolderOpen size={14} />
-              选择
+              Choose
             </button>
           </div>
           <label className="flex items-center gap-2 text-sm">
@@ -313,7 +312,7 @@ export default function SettingsPanel({ currentUser }) {
               checked={form.session_confirm_cache_enabled}
               onChange={(event) => setForm({ ...form, session_confirm_cache_enabled: event.target.checked })}
             />
-            本次会话记住已批准的灰名单 Shell 命令
+            Remember approved shell commands for this session
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -321,25 +320,25 @@ export default function SettingsPanel({ currentUser }) {
               checked={form.advancedRiskExecutionEnabled}
               onChange={(event) => setForm({ ...form, advancedRiskExecutionEnabled: event.target.checked })}
             />
-            启用高级风险执行模式（允许高风险下载和脚本命令进入强确认）
+            Enable advanced risk execution mode
           </label>
           <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
-            额外 Shell 白名单
+            Extra shell allowlist
             <textarea
               value={form.shell_whitelist_extra}
               onChange={(event) => setForm({ ...form, shell_whitelist_extra: event.target.value })}
               rows={4}
-              placeholder="每行一个命令"
+              placeholder="One command per line"
               className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
             />
           </label>
           <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">
-            额外 Shell 黑名单
+            Extra shell blocklist
             <textarea
               value={form.shell_blacklist_extra}
               onChange={(event) => setForm({ ...form, shell_blacklist_extra: event.target.value })}
               rows={4}
-              placeholder="每行一个命令"
+              placeholder="One command per line"
               className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
             />
           </label>
@@ -357,7 +356,7 @@ export default function SettingsPanel({ currentUser }) {
           disabled={saving}
           className="h-9 w-full rounded-md bg-[color:var(--accent)] text-sm font-medium text-white disabled:opacity-50"
         >
-          {saving ? '保存中...' : '保存设置'}
+          {saving ? 'Saving...' : 'Save Settings'}
         </button>
       )}
 
@@ -365,3 +364,4 @@ export default function SettingsPanel({ currentUser }) {
     </div>
   )
 }
+

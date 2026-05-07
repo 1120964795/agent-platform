@@ -3,7 +3,8 @@ class CompanionPopupManager {
     this.BrowserWindow = options.BrowserWindow
     this.screen = options.screen
     this.popupUrl = options.popupUrl || ''
-    this.autoCloseMs = Number(options.autoCloseMs) || 15000
+    this.preloadPath = options.preloadPath || undefined
+    this.autoCloseMs = Number(options.autoCloseMs) || 30000
     this.window = null
     this.queue = []
     this.autoCloseTimer = null
@@ -22,7 +23,7 @@ class CompanionPopupManager {
     if (this.window && !this.window.isDestroyed()) return this.window
     this.window = new this.BrowserWindow({
       width: 360,
-      height: 220,
+      height: 280,
       frame: false,
       resizable: false,
       show: false,
@@ -34,7 +35,7 @@ class CompanionPopupManager {
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
-        preload: undefined
+        preload: this.preloadPath
       }
     })
     if (typeof this.window.loadURL === 'function') {
@@ -54,7 +55,7 @@ class CompanionPopupManager {
 
     return {
       count: activeQueue.length,
-      headline: activeQueue.length > 1 ? `检测到 ${activeQueue.length} 个问题` : '检测到可能的错误',
+      headline: activeQueue.length > 1 ? `${activeQueue.length} errors detected` : 'Possible error detected',
       diagnosis: selected?.diagnosis || null,
       items: activeQueue.map((item) => item.diagnosis)
     }
@@ -85,7 +86,7 @@ class CompanionPopupManager {
       x: workArea.x + workArea.width - 380,
       y: workArea.y + 24,
       width: 360,
-      height: 220
+      height: 280
     })
 
     const payload = this.getPayload()

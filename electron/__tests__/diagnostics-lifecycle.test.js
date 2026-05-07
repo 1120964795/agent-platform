@@ -39,6 +39,55 @@ test('observer manager dedupes detections, supports ignore, and cooldown', () =>
   expect(manager.isIgnored('python.module_not_found.flask')).toBe(false)
 })
 
+test('observer manager can keep region sessions listening after detections', () => {
+  let now = Date.parse('2026-05-02T10:00:00.000Z')
+  const manager = new ObserverSessionManager({
+    now: () => now,
+    setInterval: () => 1,
+    clearInterval: () => {}
+  })
+
+  manager.start({ username: 'alice', target: { type: 'region', title: 'Terminal region' } })
+  manager.noteDetection('node.module_not_found.vite', { keepListening: true })
+
+  expect(manager.isDuplicate('node.module_not_found.vite')).toBe(true)
+  expect(manager.inCooldown()).toBe(false)
+  expect(manager.getStatus()).toMatchObject({ status: 'running' })
+})
+
+test('observer manager keeps continuous window sessions responsive after detections and failures', async () => {
+  let now = Date.parse('2026-05-02T10:00:00.000Z')
+  const manager = new ObserverSessionManager({
+    now: () => now,
+    setInterval: () => 1,
+    clearInterval: () => {}
+  })
+
+  manager.start({
+    username: 'alice',
+    target: { type: 'window', title: 'PowerShell' },
+    intervalMs: 500,
+    continuous: true
+  })
+  manager.noteDetection('python.module_not_found.flask', { keepListening: true })
+
+  expect(manager.getStatus()).toMatchObject({
+    status: 'running',
+    continuous: true,
+    intervalMs: 500
+  })
+  expect(manager.inCooldown()).toBe(false)
+
+  for (let index = 0; index < 10; index += 1) {
+    await expect(manager.runTick(async () => { throw new Error('capture failed') })).rejects.toThrow('capture failed')
+  }
+
+  expect(manager.getStatus()).toMatchObject({
+    status: 'running',
+    failureCount: 10
+  })
+})
+
 test('observer manager pauses after repeated failures', async () => {
   let now = Date.parse('2026-05-02T10:00:00.000Z')
   const manager = new ObserverSessionManager({
@@ -55,6 +104,25 @@ test('observer manager pauses after repeated failures', async () => {
   expect(manager.getStatus()).toMatchObject({
     status: 'paused',
     pauseReason: 'too-many-failures'
+  })
+})
+
+test('observer manager keeps region sessions running after repeated capture failures', async () => {
+  let now = Date.parse('2026-05-02T10:00:00.000Z')
+  const manager = new ObserverSessionManager({
+    now: () => now,
+    setInterval: () => 1,
+    clearInterval: () => {}
+  })
+  manager.start({ username: 'alice', target: { type: 'region', title: 'Terminal region' } })
+
+  for (let index = 0; index < 10; index += 1) {
+    await expect(manager.runTick(async () => { throw new Error('ocr failed') })).rejects.toThrow('ocr failed')
+  }
+
+  expect(manager.getStatus()).toMatchObject({
+    status: 'running',
+    failureCount: 10
   })
 })
 

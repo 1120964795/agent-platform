@@ -29,9 +29,9 @@ const DEFAULT_CONFIG = {
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
   model: 'deepseek-v4-flash',
-  minimaxApiKey: '',
-  minimaxBaseUrl: 'https://api.minimax.io',
-  minimaxModel: 'MiniMax-M2.7',
+  qwenApiKey: '',
+  qwenBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  qwenModel: 'qwen-plus',
   embeddingModel: '',
   temperature: 0.7,
   permissionMode: 'default',
@@ -88,6 +88,15 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value))
 }
 
+function normalizeConfig(config = {}) {
+  const next = { ...DEFAULT_CONFIG, ...config }
+  if (next.modelProvider === 'minimax') next.modelProvider = 'qwen'
+  delete next.minimaxApiKey
+  delete next.minimaxBaseUrl
+  delete next.minimaxModel
+  return next
+}
+
 function normalizeUsername(username) {
   return String(username || 'guest').trim() || 'guest'
 }
@@ -141,7 +150,7 @@ const store = {
   GENERATED_DIR,
 
   getConfig() {
-    return { ...DEFAULT_CONFIG, ...readJson(CONFIG_PATH, DEFAULT_CONFIG) }
+    return normalizeConfig(readJson(CONFIG_PATH, DEFAULT_CONFIG))
   },
 
   setConfig(patch) {
@@ -157,10 +166,7 @@ const store = {
       ? config.userConfigs
       : {}
 
-    return {
-      ...DEFAULT_CONFIG,
-      ...(userConfigs[userKey] || {})
-    }
+    return normalizeConfig(userConfigs[userKey] || {})
   },
 
   setUserConfig(username, patch) {
@@ -186,12 +192,12 @@ const store = {
   getMaskedConfig(username) {
     const config = username ? this.getUserConfig(username) : this.getConfig()
     const key = config.apiKey || ''
-    const minimaxKey = config.minimaxApiKey || ''
+    const qwenKey = config.qwenApiKey || ''
     const { userConfigs, ...safeConfig } = config
     return {
       ...safeConfig,
       apiKey: key.length > 10 ? `${key.slice(0, 6)}***${key.slice(-4)}` : (key ? '***' : ''),
-      minimaxApiKey: minimaxKey.length > 10 ? `${minimaxKey.slice(0, 6)}***${minimaxKey.slice(-4)}` : (minimaxKey ? '***' : '')
+      qwenApiKey: qwenKey.length > 10 ? `${qwenKey.slice(0, 6)}***${qwenKey.slice(-4)}` : (qwenKey ? '***' : '')
     }
   },
 

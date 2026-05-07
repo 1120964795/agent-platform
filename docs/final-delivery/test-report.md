@@ -24,7 +24,7 @@ Covered areas:
 - `.aionbackup` export, preview, restore, secret exclusion, and path traversal rejection.
 - Built-in offline Workflow template source listing.
 - Packaged final delivery resources.
-- DeepSeek V4 and MiniMax provider routing.
+- DeepSeek V4 and Qwen provider routing.
 
 ## Manual Still Required
 

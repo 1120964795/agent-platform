@@ -3,8 +3,12 @@ const { store } = require('../store')
 function sanitizeConfigPatch(input = {}) {
   const patch = {}
   if (typeof input.apiKey === 'string' && input.apiKey && !input.apiKey.includes('***')) patch.apiKey = input.apiKey.trim()
+  if (input.modelProvider === 'deepseek' || input.modelProvider === 'qwen') patch.modelProvider = input.modelProvider
   if (typeof input.baseUrl === 'string' && input.baseUrl) patch.baseUrl = input.baseUrl.trim()
   if (typeof input.model === 'string' && input.model) patch.model = input.model.trim()
+  if (typeof input.qwenApiKey === 'string' && input.qwenApiKey && !input.qwenApiKey.includes('***')) patch.qwenApiKey = input.qwenApiKey.trim()
+  if (typeof input.qwenBaseUrl === 'string' && input.qwenBaseUrl) patch.qwenBaseUrl = input.qwenBaseUrl.trim()
+  if (typeof input.qwenModel === 'string' && input.qwenModel) patch.qwenModel = input.qwenModel.trim()
   if (typeof input.embeddingModel === 'string') patch.embeddingModel = input.embeddingModel.trim()
   if (typeof input.temperature === 'number') patch.temperature = input.temperature
   if (input.permissionMode === 'default' || input.permissionMode === 'full') patch.permissionMode = input.permissionMode
@@ -27,7 +31,14 @@ function register(ipcMain) {
     const patch = sanitizeConfigPatch(payload)
     const next = username ? store.setUserConfig(username, patch) : store.setConfig(patch)
     const { userConfigs, ...safeConfig } = next
-    return { ok: true, config: { ...safeConfig, apiKey: next.apiKey ? '***' : '' } }
+    return {
+      ok: true,
+      config: {
+        ...safeConfig,
+        apiKey: next.apiKey ? '***' : '',
+        qwenApiKey: next.qwenApiKey ? '***' : ''
+      }
+    }
   })
 }
 
