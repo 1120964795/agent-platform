@@ -3,6 +3,7 @@ const { store } = require('../../store')
 const {
   detectError,
   createDiagnosisFromError,
+  createDiagnosisFromModelResult,
   upsertExperienceFromDiagnosis,
   recordFixExecution,
   createModelClient,
@@ -57,6 +58,42 @@ function buildProjectContext(storeRef, username, errorEvent) {
     project,
     projectProfile: profile,
     projectEvidence: evidence.slice(0, 6)
+  }
+}
+
+function buildProjectContextForText(storeRef, username, projectDir, capturedText = '') {
+  if (!projectDir || typeof storeRef.findProjectByRoot !== 'function') return {}
+  const project = storeRef.findProjectByRoot(username, projectDir)
+  if (!project) return {}
+  const profile = storeRef.getProjectProfile(project.id) || null
+  const evidence = [
+    ...(profile?.dependencyFiles || []),
+    ...(profile?.entryFiles || [])
+  ]
+  const tokens = uniqueStrings(String(capturedText || '')
+    .split(/[^A-Za-z0-9_.@/-]+/)
+    .filter((item) => item.length >= 3)
+    .slice(0, 24))
+    .map((item) => item.toLowerCase())
+  const chunks = typeof storeRef.listProjectChunks === 'function'
+    ? storeRef.listProjectChunks(project.id)
+    : []
+  for (const chunk of chunks) {
+    const haystack = `${chunk.relativePath}\n${chunk.text}`.toLowerCase()
+    if (!tokens.some((token) => haystack.includes(token))) continue
+    evidence.push({
+      path: chunk.relativePath,
+      lineStart: chunk.lineStart,
+      lineEnd: chunk.lineEnd,
+      chunkType: chunk.chunkType,
+      reason: 'Captured error text overlaps with this project file.'
+    })
+    if (evidence.length >= 8) break
+  }
+  return {
+    project,
+    projectProfile: profile,
+    projectEvidence: evidence.slice(0, 8)
   }
 }
 
@@ -134,20 +171,82 @@ class CompanionService {
       this.sessionManager.activeSession.lastSnippet = String(collected.text).trim().slice(0, 200)
     }
 
+    const context = {
+      appName: session.target?.appName || '',
+      windowTitle: session.target?.title || '',
+      projectDir: session.projectDir || '',
+      captureSource: collected.source
+    }
+    const experiences = this.storeRef.listExperiences(session.username)
+    const textProjectContext = buildProjectContextForText(this.storeRef, session.username, session.projectDir || '', collected.text)
+    let modelUnavailable = false
+
+    if (typeof this.modelClient?.diagnoseCapturedError === 'function') {
+      try {
+        const modelResult = await this.modelClient.diagnoseCapturedError({
+          username: session.username,
+          text: collected.text,
+          context,
+          experiences,
+          ...textProjectContext,
+          advancedRiskExecutionEnabled: this.storeRef.getUserConfig(session.username).advancedRiskExecutionEnabled === true
+        })
+        const modelDiagnosis = createDiagnosisFromModelResult(modelResult, {
+          username: session.username,
+          rawSnippet: collected.text,
+          context,
+          experiences,
+          ...textProjectContext,
+          advancedRiskExecutionEnabled: this.storeRef.getUserConfig(session.username).advancedRiskExecutionEnabled === true
+        })
+        if (!modelDiagnosis) return null
+        if (this.sessionManager.isIgnored(modelDiagnosis.errorSignature) || this.sessionManager.isDuplicate(modelDiagnosis.errorSignature)) return null
+
+        const savedDiagnosis = this.storeRef.upsertDiagnosis(modelDiagnosis)
+        const experience = upsertExperienceFromDiagnosis(this.storeRef, savedDiagnosis, {
+          signature: savedDiagnosis.errorSignature,
+          type: savedDiagnosis.errorType,
+          rawSnippet: savedDiagnosis.rawSnippet,
+          captureSource: context.captureSource,
+          keywords: [savedDiagnosis.title, savedDiagnosis.errorType, ...(savedDiagnosis.possibleCauses || [])]
+        })
+        if (experience?.id) {
+          savedDiagnosis.experienceId = experience.id
+          this.storeRef.upsertDiagnosis(savedDiagnosis)
+        }
+
+        this.sessionManager.noteDetection(savedDiagnosis.errorSignature)
+        const eventPayload = {
+          type: 'diagnosis-created',
+          diagnosis: savedDiagnosis,
+          experience
+        }
+        this.emitToWindow('diagnostics:event', eventPayload)
+
+        if (this.shouldShowPopup()) {
+          await this.popupManager.showDiagnosis({
+            username: session.username,
+            diagnosis: savedDiagnosis
+          })
+        }
+
+        return eventPayload
+      } catch (error) {
+        modelUnavailable = true
+        if (this.sessionManager.activeSession) {
+          this.sessionManager.activeSession.lastModelError = error.code || error.message || 'MODEL_DIAGNOSIS_FAILED'
+        }
+      }
+    }
+
     const errorEvent = detectError({
       text: collected.text,
-      context: {
-        appName: session.target?.appName || '',
-        windowTitle: session.target?.title || '',
-        projectDir: session.projectDir || '',
-        captureSource: collected.source
-      }
+      context
     })
 
     if (!errorEvent) return null
     if (this.sessionManager.isIgnored(errorEvent.signature) || this.sessionManager.isDuplicate(errorEvent.signature)) return null
 
-    const experiences = this.storeRef.listExperiences(session.username)
     const projectContext = buildProjectContext(this.storeRef, session.username, errorEvent)
     const diagnosis = createDiagnosisFromError(errorEvent, {
       username: session.username,
@@ -155,6 +254,9 @@ class CompanionService {
       ...projectContext,
       advancedRiskExecutionEnabled: this.storeRef.getUserConfig(session.username).advancedRiskExecutionEnabled === true
     })
+    if (modelUnavailable) {
+      diagnosis.modelFallbackReason = this.sessionManager.activeSession?.lastModelError || 'MODEL_DIAGNOSIS_FAILED'
+    }
     const savedDiagnosis = this.storeRef.upsertDiagnosis(diagnosis)
     const experience = upsertExperienceFromDiagnosis(this.storeRef, savedDiagnosis, errorEvent)
     if (experience?.id) {

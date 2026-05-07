@@ -154,7 +154,14 @@ function addWorkflowFiles(zip, workflowId) {
 
 function collectBackupData(options = {}) {
   const data = store.getData()
+  const experiencesData = store.getExperiencesData()
+  const projectsData = store.getProjectsData()
   const workflows = registry.listWorkflows()
+  const experiences = mergeByKey(experiencesData.experiences || [], data.experiences || [])
+  const projects = mergeByKey(projectsData.projects || [], data.projects || [])
+  const projectProfiles = mergeByKey(projectsData.profiles || [], data.projectProfiles || [], ['projectId', 'id'])
+  const projectSettings = mergeByKey(projectsData.settings || [], data.projectSettings || [], ['projectId'])
+  const templateSources = data.workflowTemplateSources || []
   return {
     manifest: {
       schemaVersion: BACKUP_SCHEMA_VERSION,
@@ -162,22 +169,23 @@ function collectBackupData(options = {}) {
       createdAt: new Date().toISOString(),
       username: options.username || os.userInfo().username,
       contents: {
-        experiences: (data.experiences || []).length,
-        projects: (data.projects || []).length,
-        projectProfiles: (data.projectProfiles || []).length,
+        experiences: experiences.length,
+        projects: projects.length,
+        projectProfiles: projectProfiles.length,
+        projectSettings: projectSettings.length,
         workflowSkills: workflows.length,
-        templateSources: (data.workflowTemplateSources || []).length
+        templateSources: templateSources.length
       },
       excludes: ['project_source', 'raw_screenshots', 'raw_ocr_text', 'embeddings', 'secrets']
     },
-    experiences: { schemaVersion: BACKUP_SCHEMA_VERSION, items: data.experiences || [] },
-    projects: { schemaVersion: BACKUP_SCHEMA_VERSION, items: data.projects || [] },
-    projectProfiles: { schemaVersion: BACKUP_SCHEMA_VERSION, items: data.projectProfiles || [] },
+    experiences: { schemaVersion: BACKUP_SCHEMA_VERSION, items: experiences },
+    projects: { schemaVersion: BACKUP_SCHEMA_VERSION, items: projects, settings: projectSettings },
+    projectProfiles: { schemaVersion: BACKUP_SCHEMA_VERSION, items: projectProfiles },
     workflowRunsSummary: {
       schemaVersion: BACKUP_SCHEMA_VERSION,
       workflows: workflows.map((workflow) => ({ workflowId: workflow.id, runs: listWorkflowRunSummaries(workflow.id) }))
     },
-    templateSources: { schemaVersion: BACKUP_SCHEMA_VERSION, items: data.workflowTemplateSources || [] },
+    templateSources: { schemaVersion: BACKUP_SCHEMA_VERSION, items: templateSources },
     userSettings: backupConfig(),
     securitySettings: securitySettings(),
     workflows
@@ -336,16 +344,21 @@ async function restoreBackup(packagePath, options = {}) {
   const backup = await readBackup(packagePath)
   await previewBackup(packagePath)
   const data = store.getData()
+  const experiencesData = store.getExperiencesData()
+  const projectsData = store.getProjectsData()
   const experiences = await readJsonEntry(backup.zip, 'experiences.json', { items: [] })
   const projects = await readJsonEntry(backup.zip, 'projects.json', { items: [] })
   const profiles = await readJsonEntry(backup.zip, 'project-profiles.json', { items: [] })
   const templateSources = await readJsonEntry(backup.zip, 'template-sources.json', { items: [] })
   const userSettings = await readJsonEntry(backup.zip, 'user-settings.json', { settings: {}, userRules: [] })
 
-  data.experiences = mergeByKey(data.experiences || [], experiences.items || [])
-  data.projects = mergeByKey(data.projects || [], projects.items || [])
-  data.projectProfiles = mergeByKey(data.projectProfiles || [], profiles.items || [])
+  experiencesData.experiences = mergeByKey(experiencesData.experiences || [], experiences.items || [])
+  projectsData.projects = mergeByKey(projectsData.projects || [], projects.items || [])
+  projectsData.settings = mergeByKey(projectsData.settings || [], projects.settings || [], ['projectId'])
+  projectsData.profiles = mergeByKey(projectsData.profiles || [], profiles.items || [], ['projectId', 'id'])
   data.workflowTemplateSources = mergeByKey(data.workflowTemplateSources || [], templateSources.items || [], ['sourceId', 'url', 'name'])
+  store.saveExperiencesData(experiencesData)
+  store.saveProjectsData(projectsData)
   store.saveData(data)
 
   if (options.overwriteSettings === true && userSettings.settings) {

@@ -218,7 +218,8 @@ function detectGradleFailure(text, context) {
 function detectShellCommandNotFound(text, context) {
   const winMatch = text.match(/['"]?([A-Za-z0-9_.-]+)['"]?\s+is not recognized as an internal or external command/i)
   const unixMatch = text.match(/([A-Za-z0-9_.-]+): command not found/i)
-  const match = winMatch || unixMatch
+  const powershellCnMatch = text.match(/无法将[“"'']?([^”"'']+)[”"'']?项识别为\s*cmdlet/i)
+  const match = winMatch || unixMatch || powershellCnMatch
   if (!match) return null
   const command = normalizePackageName(match[1])
   return makeEvent({
@@ -228,7 +229,7 @@ function detectShellCommandNotFound(text, context) {
     priority: 60
   }, text, context, {
     signature: `shell.command_not_found.${command}`,
-    keywords: [command, 'command not found', 'shell'],
+    keywords: [command, 'command not found', 'shell', powershellCnMatch ? 'PowerShell' : ''],
     rawSnippet: match[0]
   })
 }

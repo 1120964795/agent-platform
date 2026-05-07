@@ -359,9 +359,110 @@ function createDiagnosisFromError(errorEvent, options = {}) {
   }
 }
 
+function normalizeStringArray(items = [], fallback = []) {
+  const source = Array.isArray(items) ? items : fallback
+  return uniqueStrings(source.map((item) => String(item || '').trim()).filter(Boolean)).slice(0, 8)
+}
+
+function normalizeFixes(fixes = []) {
+  return Array.isArray(fixes)
+    ? fixes
+      .filter((fix) => fix && typeof fix === 'object' && String(fix.command || '').trim())
+      .slice(0, 5)
+    : []
+}
+
+function modelSignature(result = {}, rawSnippet = '') {
+  const explicit = String(result.errorSignature || '').trim()
+  if (explicit) return explicit
+  const type = normalizePackageName(result.errorType || result.title || 'diagnosis') || 'diagnosis'
+  const hash = crypto.createHash('sha1').update(String(rawSnippet || '')).digest('hex').slice(0, 10)
+  return `model.${type}.${hash}`
+}
+
+function createDiagnosisFromModelResult(result = {}, options = {}) {
+  if (!result || result.isError === false) return null
+  const username = options.username || 'guest'
+  const now = options.now || new Date()
+  const rawSnippet = String(options.rawSnippet || options.text || '').trim().slice(0, 2000)
+  const signature = modelSignature(result, rawSnippet)
+  const possibleCauses = normalizeStringArray(result.possibleCauses, ['模型判断这是一个开发错误，需要结合上下文继续确认。'])
+  const projectEvidenceKeys = []
+  const projectEvidence = []
+  for (const source of options.projectEvidence || []) {
+    const evidence = citationToEvidence(source)
+    if (!evidence) continue
+    const key = `${evidence.path}:${evidence.lineStart}:${evidence.lineEnd}`
+    if (projectEvidenceKeys.includes(key)) continue
+    projectEvidenceKeys.push(key)
+    projectEvidence.push(evidence)
+  }
+
+  const syntheticError = {
+    signature,
+    type: String(result.errorType || 'ModelDiagnosedError'),
+    keywords: normalizeStringArray(result.keywords, [
+      result.title,
+      result.errorType,
+      ...possibleCauses
+    ])
+  }
+
+  const experienceMatches = matchExperiences(syntheticError, options.experiences || []).map((item) => ({
+    experienceId: item.experienceId,
+    title: item.title,
+    similarity: item.similarity,
+    matchedKeywords: item.matchedKeywords
+  }))
+
+  const recommendedFixes = normalizeFixes(result.recommendedFixes).map((fix, index) => ({
+    ...buildExecutionPlan({
+      id: fix.id || `fix_${index + 1}`,
+      label: fix.label || fix.reason || fix.command,
+      command: fix.command,
+      cwd: fix.cwd || options.context?.projectDir || options.project?.rootPath || ''
+    }, options),
+    id: fix.id || `fix_${index + 1}`,
+    label: fix.label || fix.reason || fix.command,
+    evidence: []
+  }))
+
+  return {
+    id: options.id || createId('diag_', `${username}:${signature}:${now.toISOString()}`),
+    username,
+    errorId: createId('err_', `${signature}:${rawSnippet}`),
+    experienceId: options.experienceId || '',
+    title: String(result.title || '模型诊断到开发错误').trim(),
+    errorType: String(result.errorType || 'ModelDiagnosedError').trim(),
+    errorSignature: signature,
+    appName: options.context?.appName || '',
+    windowTitle: options.context?.windowTitle || '',
+    projectDir: options.context?.projectDir || '',
+    rawSnippet,
+    meaning: String(result.meaning || result.summary || '模型判断这是一个开发错误。').trim(),
+    possibleCauses,
+    recommendedFixes,
+    projectId: options.project?.id || '',
+    projectEvidence,
+    experienceMatches,
+    modelExplanation: String(result.modelExplanation || '').trim(),
+    modelGenerated: true,
+    modelConfidence: typeof result.confidence === 'number' ? result.confidence : null,
+    status: 'ready',
+    createdAt: now.toISOString()
+  }
+}
+
 function upsertExperienceFromDiagnosis(storeRef, diagnosis, errorEvent, options = {}) {
   const existing = storeRef.findExperienceBySignature(diagnosis.username, errorEvent.signature)
-  const template = buildTemplate(errorEvent)
+  const template = diagnosis.modelGenerated
+    ? {
+        experienceTitle: `${diagnosis.title}处理方法`,
+        cause: diagnosis.meaning,
+        steps: normalizeStringArray(diagnosis.possibleCauses, ['查看原始报错并确认项目环境']),
+        possibleCauses: diagnosis.possibleCauses || []
+      }
+    : buildTemplate(errorEvent)
   const projectDirs = uniqueStrings([...(existing?.projectDirs || []), diagnosis.projectDir].filter(Boolean))
   const experience = storeRef.upsertExperience({
     ...(existing || {}),
@@ -427,6 +528,51 @@ function recordFixExecution(storeRef, diagnosis, plan, result, options = {}) {
 
 function createModelClient(deepseekClient, storeRef) {
   return {
+    async diagnoseCapturedError({ username, text, context = {}, projectProfile, projectEvidence = [], experiences = [] }) {
+      const config = storeRef.getUserConfig(username)
+      const evidence = (projectEvidence || []).slice(0, 8).map((item) => ({
+        path: item.path,
+        lineStart: item.lineStart,
+        lineEnd: item.lineEnd,
+        reason: item.reason || item.chunkType || ''
+      }))
+      const experienceSummaries = (experiences || []).slice(0, 8).map((item) => ({
+        title: item.title,
+        errorSignature: item.errorSignature,
+        status: item.status,
+        successCount: item.successCount || 0,
+        commands: (item.commands || []).slice(-3).map((command) => ({
+          command: command.command,
+          cwd: command.cwd,
+          success: command.success
+        }))
+      }))
+
+      return deepseekClient.chatJson([
+        {
+          role: 'system',
+          content: [
+            '你是 Windows 本地开发错误诊断器。你会收到从用户授权的窗口或屏幕区域采集到的文本。',
+            '请判断文本中是否包含开发错误。如果没有开发错误，返回 {"isError": false}。',
+            '如果有错误，返回一个 JSON 对象，不要使用 markdown。',
+            '字段：isError(boolean), title, errorType, errorSignature, meaning, possibleCauses(array), recommendedFixes(array), confidence(number)。',
+            'recommendedFixes 中每项包含 label, command, cwd, reason。不要给出删除文件、修改系统、下载并执行脚本等危险命令；不确定时只给检查命令或空数组。',
+            'errorSignature 必须稳定、简短、英文小写点分格式，例如 powershell.command_not_found 或 python.module_not_found.flask。'
+          ].join('\n')
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            capturedText: String(text || '').slice(0, 6000),
+            context,
+            projectProfile: projectProfile || null,
+            projectEvidence: evidence,
+            recentExperiences: experienceSummaries
+          }, null, 2)
+        }
+      ], { config })
+    },
+
     async explainDiagnosis({ diagnosis, username }) {
       const config = storeRef.getUserConfig(username)
       if (!config.apiKey) {
@@ -483,6 +629,7 @@ function createModelClient(deepseekClient, storeRef) {
 
 module.exports = {
   createDiagnosisFromError,
+  createDiagnosisFromModelResult,
   upsertExperienceFromDiagnosis,
   recordFixExecution,
   createModelClient,

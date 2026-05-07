@@ -85,13 +85,53 @@ test('restores backup data by merge and recreates workflow skills without projec
   fs.rmSync(userRules.rulesPath(), { force: true })
 
   const restored = await backupService.restoreBackup(packagePath)
-  const data = store.getData()
   expect(restored.restored).toMatchObject({ experiences: 1, projects: 1, projectProfiles: 1, templateSources: 1, workflowSkills: 1, userRules: 1 })
-  expect(data.experiences.map((item) => item.id)).toContain('exp_1')
-  expect(data.projects.map((item) => item.id)).toContain('proj_1')
+  expect(store.getExperiencesData().experiences.map((item) => item.id)).toContain('exp_1')
+  expect(store.getProjectsData().projects.map((item) => item.id)).toContain('proj_1')
   expect(workflowRegistry.listWorkflows()).toHaveLength(1)
   expect(userRules.readRules().map((rule) => rule.text)).toContain('Prefer workflow demos for local project startup.')
   expect(store.getConfig().apiKey).toBe('')
+})
+
+test('exports and restores canonical experience and project stores', async () => {
+  const project = store.upsertProject({
+    id: 'proj_real',
+    username: 'tester',
+    name: 'Real Vite Demo',
+    rootPath: 'D:\\demos\\real-vite'
+  })
+  store.upsertProjectProfile({
+    projectId: project.id,
+    language: 'JavaScript',
+    frameworks: ['Vite'],
+    startCommands: [{ command: 'npm run dev', source: 'package.json' }]
+  })
+  store.upsertExperience({
+    id: 'exp_real',
+    username: 'tester',
+    title: 'Real EADDRINUSE fix',
+    errorSignature: 'network.port_in_use.5173',
+    originalError: 'EADDRINUSE 5173',
+    cause: 'Port 5173 is already in use.'
+  })
+
+  const packagePath = path.join(TMP, 'canonical-stores.aionbackup')
+  await backupService.exportBackup({ packagePath, username: 'tester', appVersion: '4.0.0' })
+  const preview = await backupService.previewBackup(packagePath)
+  expect(preview.summary).toMatchObject({ experiences: 1, projects: 1, projectProfiles: 1 })
+
+  fs.rmSync(process.env.AGENTDEV_DATA_DIR, { recursive: true, force: true })
+  fs.rmSync(process.env.AGENTDEV_WORKFLOW_SKILLS_DIR, { recursive: true, force: true })
+
+  const restored = await backupService.restoreBackup(packagePath)
+  expect(restored.restored).toMatchObject({ experiences: 1, projects: 1, projectProfiles: 1 })
+  expect(store.listExperiences('tester').map((item) => item.id)).toContain('exp_real')
+  expect(store.listProjects('tester').map((item) => item.id)).toContain('proj_real')
+  expect(store.getProjectProfile('proj_real')).toMatchObject({
+    projectId: 'proj_real',
+    language: 'JavaScript',
+    frameworks: ['Vite']
+  })
 })
 
 test('preview rejects path traversal and forbidden sensitive files', async () => {

@@ -4,6 +4,7 @@ const { matchExperiences } = require('./experienceMatcher')
 const { buildExecutionPlan } = require('./executionPlanService')
 const {
   createDiagnosisFromError,
+  createDiagnosisFromModelResult,
   upsertExperienceFromDiagnosis,
   recordFixExecution,
   createModelClient,
@@ -16,6 +17,7 @@ module.exports = {
   matchExperiences,
   buildExecutionPlan,
   createDiagnosisFromError,
+  createDiagnosisFromModelResult,
   upsertExperienceFromDiagnosis,
   recordFixExecution,
   createModelClient: (storeRef) => createModelClient(deepseek, storeRef),
