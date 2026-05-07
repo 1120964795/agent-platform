@@ -78,6 +78,7 @@
     "gray-matter": "^4.0.3",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
-    "pptxgenjs": "^4.0.1"
+    "pptxgenjs": "^4.0.1",
+    "sql.js": "^1.14.1"
   }
 }

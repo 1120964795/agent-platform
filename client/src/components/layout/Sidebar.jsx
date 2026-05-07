@@ -1,4 +1,4 @@
-import { Settings, FolderOpen, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Activity, BookOpen, Settings, FolderOpen, FolderSearch, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function Sidebar({ collapsed, onToggle, onOpenDrawer, onNewConversation }) {
   const width = collapsed ? 'w-[60px]' : 'w-[260px]'
@@ -31,6 +31,30 @@ export default function Sidebar({ collapsed, onToggle, onOpenDrawer, onNewConver
       <div className="flex-1" />
 
       <div className="p-2 border-t border-[color:var(--border)] flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => onOpenDrawer('projects')}
+          className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-[color:var(--bg-tertiary)]"
+        >
+          <FolderSearch size={16} />
+          {!collapsed && <span>项目</span>}
+        </button>
+        <button
+          type="button"
+          onClick={() => onOpenDrawer('diagnostics')}
+          className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-[color:var(--bg-tertiary)]"
+        >
+          <Activity size={16} />
+          {!collapsed && <span>诊断</span>}
+        </button>
+        <button
+          type="button"
+          onClick={() => onOpenDrawer('experiences')}
+          className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-[color:var(--bg-tertiary)]"
+        >
+          <BookOpen size={16} />
+          {!collapsed && <span>经验</span>}
+        </button>
         <button
           type="button"
           onClick={() => onOpenDrawer('settings')}

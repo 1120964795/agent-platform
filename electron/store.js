@@ -41,7 +41,21 @@ const DEFAULT_DATA = {
   version: 1,
   conversations: [],
   artifacts: [],
-  scheduledTasks: []
+  scheduledTasks: [],
+  projects: [],
+  projectSettings: [],
+  projectProfiles: [],
+  projectIndex: [],
+  patchRecords: [],
+  diagnostics: [],
+  experiences: [],
+  ignoredDiagnosisSignatures: [],
+  diagnosticsSession: {
+    status: 'stopped',
+    target: null,
+    lastError: ''
+  },
+  workflowTemplateSources: []
 }
 
 const DEFAULT_AUTH = {
@@ -59,6 +73,14 @@ const DEFAULT_AUTH = {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value))
+}
+
+function normalizeUsername(username) {
+  return String(username || 'guest').trim() || 'guest'
+}
+
+function recordUsername(record, fallback = 'guest') {
+  return normalizeUsername(record?.username || fallback)
 }
 
 function ensureDirs() {
@@ -114,7 +136,7 @@ const store = {
   },
 
   getData() {
-    return readJson(DATA_PATH, DEFAULT_DATA)
+    return { ...clone(DEFAULT_DATA), ...readJson(DATA_PATH, DEFAULT_DATA) }
   },
 
   saveData(data) {
@@ -127,6 +149,175 @@ const store = {
 
   saveAuth(auth) {
     writeJson(AUTH_PATH, auth)
+  },
+
+  listProjects(username) {
+    const userKey = normalizeUsername(username)
+    return this.getData().projects
+      .filter((item) => recordUsername(item) === userKey)
+      .sort((a, b) => new Date(b.lastOpenedAt || b.createdAt || 0) - new Date(a.lastOpenedAt || a.createdAt || 0))
+  },
+
+  getProject(projectId, username) {
+    const userKey = normalizeUsername(username)
+    return this.getData().projects.find((item) => item.id === projectId && recordUsername(item) === userKey) || null
+  },
+
+  upsertProject(project) {
+    const data = this.getData()
+    const userKey = normalizeUsername(project?.username)
+    const next = { ...(project || {}), username: userKey }
+    const index = data.projects.findIndex((item) => item.id === next.id && recordUsername(item) === userKey)
+    if (index === -1) data.projects.unshift(next)
+    else data.projects[index] = { ...data.projects[index], ...next }
+    this.saveData(data)
+    return next
+  },
+
+  removeProject(projectId, username) {
+    const data = this.getData()
+    const userKey = normalizeUsername(username)
+    data.projects = data.projects.filter((item) => !(item.id === projectId && recordUsername(item) === userKey))
+    data.projectSettings = data.projectSettings.filter((item) => item.projectId !== projectId)
+    data.projectProfiles = data.projectProfiles.filter((item) => item.projectId !== projectId)
+    data.projectIndex = data.projectIndex.filter((item) => item.projectId !== projectId)
+    data.patchRecords = data.patchRecords.filter((item) => item.projectId !== projectId)
+    this.saveData(data)
+  },
+
+  getProjectSettings(projectId) {
+    return this.getData().projectSettings.find((item) => item.projectId === projectId) || null
+  },
+
+  upsertProjectSettings(settings) {
+    const data = this.getData()
+    const index = data.projectSettings.findIndex((item) => item.projectId === settings.projectId)
+    if (index === -1) data.projectSettings.push(settings)
+    else data.projectSettings[index] = { ...data.projectSettings[index], ...settings }
+    this.saveData(data)
+    return settings
+  },
+
+  getProjectProfile(projectId) {
+    return this.getData().projectProfiles.find((item) => item.projectId === projectId) || null
+  },
+
+  upsertProjectProfile(profile) {
+    const data = this.getData()
+    const index = data.projectProfiles.findIndex((item) => item.projectId === profile.projectId)
+    if (index === -1) data.projectProfiles.push(profile)
+    else data.projectProfiles[index] = { ...data.projectProfiles[index], ...profile }
+    this.saveData(data)
+    return profile
+  },
+
+  replaceProjectIndex(projectId, entries) {
+    const data = this.getData()
+    data.projectIndex = data.projectIndex.filter((item) => item.projectId !== projectId)
+    data.projectIndex.push(...entries)
+    this.saveData(data)
+    return entries
+  },
+
+  clearProjectIndex(projectId) {
+    return this.replaceProjectIndex(projectId, [])
+  },
+
+  listProjectIndex(projectId) {
+    return this.getData().projectIndex.filter((item) => item.projectId === projectId)
+  },
+
+  upsertPatchRecord(record) {
+    const data = this.getData()
+    const index = data.patchRecords.findIndex((item) => item.id === record.id)
+    if (index === -1) data.patchRecords.unshift(record)
+    else data.patchRecords[index] = { ...data.patchRecords[index], ...record }
+    this.saveData(data)
+    return record
+  },
+
+  listPatchRecords(projectId) {
+    return this.getData().patchRecords.filter((item) => item.projectId === projectId)
+  },
+
+  listDiagnostics(username) {
+    const userKey = normalizeUsername(username)
+    return this.getData().diagnostics
+      .filter((item) => recordUsername(item) === userKey)
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+  },
+
+  getDiagnosis(diagnosisId, username) {
+    const userKey = normalizeUsername(username)
+    return this.getData().diagnostics.find((item) => item.id === diagnosisId && recordUsername(item) === userKey) || null
+  },
+
+  upsertDiagnosis(diagnosis) {
+    const data = this.getData()
+    const next = { ...(diagnosis || {}), username: normalizeUsername(diagnosis?.username) }
+    const index = data.diagnostics.findIndex((item) => item.id === next.id)
+    if (index === -1) data.diagnostics.unshift(next)
+    else data.diagnostics[index] = { ...data.diagnostics[index], ...next }
+    this.saveData(data)
+    return next
+  },
+
+  listExperiences(username, filters = {}) {
+    const userKey = normalizeUsername(username)
+    let items = this.getData().experiences.filter((item) => recordUsername(item) === userKey)
+    if (filters.status) items = items.filter((item) => item.status === filters.status)
+    return items.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
+  },
+
+  getExperience(experienceId, username) {
+    const userKey = normalizeUsername(username)
+    return this.getData().experiences.find((item) => item.id === experienceId && recordUsername(item) === userKey) || null
+  },
+
+  findExperienceBySignature(username, errorSignature) {
+    const userKey = normalizeUsername(username)
+    return this.getData().experiences.find((item) => item.errorSignature === errorSignature && recordUsername(item) === userKey) || null
+  },
+
+  upsertExperience(experience) {
+    const data = this.getData()
+    const next = { ...(experience || {}), username: normalizeUsername(experience?.username) }
+    const index = data.experiences.findIndex((item) => item.id === next.id)
+    if (index === -1) data.experiences.unshift(next)
+    else data.experiences[index] = { ...data.experiences[index], ...next }
+    this.saveData(data)
+    return next
+  },
+
+  deleteExperience(experienceId, username) {
+    const data = this.getData()
+    const userKey = normalizeUsername(username)
+    data.experiences = data.experiences.filter((item) => !(item.id === experienceId && recordUsername(item) === userKey))
+    this.saveData(data)
+  },
+
+  searchExperiences(username, query, filters = {}) {
+    const needle = String(query || '').trim().toLowerCase()
+    const items = this.listExperiences(username, filters)
+    if (!needle) return items
+    return items.filter((item) => [
+      item.title,
+      item.errorSignature,
+      item.summary,
+      item.projectType,
+      ...(item.commands || [])
+    ].filter(Boolean).join('\n').toLowerCase().includes(needle))
+  },
+
+  getDiagnosticsSession() {
+    return this.getData().diagnosticsSession || clone(DEFAULT_DATA.diagnosticsSession)
+  },
+
+  setDiagnosticsSession(session) {
+    const data = this.getData()
+    data.diagnosticsSession = { ...data.diagnosticsSession, ...(session || {}) }
+    this.saveData(data)
+    return data.diagnosticsSession
   },
 
   upsertConversation(conversation) {

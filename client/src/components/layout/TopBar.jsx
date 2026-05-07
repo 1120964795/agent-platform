@@ -1,4 +1,4 @@
-import { FolderOpen, LogOut, Settings, UserCircle } from 'lucide-react'
+import { Activity, BookOpen, FolderOpen, FolderSearch, LogOut, Settings, UserCircle } from 'lucide-react'
 
 export default function TopBar({ title = '新对话', onOpenDrawer, currentUser, onLogout }) {
   return (
@@ -14,6 +14,33 @@ export default function TopBar({ title = '新对话', onOpenDrawer, currentUser,
             <span className="truncate">{currentUser.username}</span>
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => onOpenDrawer('projects')}
+          className="p-2 rounded hover:bg-[color:var(--bg-tertiary)]"
+          aria-label="项目"
+          title="项目"
+        >
+          <FolderSearch size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={() => onOpenDrawer('diagnostics')}
+          className="p-2 rounded hover:bg-[color:var(--bg-tertiary)]"
+          aria-label="诊断"
+          title="诊断"
+        >
+          <Activity size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={() => onOpenDrawer('experiences')}
+          className="p-2 rounded hover:bg-[color:var(--bg-tertiary)]"
+          aria-label="经验"
+          title="经验"
+        >
+          <BookOpen size={16} />
+        </button>
         <button
           type="button"
           onClick={() => onOpenDrawer('settings')}

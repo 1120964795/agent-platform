@@ -3,6 +3,9 @@ import { X } from 'lucide-react'
 import SettingsPanel from '../../panels/SettingsPanel.jsx'
 import ArtifactsPanel from '../../panels/ArtifactsPanel.jsx'
 import FileBrowser from '../../panels/FileBrowser.jsx'
+import ProjectAssistantPanel from '../../panels/ProjectAssistantPanel.jsx'
+import DiagnosticsPanel from '../../panels/DiagnosticsPanel.jsx'
+import ExperienceLibraryPanel from '../../panels/ExperienceLibraryPanel.jsx'
 
 function usePermissionMode() {
   const [mode, setMode] = useState(() => localStorage.getItem('agentdev-permission-mode') || 'default')
@@ -18,11 +21,14 @@ function usePermissionMode() {
   return mode
 }
 
-export default function RightDrawer({ view, onClose }) {
+export default function RightDrawer({ view, onClose, currentUser }) {
   const permissionMode = usePermissionMode()
   const [activeTab, setActiveTab] = useState(view || 'settings')
 
   const tabs = [
+    { id: 'projects', label: '项目' },
+    { id: 'diagnostics', label: '诊断' },
+    { id: 'experiences', label: '经验' },
     { id: 'settings', label: '设置' },
     ...(permissionMode === 'full' ? [{ id: 'files', label: '文件' }] : []),
     { id: 'artifacts', label: '产物' }
@@ -73,6 +79,9 @@ export default function RightDrawer({ view, onClose }) {
             ))}
           </div>
         </div>
+        {activeTab === 'projects' && <ProjectAssistantPanel currentUser={currentUser} />}
+        {activeTab === 'diagnostics' && <DiagnosticsPanel currentUser={currentUser} />}
+        {activeTab === 'experiences' && <ExperienceLibraryPanel currentUser={currentUser} />}
         {activeTab === 'settings' && <SettingsPanel />}
         {activeTab === 'files' && permissionMode === 'full' && <FileBrowser />}
         {activeTab === 'artifacts' && <ArtifactsPanel />}

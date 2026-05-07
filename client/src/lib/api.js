@@ -123,6 +123,32 @@ export function listWorkflowTemplates() { return invoke('workflow-templates:list
 export function exportBackup(payload = {}) { return invoke('backup:export', payload) }
 export function previewBackup(packagePath) { return invoke('backup:preview', { packagePath }) }
 export function restoreBackup(packagePath, options = {}) { return invoke('backup:restore', { packagePath, options }) }
+export function listProjects(username) { return invoke('projects:list', { username: username || 'guest' }) }
+export function addProject(payload, username) { return invoke('projects:add', { ...(payload || {}), username: username || 'guest' }) }
+export function getProject(projectId, username) { return invoke('projects:get', { projectId, username: username || 'guest' }) }
+export function removeProject(projectId, username) { return invoke('projects:remove', { projectId, username: username || 'guest' }) }
+export function refreshProjectProfile(projectId, username) { return invoke('projects:profile:refresh', { projectId, username: username || 'guest' }) }
+export function startProjectIndex(projectId, username) { return invoke('projects:index:start', { projectId, username: username || 'guest' }) }
+export function pauseProjectIndex(projectId, username) { return invoke('projects:index:pause', { projectId, username: username || 'guest' }) }
+export function clearProjectIndex(projectId, username) { return invoke('projects:index:clear', { projectId, username: username || 'guest' }) }
+export function searchProject(projectId, query, username) { return invoke('projects:search', { projectId, query, username: username || 'guest' }) }
+export function askProject(projectId, question, username) { return invoke('projects:ask', { projectId, question, username: username || 'guest' }) }
+export function previewProjectPatch(projectId, payload, username) { return invoke('projects:patch:preview', { ...(payload || {}), projectId, username: username || 'guest' }) }
+export function applyProjectPatch(projectId, patchId, username) { return invoke('projects:patch:apply', { projectId, patchId, confirmed: true, username: username || 'guest' }) }
+export function getDiagnosticsStatus(username) { return invoke('diagnostics:status', { username: username || 'guest' }) }
+export function listDiagnosticTargets() { return invoke('diagnostics:targets') }
+export function selectDiagnosticsRegion(region) { return invoke('diagnostics:selectRegion', { region }) }
+export function startDiagnostics(payload = {}, username) { return invoke('diagnostics:start', { ...(payload || {}), username: username || 'guest' }) }
+export function stopDiagnostics(username) { return invoke('diagnostics:stop', { username: username || 'guest' }) }
+export function ingestDiagnosticText(text, username, projectId) { return invoke('diagnostics:ingestText', { text, username: username || 'guest', projectId }) }
+export function listDiagnostics(username) { return invoke('diagnostics:list', { username: username || 'guest' }) }
+export function explainDiagnosis(diagnosisId, username) { return invoke('diagnostics:explain', { diagnosisId, username: username || 'guest' }) }
+export function executeDiagnosisFix(diagnosisId, fixId, cwd, username) { return invoke('diagnostics:executeFix', { diagnosisId, fixId, cwd, username: username || 'guest' }) }
+export function listExperiences(username, status) { return invoke('experiences:list', { username: username || 'guest', status }) }
+export function searchExperiences(query, username, status) { return invoke('experiences:search', { query, username: username || 'guest', status }) }
+export function updateExperience(payload, username) { return invoke('experiences:update', { ...(payload || {}), username: username || 'guest' }) }
+export function deleteExperience(id, username) { return invoke('experiences:delete', { id, username: username || 'guest' }) }
+export function exportExperiences(username) { return invoke('experiences:export', { username: username || 'guest' }) }
 
 export async function openFile(filePath) {
   if (window.electronAPI?.openPath) return unwrap(await window.electronAPI.openPath(filePath))
