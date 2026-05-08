@@ -110,6 +110,7 @@ Medium and high risk actions pause in the Control Center until approved or denie
 ## Documentation
 
 - Final delivery plan: `docs/superpowers/plans/2026-05-08-aionui-v2-final-delivery-plan.md`
+- Dry-run demo script: `docs/demo-script.md`
 - User manual: `docs/USER_MANUAL.md`
 - Runtime setup: `docs/runtime-setup.md`
 - Developer guide: `docs/developer-guide.md`
