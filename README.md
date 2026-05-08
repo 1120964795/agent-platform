@@ -12,6 +12,8 @@ The V2 product direction is deliberately narrow:
 
 The model proposes actions. AionUi validates and classifies them. The user approves risky work. Adapters execute only approved actions. Every meaningful event is recorded in the audit log.
 
+Security review details live in `docs/security-policy.md`. The short version is: model output must pass through the action planner, policy engine, broker, confirmation path, adapter boundary, audit log, and run output storage.
+
 ## Features
 
 - Chat and Execute modes in the main conversation surface.
