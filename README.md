@@ -90,6 +90,12 @@ AionUi treats Open Interpreter as an external default capability. Install and ru
 
 Open Interpreter's AGPL source is not vendored here. Setup commands are high risk and must be confirmed through AionUi before running.
 
+## UI-TARS Runtime
+
+UI-TARS is the default screen-control capability. Configure UI-TARS Desktop, SDK, a maintained fork, or an adapter service endpoint such as `http://127.0.0.1:8765`. Screen authorization must be active before observe, mouse, or keyboard actions run.
+
+Mouse and keyboard proposals are high risk by default and appear in Control Center. Emergency stop cancels queued UI actions and notifies the adapter.
+
 ## Safety Model
 
 Risk levels:

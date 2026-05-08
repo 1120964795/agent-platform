@@ -90,6 +90,17 @@ Supported actions include `screen.observe`, `screen.region.select`, `mouse.move`
 
 Mouse and keyboard actions require active screen authorization and normally require confirmation.
 
+### Setup
+
+1. Install UI-TARS Desktop, SDK, or a maintained fork.
+2. Start an AionUi-compatible adapter endpoint, for example `http://127.0.0.1:8765`.
+3. Set `UI-TARS endpoint` in Settings.
+4. Turn on `Screen authorization active` only when the visible screen is safe for automation.
+5. Test `screen.observe`, then a mouse click proposal, then a keyboard type proposal.
+6. Use emergency stop before further UI action when testing interruption behavior.
+
+All UI-TARS actions appear in Control Center and Audit Logs. Mouse and keyboard actions are denied or blocked unless screen authorization is active and the broker approves the action.
+
 ## Dry-Run Demo
 
 Dry-run mode simulates Qwen planning, Open Interpreter execution, UI-TARS screen control, and run outputs. It is clearly labelled as dry-run and is intended for demos, tests, and first-run validation without external installs.
