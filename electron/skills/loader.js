@@ -13,17 +13,17 @@ function clearSession(convId) {
 function resourcesSection(skill) {
   if (!skill.resources?.length) return ''
   const lines = skill.resources.map((resource) => `- ${resource}: ${path.join(skill.dir, resource)}`)
-  return ['\n## Available Resources (absolute paths)', ...lines].join('\n')
+  return ['\n## 可用资源（绝对路径）', ...lines].join('\n')
 }
 
 function loadSkill({ name }, context = {}) {
-  if (!name) return { error: { code: 'INVALID_ARGS', message: 'name is required' } }
+  if (!name) return { error: { code: 'INVALID_ARGS', message: '需要提供技能名称。' } }
   const convId = context.convId || 'global'
   const loaded = loadedByConversation.get(convId) || new Set()
   if (loaded.has(name)) return { name, content: '', referenced_tools: [], already_loaded: true }
 
   const skill = registry.findSkill(name)
-  if (!skill) return { error: { code: 'PATH_NOT_FOUND', message: `skill not found: ${name}` } }
+  if (!skill) return { error: { code: 'PATH_NOT_FOUND', message: `未找到技能：${name}` } }
   const parsed = matter(fs.readFileSync(skill.path, 'utf-8'))
   loaded.add(name)
   loadedByConversation.set(convId, loaded)

@@ -17,7 +17,7 @@ class QwenError extends Error {
 
 function getFetch() {
   if (typeof fetch === 'function') return fetch
-  throw new QwenError('QWEN_RUNTIME', 'Global fetch is not available in this runtime.')
+  throw new QwenError('QWEN_RUNTIME', '当前运行时无法使用全局 fetch。')
 }
 
 function mapErrorCode(status) {
@@ -58,8 +58,8 @@ function modelForRole(role, config = store.getConfig()) {
 
 function assertReady(config = store.getConfig()) {
   const qwen = getQwenConfig(config)
-  if (!qwen.apiKey) throw new QwenError('QWEN_NOT_CONFIGURED', 'Qwen API key is not configured.')
-  if (!qwen.baseUrl) throw new QwenError('QWEN_NOT_CONFIGURED', 'Qwen base URL is not configured.')
+  if (!qwen.apiKey) throw new QwenError('QWEN_NOT_CONFIGURED', '尚未配置 Qwen API Key。')
+  if (!qwen.baseUrl) throw new QwenError('QWEN_NOT_CONFIGURED', '尚未配置 Qwen Base URL。')
   return qwen
 }
 
@@ -88,8 +88,8 @@ async function postChat(body, timeout = 120000) {
       signal: AbortSignal.timeout(timeout)
     })
   } catch (error) {
-    if (error.name === 'AbortError' || error.name === 'TimeoutError') throw new QwenError('QWEN_TIMEOUT', 'Qwen response timed out.')
-    throw new QwenError('QWEN_NETWORK', `Network error: ${error.message}`)
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') throw new QwenError('QWEN_TIMEOUT', 'Qwen 响应超时。')
+    throw new QwenError('QWEN_NETWORK', `网络错误：${error.message}`)
   }
   if (!resp.ok) {
     const text = await resp.text().catch(() => '')
@@ -135,7 +135,7 @@ function extractJson(raw) {
   const arrayEnd = text.lastIndexOf(']')
   if (arrayStart !== -1 && arrayEnd > arrayStart && (objectStart === -1 || arrayStart < objectStart)) return JSON.parse(text.slice(arrayStart, arrayEnd + 1))
   if (objectStart !== -1 && objectEnd > objectStart) return JSON.parse(text.slice(objectStart, objectEnd + 1))
-  throw new QwenError('QWEN_JSON_PARSE', 'No JSON object or array found in Qwen response.')
+  throw new QwenError('QWEN_JSON_PARSE', 'Qwen 响应中没有找到 JSON 对象或数组。')
 }
 
 async function chatStreamingResult({ messages, temperature = 0.3, tools, onDelta, model }) {

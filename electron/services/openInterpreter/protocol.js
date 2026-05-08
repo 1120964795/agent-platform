@@ -11,10 +11,10 @@ const SUPPORTED_ACTION_TYPES = Object.freeze([
 
 function toSidecarRequest(action) {
   if (action.runtime !== RUNTIME_NAMES.OPEN_INTERPRETER && action.runtime !== RUNTIME_NAMES.DRY_RUN) {
-    throw new Error(`Open Interpreter adapter cannot execute runtime ${action.runtime}`)
+    throw new Error(`Open Interpreter 适配器无法执行运行时 ${action.runtime}`)
   }
   if (!SUPPORTED_ACTION_TYPES.includes(action.type)) {
-    throw new Error(`Open Interpreter adapter does not support ${action.type}`)
+    throw new Error(`Open Interpreter 适配器不支持 ${action.type}`)
   }
   return {
     protocol: 'aionui.open-interpreter.v1',

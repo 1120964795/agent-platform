@@ -7,7 +7,7 @@ function makeDryRunAction(sessionId, index, patch) {
     runtime: patch.runtime || RUNTIME_NAMES.DRY_RUN,
     type: patch.type,
     title: patch.title,
-    summary: `[DRY-RUN] ${patch.summary || patch.title}`,
+    summary: `[演示模式] ${patch.summary || patch.title}`,
     payload: patch.payload || {},
     risk: patch.risk || 'low',
     requiresConfirmation: patch.requiresConfirmation ?? false,
@@ -23,13 +23,13 @@ function planTask(task, options = {}) {
   if (lower.includes('screen') || lower.includes('click') || lower.includes('mouse')) {
     actions.push(makeDryRunAction(sessionId, actions.length, {
       type: ACTION_TYPES.SCREEN_OBSERVE,
-      title: 'Observe demo screen',
-      summary: 'Capture a simulated screen state.'
+      title: '观察演示屏幕',
+      summary: '捕获一份模拟的屏幕状态。'
     }))
     actions.push(makeDryRunAction(sessionId, actions.length, {
       type: ACTION_TYPES.MOUSE_CLICK,
-      title: 'Click simulated target',
-      summary: 'Click the highlighted dry-run target.',
+      title: '点击模拟目标',
+      summary: '点击演示模式中高亮的目标。',
       payload: { x: 320, y: 240, button: 'left' },
       risk: 'high',
       requiresConfirmation: true
@@ -37,17 +37,17 @@ function planTask(task, options = {}) {
   }
   actions.push(makeDryRunAction(sessionId, actions.length, {
     type: ACTION_TYPES.SHELL_COMMAND,
-    title: 'Run dry-run command',
-    summary: 'Pretend to run npm test.',
+    title: '运行演示命令',
+    summary: '模拟运行 npm test。',
     payload: { command: 'npm test', cwd: options.cwd || '' },
     risk: 'medium',
     requiresConfirmation: true
   }))
   actions.push(makeDryRunAction(sessionId, actions.length, {
     type: ACTION_TYPES.FILE_WRITE,
-    title: 'Write dry-run output',
-    summary: 'Create simulated run output metadata.',
-    payload: { path: 'dry-run-output.txt', content: '[DRY-RUN] simulated output' },
+    title: '写入演示输出',
+    summary: '创建模拟的运行输出元数据。',
+    payload: { path: 'dry-run-output.txt', content: '[演示模式] 模拟输出' },
     risk: 'medium',
     requiresConfirmation: true
   }))
@@ -59,7 +59,7 @@ function result(action, stdout, metadata = {}) {
     actionId: action.id,
     ok: true,
     exitCode: 0,
-    stdout: `[DRY-RUN] ${stdout}`,
+    stdout: `[演示模式] ${stdout}`,
     stderr: '',
     filesChanged: metadata.filesChanged || [],
     durationMs: metadata.durationMs || 1,
@@ -71,31 +71,31 @@ function result(action, stdout, metadata = {}) {
 async function execute(action) {
   switch (action.type) {
     case ACTION_TYPES.SHELL_COMMAND:
-      return result(action, `Would run command: ${action.payload?.command || ''}`)
+      return result(action, `将运行命令：${action.payload?.command || ''}`)
     case ACTION_TYPES.FILE_READ:
-      return result(action, `Would read file: ${action.payload?.path || ''}`)
+      return result(action, `将读取文件：${action.payload?.path || ''}`)
     case ACTION_TYPES.FILE_WRITE:
-      return result(action, `Would write file: ${action.payload?.path || ''}`, { filesChanged: [action.payload?.path || 'dry-run-output.txt'] })
+      return result(action, `将写入文件：${action.payload?.path || ''}`, { filesChanged: [action.payload?.path || 'dry-run-output.txt'] })
     case ACTION_TYPES.FILE_DELETE:
-      return result(action, `Would delete path: ${action.payload?.path || ''}`)
+      return result(action, `将删除路径：${action.payload?.path || ''}`)
     case ACTION_TYPES.CODE_EXECUTE:
-      return result(action, `Would execute ${action.payload?.language || 'code'} snippet.`)
+      return result(action, `将执行 ${action.payload?.language || 'code'} 代码片段。`)
     case ACTION_TYPES.SCREEN_OBSERVE:
-      return result(action, 'Would observe a simulated screen.', { screenshot: 'dry-run-screen.png' })
+      return result(action, '将观察模拟屏幕。', { screenshot: 'dry-run-screen.png' })
     case ACTION_TYPES.MOUSE_MOVE:
     case ACTION_TYPES.MOUSE_CLICK:
-      return result(action, `Would perform mouse action at ${action.payload?.x ?? '?'}, ${action.payload?.y ?? '?'}.`)
+      return result(action, `将在 ${action.payload?.x ?? '?'}，${action.payload?.y ?? '?'} 执行鼠标动作。`)
     case ACTION_TYPES.KEYBOARD_TYPE:
-      return result(action, `Would type ${String(action.payload?.text || '').length} characters.`)
+      return result(action, `将输入 ${String(action.payload?.text || '').length} 个字符。`)
     case ACTION_TYPES.KEYBOARD_SHORTCUT:
-      return result(action, `Would press shortcut ${Array.isArray(action.payload?.keys) ? action.payload.keys.join('+') : action.payload?.keys || ''}.`)
+      return result(action, `将按下快捷键 ${Array.isArray(action.payload?.keys) ? action.payload.keys.join('+') : action.payload?.keys || ''}。`)
     default:
       return {
         actionId: action.id,
         ok: false,
         exitCode: 1,
-        stdout: '[DRY-RUN] Unsupported action.',
-        stderr: `Unsupported dry-run action type: ${action.type}`,
+        stdout: '[演示模式] 不支持的动作。',
+        stderr: `演示模式不支持此动作类型：${action.type}`,
         filesChanged: [],
         durationMs: 1,
         completedAt: new Date().toISOString(),

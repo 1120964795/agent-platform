@@ -9,7 +9,7 @@ function register(ipcMain, deps = {}) {
   })
   ipcMain.handle('outputs:open', async (_event, payload = {}) => {
     try {
-      if (!payload.path) throw new Error('Output path is required.')
+      if (!payload.path) throw new Error('需要提供输出路径。')
       const result = await deps.shell?.openPath?.(payload.path)
       return ok({ result: result || '' })
     } catch (error) { return fail(error) }

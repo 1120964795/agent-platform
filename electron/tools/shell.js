@@ -29,15 +29,15 @@ function appendOutput(target, chunk) {
 }
 
 async function runShellCommand({ command, cwd, timeout_ms = 120000 }, { onLog } = {}) {
-  if (!command || typeof command !== 'string') return { error: { code: 'INVALID_ARGS', message: 'command is required' } }
+  if (!command || typeof command !== 'string') return { error: { code: 'INVALID_ARGS', message: '需要提供命令。' } }
   const config = store.getConfig()
   const token = firstToken(command)
   const blacklist = new Set([...DEFAULT_BLACKLIST, ...(config.shell_blacklist_extra || []).map((item) => String(item).toLowerCase())])
   const whitelist = new Set([...DEFAULT_WHITELIST, ...(config.shell_whitelist_extra || []).map((item) => String(item).toLowerCase())])
-  if (blacklist.has(token)) return { error: { code: 'PERMISSION_DENIED', message: `command is blocked: ${token}` } }
+  if (blacklist.has(token)) return { error: { code: 'PERMISSION_DENIED', message: `命令已被阻止：${token}` } }
   if (!whitelist.has(token)) {
     const allowed = await requestConfirm({ kind: 'shell-command', payload: { command, cwd } })
-    if (!allowed) return { error: { code: 'USER_CANCELLED', message: 'command cancelled by user' } }
+    if (!allowed) return { error: { code: 'USER_CANCELLED', message: '用户已取消命令。' } }
   }
 
   const workingDir = cwd || config.workspace_root || process.cwd()
@@ -70,7 +70,7 @@ async function runShellCommand({ command, cwd, timeout_ms = 120000 }, { onLog } 
     })
     child.on('close', (code) => {
       clearTimeout(timer)
-      if (timedOut) resolve({ error: { code: 'COMMAND_TIMEOUT', message: `command timed out after ${timeout_ms}ms` }, stdout: stdout.text, stderr: stderr.text, exit_code: code, truncated: stdout.truncated || stderr.truncated, duration_ms: Date.now() - startedAt })
+      if (timedOut) resolve({ error: { code: 'COMMAND_TIMEOUT', message: `命令在 ${timeout_ms}ms 后超时。` }, stdout: stdout.text, stderr: stderr.text, exit_code: code, truncated: stdout.truncated || stderr.truncated, duration_ms: Date.now() - startedAt })
       else resolve({ stdout: stdout.text, stderr: stderr.text, exit_code: code, truncated: stdout.truncated || stderr.truncated, duration_ms: Date.now() - startedAt })
     })
   })

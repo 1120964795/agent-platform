@@ -26,7 +26,7 @@ async function bootstrapRuntime(runtime, config = store.getConfig()) {
   if (runtime === 'qwen') return qwenProvider.getStatus(config)
   if (runtime === 'deepseek') return deepseekProvider.getStatus(config)
   if (runtime === 'aionui-dry-run') return { runtime, state: config.dryRunEnabled === false ? 'disabled' : 'ready' }
-  throw new Error(`Unknown runtime: ${runtime}`)
+  throw new Error(`未知运行时：${runtime}`)
 }
 
 function register(ipcMain) {

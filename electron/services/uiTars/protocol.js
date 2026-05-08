@@ -11,9 +11,9 @@ const SUPPORTED_ACTION_TYPES = Object.freeze([
 
 function toUiTarsRequest(action) {
   if (action.runtime !== RUNTIME_NAMES.UI_TARS && action.runtime !== RUNTIME_NAMES.DRY_RUN) {
-    throw new Error(`UI-TARS adapter cannot execute runtime ${action.runtime}`)
+    throw new Error(`UI-TARS 适配器无法执行运行时 ${action.runtime}`)
   }
-  if (!SUPPORTED_ACTION_TYPES.includes(action.type)) throw new Error(`UI-TARS adapter does not support ${action.type}`)
+  if (!SUPPORTED_ACTION_TYPES.includes(action.type)) throw new Error(`UI-TARS 适配器不支持 ${action.type}`)
   return {
     protocol: 'aionui.ui-tars.v1',
     actionId: action.id,

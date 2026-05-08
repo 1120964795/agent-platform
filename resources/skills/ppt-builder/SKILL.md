@@ -1,17 +1,17 @@
 ---
 name: ppt-builder
-description: Optional compatibility example for creating a PowerPoint presentation, slide deck, or .pptx output.
-when-to-use: Use only when the user explicitly asks for PPT/pptx generation in compatibility chat mode. This is not an AionUi V2 core execution surface.
+description: 可选兼容示例，用于创建 PowerPoint 演示文稿、幻灯片或 .pptx 输出。
+when-to-use: 仅当用户在兼容聊天模式中明确要求生成 PPT/pptx 时使用。这不是 AionUi V2 的核心执行界面。
 tools: [read_file, list_dir, generate_pptx]
 ---
 
-# PPT Builder (Compatibility Example)
+# PPT 构建器（兼容示例）
 
-This skill remains for users who still need slide generation. AionUi V2 centers on brokered Qwen planning, Open Interpreter execution, UI-TARS screen control, confirmations, audit logs, and run outputs.
+此技能保留给仍需要幻灯片生成的用户。AionUi V2 的核心聚焦于经过代理的 Qwen 规划、Open Interpreter 执行、UI-TARS 屏幕控制、确认、审计日志和运行输出。
 
-## Workflow
-1. Clarify topic, audience, slide count, and tone when missing.
-2. Read reference material if the user provides local paths.
-3. Draft slides with short titles and focused bullets.
-4. Call `generate_pptx` with the slides and an output path when requested.
-5. Return the file path and a short slide summary.
+## 工作流
+1. 如果信息缺失，先明确主题、受众、页数和语气。
+2. 如果用户提供本地路径，读取参考资料。
+3. 使用简短标题和聚焦要点起草幻灯片。
+4. 用户要求时，使用幻灯片内容和输出路径调用 `generate_pptx`。
+5. 返回文件路径和简短的幻灯片摘要。

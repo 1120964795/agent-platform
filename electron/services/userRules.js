@@ -26,7 +26,7 @@ function readRules() {
 
 function appendRule(text) {
   if (!text || typeof text !== 'string') {
-    const error = new Error('rule is required')
+    const error = new Error('需要提供偏好规则。')
     error.code = 'INVALID_ARGS'
     throw error
   }
@@ -68,7 +68,7 @@ function removeRulesBySubstring(substring) {
 function buildSystemPromptSection() {
   const rules = readRules()
   if (!rules.length) return ''
-  return ['## User Persistent Preferences', 'Follow these cross-session preferences explicitly stated by the user:', ...rules.map((rule) => `- ${rule.text}`)].join('\n')
+  return ['## 用户长期偏好', '请严格遵循用户明确表达的跨会话偏好：', ...rules.map((rule) => `- ${rule.text}`)].join('\n')
 }
 
 module.exports = { rulesPath, readRules, appendRule, removeRuleById, removeRulesBySubstring, buildSystemPromptSection }

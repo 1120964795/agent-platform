@@ -17,7 +17,7 @@ class ModelRouterError extends Error {
 }
 
 function assertKnownRole(role) {
-  if (!ROLE_REQUIREMENTS[role]) throw new ModelRouterError('MODEL_ROLE_UNKNOWN', `Unknown model role: ${role}`)
+  if (!ROLE_REQUIREMENTS[role]) throw new ModelRouterError('MODEL_ROLE_UNKNOWN', `未知模型角色：${role}`)
 }
 
 function qwenReady(config) {
@@ -45,11 +45,11 @@ function selectModelForRole(role, config = {}) {
         model: config.fallbackModel || config.model || DEFAULT_DEEPSEEK_MODEL
       }
     }
-    throw new ModelRouterError('MODEL_NOT_CONFIGURED', 'Qwen is not configured and no plain-chat fallback is ready.')
+    throw new ModelRouterError('MODEL_NOT_CONFIGURED', '尚未配置 Qwen，也没有可用的普通聊天备用模型。')
   }
 
   if (!qwenReady(config)) {
-    throw new ModelRouterError('QWEN_REQUIRED', `Qwen is required for ${role}.`)
+    throw new ModelRouterError('QWEN_REQUIRED', `${role} 需要配置 Qwen。`)
   }
 
   return {
@@ -65,7 +65,7 @@ function getProviderForRole(role, config = {}) {
   const selected = selectModelForRole(role, config)
   if (selected.provider === MODEL_PROVIDERS.QWEN) return { selected, provider: qwenProvider }
   if (selected.provider === MODEL_PROVIDERS.DEEPSEEK) return { selected, provider: deepseekProvider }
-  throw new ModelRouterError('MODEL_PROVIDER_UNKNOWN', `Unknown provider: ${selected.provider}`)
+  throw new ModelRouterError('MODEL_PROVIDER_UNKNOWN', `未知模型提供方：${selected.provider}`)
 }
 
 function verifyProviderReadiness(role, config = {}) {

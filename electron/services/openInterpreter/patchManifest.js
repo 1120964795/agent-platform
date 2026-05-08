@@ -5,8 +5,8 @@ module.exports = Object.freeze({
   license: 'AGPL-3.0',
   vendoredSource: false,
   notes: [
-    'AionUi does not vendor Open Interpreter source.',
-    'Use an external sidecar, local command, or maintained fork outside this repository.',
-    'All actions must enter through the AionUi action broker before this adapter runs.'
+    'AionUi 不内置 Open Interpreter 源码。',
+    '请在本仓库之外使用外部 sidecar、本地命令或维护中的分支版本。',
+    '此适配器运行前，所有动作都必须先进入 AionUi 动作代理。'
   ]
 })

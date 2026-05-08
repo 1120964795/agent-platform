@@ -7,7 +7,7 @@ function getFetch() {
 
 async function executeThroughBridge(endpoint, action, context = {}) {
   const fetchImpl = getFetch()
-  if (!fetchImpl) throw new Error('Global fetch is not available for UI-TARS bridge calls.')
+  if (!fetchImpl) throw new Error('当前运行时无法调用 UI-TARS 桥接服务：fetch 不可用。')
   const request = toUiTarsRequest(action)
   const resp = await fetchImpl(endpoint.replace(/\/+$/, '') + '/execute', {
     method: 'POST',
@@ -17,7 +17,7 @@ async function executeThroughBridge(endpoint, action, context = {}) {
   })
   if (!resp.ok) {
     const text = await resp.text().catch(() => '')
-    return normalizeUiTarsResult(action, { ok: false, stderr: `UI-TARS bridge ${resp.status}: ${text.slice(0, 200)}` })
+    return normalizeUiTarsResult(action, { ok: false, stderr: `UI-TARS 桥接服务返回 ${resp.status}：${text.slice(0, 200)}` })
   }
   return normalizeUiTarsResult(action, await resp.json())
 }

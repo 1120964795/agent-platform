@@ -1,14 +1,14 @@
 ---
 name: file-explorer
-description: Use to understand a local folder, find files, inspect project structure, or summarize local documents.
-when-to-use: User asks what is in a folder, asks to find a file, or asks to summarize a local path.
+description: 用于了解本地文件夹、查找文件、检查项目结构或总结本地文档。
+when-to-use: 用户询问某个文件夹内容、要求查找文件，或要求总结本地路径。
 tools: [list_dir, search_files, read_file]
 ---
 
-# File Explorer
+# 文件浏览助手
 
-## Workflow
-1. Use `list_dir` on the starting path.
-2. Use `search_files` when the user names a target or topic.
-3. Read only the most relevant files with `read_file`.
-4. Summarize findings with paths and next actions.
+## 工作流
+1. 对起始路径使用 `list_dir`。
+2. 当用户给出目标或主题时，使用 `search_files`。
+3. 只用 `read_file` 读取最相关的文件。
+4. 总结发现内容，并给出路径和后续动作。

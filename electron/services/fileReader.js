@@ -30,12 +30,12 @@ async function readPdfAsText(filePath) {
     }
   }
 
-  throw new Error(`Unable to read PDF. Install pdftotext.exe or set PDFTOTEXT_PATH. ${lastError?.message || ''}`)
+  throw new Error(`无法读取 PDF。请安装 pdftotext.exe 或设置 PDFTOTEXT_PATH。${lastError?.message || ''}`)
 }
 
 async function readFileAsText(filePath) {
   if (!fs.existsSync(filePath)) {
-    throw new Error(`File does not exist: ${filePath}`)
+    throw new Error(`文件不存在：${filePath}`)
   }
 
   const ext = path.extname(filePath).toLowerCase()

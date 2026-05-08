@@ -57,5 +57,5 @@ test('extractJson parses fenced arrays and objects', () => {
 })
 
 test('assertReady fails when key is missing', () => {
-  expect(() => qwen.assertReady({ qwenApiKey: '' })).toThrow(/Qwen API key/)
+  expect(() => qwen.assertReady({ qwenApiKey: '' })).toThrow(/Qwen API Key/)
 })

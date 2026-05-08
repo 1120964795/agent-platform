@@ -11,20 +11,20 @@ function shellCommandKey(command = '') {
 async function defaultDialogProvider({ kind, payload }) {
   const window = BrowserWindow?.getFocusedWindow?.()
   const detail = kind === 'shell-command'
-    ? `Command:\n${payload.command}\n\nWorking directory:\n${payload.cwd || ''}`
+    ? `命令：\n${payload.command}\n\n工作目录：\n${payload.cwd || ''}`
     : kind === 'action-proposal'
-      ? `Action:\n${payload.title || payload.type || ''}\n\nRisk: ${payload.risk || ''}\n\n${JSON.stringify(payload.payload || {}, null, 2)}`
+      ? `动作：\n${payload.title || payload.type || ''}\n\n风险：${payload.risk || ''}\n\n${JSON.stringify(payload.payload || {}, null, 2)}`
     : JSON.stringify(payload, null, 2)
   const result = await dialog.showMessageBox(window, {
     type: 'warning',
-    title: 'Confirm local action',
-    message: `Allow ${kind}?`,
+    title: '确认本地动作',
+    message: `允许执行 ${kind}？`,
     detail,
-    buttons: ['Allow', 'Cancel'],
+    buttons: ['允许', '取消'],
     defaultId: 1,
     cancelId: 1,
     noLink: true,
-    checkboxLabel: kind === 'shell-command' ? 'Do not ask again for this command this session' : undefined
+    checkboxLabel: kind === 'shell-command' ? '本次会话中不再询问此命令' : undefined
   })
   return {
     allowed: result.response === 0,

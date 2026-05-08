@@ -30,7 +30,7 @@ function parseModelJson(raw) {
   const arrayEnd = text.lastIndexOf(']')
   if (arrayStart !== -1 && arrayEnd > arrayStart && (objectStart === -1 || arrayStart < objectStart)) return JSON.parse(text.slice(arrayStart, arrayEnd + 1))
   if (objectStart !== -1 && objectEnd > objectStart) return JSON.parse(text.slice(objectStart, objectEnd + 1))
-  throw new ActionPlannerError('PLAN_JSON_MISSING', 'Qwen did not return JSON action proposals.')
+  throw new ActionPlannerError('PLAN_JSON_MISSING', 'Qwen 未返回 JSON 动作提案。')
 }
 
 function unwrapPlan(parsed) {
@@ -38,7 +38,7 @@ function unwrapPlan(parsed) {
   if (Array.isArray(parsed.actions)) return parsed.actions
   if (Array.isArray(parsed.proposals)) return parsed.proposals
   if (Array.isArray(parsed.actionProposals)) return parsed.actionProposals
-  throw new ActionPlannerError('PLAN_ACTIONS_MISSING', 'Qwen JSON did not contain an action proposal array.')
+  throw new ActionPlannerError('PLAN_ACTIONS_MISSING', 'Qwen JSON 中没有动作提案数组。')
 }
 
 function text(value, fallback = '') {
@@ -47,21 +47,21 @@ function text(value, fallback = '') {
 }
 
 function summarizePayload(type, payload = {}) {
-  if (type === 'shell.command') return text(payload.command, 'Run shell command')
-  if (type === 'file.read') return `Read ${text(payload.path, 'file')}`
-  if (type === 'file.write') return `Write ${text(payload.path, 'file')}`
-  if (type === 'file.delete') return `Delete ${text(payload.path, 'path')}`
-  if (type === 'file.move') return `Move ${text(payload.from || payload.source, 'path')} to ${text(payload.to || payload.target, 'destination')}`
-  if (type === 'code.execute') return `Execute ${text(payload.language, 'code')} snippet`
-  if (type === 'screen.observe') return 'Observe screen'
-  if (type === 'screen.region.select') return 'Select screen region'
-  if (type === 'mouse.move') return `Move mouse to ${payload.x ?? '?'}, ${payload.y ?? '?'}`
-  if (type === 'mouse.click') return `Click ${payload.x ?? '?'}, ${payload.y ?? '?'}`
-  if (type === 'keyboard.type') return 'Type text'
-  if (type === 'keyboard.shortcut') return `Press ${Array.isArray(payload.keys) ? payload.keys.join('+') : text(payload.keys, 'shortcut')}`
-  if (type === 'runtime.setup') return `Set up ${text(payload.runtime, 'runtime')}`
-  if (type === 'audit.export') return 'Export audit logs'
-  if (type === 'output.open') return `Open ${text(payload.path, 'output')}`
+  if (type === 'shell.command') return text(payload.command, '运行 Shell 命令')
+  if (type === 'file.read') return `读取 ${text(payload.path, '文件')}`
+  if (type === 'file.write') return `写入 ${text(payload.path, '文件')}`
+  if (type === 'file.delete') return `删除 ${text(payload.path, '路径')}`
+  if (type === 'file.move') return `将 ${text(payload.from || payload.source, '路径')} 移动到 ${text(payload.to || payload.target, '目标位置')}`
+  if (type === 'code.execute') return `执行 ${text(payload.language, 'code')} 代码片段`
+  if (type === 'screen.observe') return '观察屏幕'
+  if (type === 'screen.region.select') return '选择屏幕区域'
+  if (type === 'mouse.move') return `移动鼠标到 ${payload.x ?? '?'}，${payload.y ?? '?'}`
+  if (type === 'mouse.click') return `点击 ${payload.x ?? '?'}，${payload.y ?? '?'}`
+  if (type === 'keyboard.type') return '输入文本'
+  if (type === 'keyboard.shortcut') return `按下快捷键 ${Array.isArray(payload.keys) ? payload.keys.join('+') : text(payload.keys, 'shortcut')}`
+  if (type === 'runtime.setup') return `设置 ${text(payload.runtime, '运行时')}`
+  if (type === 'audit.export') return '导出审计日志'
+  if (type === 'output.open') return `打开 ${text(payload.path, '输出')}`
   return type
 }
 
@@ -70,9 +70,9 @@ function normalizeRisk(value) {
 }
 
 function validateProposal(item, index) {
-  if (!item || typeof item !== 'object') throw new ActionPlannerError('PLAN_ACTION_INVALID', `Action at index ${index} is not an object.`)
-  if (!KNOWN_RUNTIME_NAMES.includes(item.runtime)) throw new ActionPlannerError('PLAN_RUNTIME_UNKNOWN', `Unknown runtime: ${item.runtime}`, { index, runtime: item.runtime })
-  if (!KNOWN_ACTION_TYPES.includes(item.type)) throw new ActionPlannerError('PLAN_ACTION_TYPE_UNKNOWN', `Unknown action type: ${item.type}`, { index, type: item.type })
+  if (!item || typeof item !== 'object') throw new ActionPlannerError('PLAN_ACTION_INVALID', `索引 ${index} 的动作不是对象。`)
+  if (!KNOWN_RUNTIME_NAMES.includes(item.runtime)) throw new ActionPlannerError('PLAN_RUNTIME_UNKNOWN', `未知运行时：${item.runtime}`, { index, runtime: item.runtime })
+  if (!KNOWN_ACTION_TYPES.includes(item.type)) throw new ActionPlannerError('PLAN_ACTION_TYPE_UNKNOWN', `未知动作类型：${item.type}`, { index, type: item.type })
 }
 
 function normalizeActionPlan(raw, options = {}) {

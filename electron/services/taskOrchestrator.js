@@ -11,13 +11,24 @@ function lastUserMessage(messages = []) {
 }
 
 function summarizeSubmitted(actions = []) {
-  if (!actions.length) return 'No actions were proposed.'
+  if (!actions.length) return '本次没有生成可执行动作。'
   const counts = actions.reduce((acc, action) => {
     acc[action.status] = (acc[action.status] || 0) + 1
     return acc
   }, {})
-  const parts = Object.entries(counts).map(([status, count]) => `${count} ${status}`)
-  return `AionUi prepared ${actions.length} action(s): ${parts.join(', ')}. Review pending approvals in Control Center.`
+  const statusLabels = {
+    proposed: '已提议',
+    pending: '待审批',
+    approved: '已批准',
+    running: '执行中',
+    completed: '已完成',
+    failed: '失败',
+    denied: '已拒绝',
+    blocked: '已阻止',
+    cancelled: '已取消'
+  }
+  const parts = Object.entries(counts).map(([status, count]) => `${statusLabels[status] || status} ${count} 个`)
+  return `AionUi 已准备 ${actions.length} 个动作：${parts.join('，')}。请在控制中心查看待审批动作。`
 }
 
 function saveCompletedOutputs(actions = [], addOutput = addRunOutput) {
@@ -75,7 +86,7 @@ function createTaskOrchestrator(overrides = {}) {
     onEvent?.('chat:action-update', { actions: submitted, outputs })
 
     return {
-      content: `${usedDryRun ? '[DRY-RUN] ' : ''}${summarizeSubmitted(submitted)}`,
+      content: `${usedDryRun ? '[演示模式] ' : ''}${summarizeSubmitted(submitted)}`,
       actions: submitted,
       outputs,
       dryRun: usedDryRun

@@ -22,7 +22,7 @@ test('builds sidecar protocol requests only for supported actions', () => {
   const request = toSidecarRequest(action)
   expect(request.protocol).toBe('aionui.open-interpreter.v1')
   expect(request.approved).toBe(true)
-  expect(() => toSidecarRequest({ ...action, type: 'mouse.click' })).toThrow(/does not support/)
+  expect(() => toSidecarRequest({ ...action, type: 'mouse.click' })).toThrow(/不支持/)
 })
 
 test('returns recoverable result when runtime is missing', async () => {

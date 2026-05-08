@@ -13,7 +13,7 @@ export function useActionQueue() {
       const result = await listActions()
       setActions(result.actions || [])
     } catch (err) {
-      setError(err.message || 'Failed to load actions.')
+      setError(err.message || '加载动作队列失败。')
     } finally {
       setLoading(false)
     }
@@ -32,7 +32,7 @@ export function useActionQueue() {
   }
 
   async function deny(id) {
-    await denyAction(id, 'Denied from Control Center.')
+    await denyAction(id, '用户在控制中心拒绝。')
     await refresh()
   }
 

@@ -12,9 +12,9 @@ function ensureFullPermission() {
 }
 
 function listDirectory(dir) {
-  if (!dir) return error('INVALID_ARGS', 'dir is required')
+  if (!dir) return error('INVALID_ARGS', '需要提供目录。')
   if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
-    return error('PATH_NOT_FOUND', 'Directory does not exist')
+    return error('PATH_NOT_FOUND', '目录不存在。')
   }
 
   const items = fs.readdirSync(dir, { withFileTypes: true })
@@ -43,8 +43,8 @@ function listDirectory(dir) {
 }
 
 function searchFiles({ query, dir, maxDepth = 3 }) {
-  if (!query || !dir) return error('INVALID_ARGS', 'query and dir are required')
-  if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return error('PATH_NOT_FOUND', 'Directory does not exist')
+  if (!query || !dir) return error('INVALID_ARGS', '需要提供搜索关键词和目录。')
+  if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return error('PATH_NOT_FOUND', '目录不存在。')
 
   const results = []
   const pattern = String(query).toLowerCase()
@@ -81,13 +81,13 @@ function searchFiles({ query, dir, maxDepth = 3 }) {
 
 function register(ipcMain) {
   ipcMain.handle('files:list', async (_event, payload = {}) => {
-    if (!ensureFullPermission()) return error('PERMISSION_DENIED', 'Full permission mode is required to browse local files.')
+    if (!ensureFullPermission()) return error('PERMISSION_DENIED', '浏览本地文件需要开启完全权限模式。')
     const dir = typeof payload === 'string' ? payload : (payload.dir || payload.path)
     return listDirectory(dir)
   })
 
   ipcMain.handle('files:search', async (_event, payload = {}) => {
-    if (!ensureFullPermission()) return error('PERMISSION_DENIED', 'Full permission mode is required to search local files.')
+    if (!ensureFullPermission()) return error('PERMISSION_DENIED', '搜索本地文件需要开启完全权限模式。')
     return searchFiles(payload)
   })
 }

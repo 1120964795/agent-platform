@@ -15,7 +15,7 @@ function forgetUserRule({ rule_id, substring }) {
     const result = userRules.removeRulesBySubstring(substring)
     return { ok: true, removed_count: result.removed_count }
   }
-  return { error: { code: 'INVALID_ARGS', message: 'rule_id or substring is required' } }
+  return { error: { code: 'INVALID_ARGS', message: '需要提供规则 ID 或匹配文本。' } }
 }
 
 register({ name: 'remember_user_rule', description: 'Persist a cross-session user preference. Use only for durable preferences, not one-off task details.', parameters: { type: 'object', properties: { rule: { type: 'string' } }, required: ['rule'] } }, rememberUserRule)

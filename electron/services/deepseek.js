@@ -17,7 +17,7 @@ function mapErrorCode(status) {
 
 function getFetch() {
   if (typeof fetch === 'function') return fetch
-  throw new DeepSeekError('DEEPSEEK_RUNTIME', 'Global fetch is not available in this runtime.')
+  throw new DeepSeekError('DEEPSEEK_RUNTIME', '当前运行时无法使用全局 fetch。')
 }
 
 function normalizeTools(tools = []) {
@@ -79,7 +79,7 @@ async function postChat(body, timeout = 60000) {
   const config = store.getConfig()
   const apiKey = config.deepseekApiKey || config.apiKey
   const baseUrl = (config.deepseekBaseUrl || config.baseUrl || 'https://api.deepseek.com').replace(/\/+$/, '')
-  if (!apiKey) throw new DeepSeekError('DEEPSEEK_AUTH', 'API key is not configured.')
+  if (!apiKey) throw new DeepSeekError('DEEPSEEK_AUTH', '尚未配置 API Key。')
   let resp
   try {
     resp = await getFetch()(`${baseUrl}/v1/chat/completions`, {
@@ -92,8 +92,8 @@ async function postChat(body, timeout = 60000) {
       signal: AbortSignal.timeout(timeout)
     })
   } catch (error) {
-    if (error.name === 'AbortError' || error.name === 'TimeoutError') throw new DeepSeekError('DEEPSEEK_TIMEOUT', 'Model response timed out.')
-    throw new DeepSeekError('DEEPSEEK_NETWORK', `Network error: ${error.message}`)
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') throw new DeepSeekError('DEEPSEEK_TIMEOUT', '模型响应超时。')
+    throw new DeepSeekError('DEEPSEEK_NETWORK', `网络错误：${error.message}`)
   }
   if (!resp.ok) {
     const text = await resp.text().catch(() => '')
@@ -166,7 +166,7 @@ function parseJsonStrict(raw) {
   const cleaned = String(raw || '').replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim()
   const start = cleaned.indexOf('{')
   const end = cleaned.lastIndexOf('}')
-  if (start === -1 || end === -1) throw new Error('No JSON object found in response')
+  if (start === -1 || end === -1) throw new Error('响应中没有找到 JSON 对象')
   return JSON.parse(cleaned.slice(start, end + 1))
 }
 

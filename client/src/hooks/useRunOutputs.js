@@ -14,7 +14,7 @@ export function useRunOutputs(initialFilters = {}) {
       const result = await listRunOutputs(filters)
       setOutputs(result.outputs || [])
     } catch (err) {
-      setError(err.message || 'Failed to load run outputs.')
+      setError(err.message || '加载运行输出失败。')
     } finally {
       setLoading(false)
     }

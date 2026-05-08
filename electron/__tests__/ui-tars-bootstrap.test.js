@@ -27,5 +27,5 @@ test('setup action is high risk and requires confirmation', () => {
 test('repair gives guidance instead of failing', async () => {
   const result = await repair({})
   expect(result.repaired).toBe(false)
-  expect(result.message).toContain('external')
+  expect(result.message).toContain('外部运行时')
 })

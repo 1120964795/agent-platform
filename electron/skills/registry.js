@@ -39,7 +39,7 @@ function parseSkill(skillDir, readonly) {
       content: parsed.content
     }
   } catch (error) {
-    console.warn('[skills] failed to parse', skillPath, error.message)
+    console.warn('[skills] 解析失败', skillPath, error.message)
     return null
   }
 }
@@ -72,7 +72,7 @@ function findSkill(name) {
 
 function buildSkillIndex(skills = listSkills()) {
   if (!skills.length) return ''
-  return ['## Available Skills', 'Call load_skill(name) when a skill matches the user task.', ...skills.map((skill) => `- ${skill.name}: ${skill.description}`)].join('\n')
+  return ['## 可用技能', '当某个技能匹配用户任务时，调用 load_skill(name)。', ...skills.map((skill) => `- ${skill.name}: ${skill.description}`)].join('\n')
 }
 
 module.exports = { builtinSkillsRoot, userSkillsRoot, reload, listSkills, findSkill, buildSkillIndex }

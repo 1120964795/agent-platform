@@ -37,7 +37,7 @@ test('registry lets user skill override builtin by name', () => {
 test('load_skill returns markdown once per conversation and expands resources', () => {
   const first = loadSkill({ name: 'shared' }, { convId: 'conv-1' })
   expect(first.content).toContain('# User')
-  expect(first.content).toContain('Available Resources')
+  expect(first.content).toContain('可用资源')
   expect(first.referenced_tools).toEqual(['read_file'])
 
   const second = loadSkill({ name: 'shared' }, { convId: 'conv-1' })
@@ -49,6 +49,6 @@ test('builtin Office skills are documented as compatibility examples', () => {
   const root = process.cwd()
   const word = fs.readFileSync(path.join(root, 'resources', 'skills', 'word-writer', 'SKILL.md'), 'utf-8')
   const ppt = fs.readFileSync(path.join(root, 'resources', 'skills', 'ppt-builder', 'SKILL.md'), 'utf-8')
-  expect(word).toContain('Compatibility Example')
-  expect(ppt).toContain('Compatibility Example')
+  expect(word).toContain('兼容示例')
+  expect(ppt).toContain('兼容示例')
 })

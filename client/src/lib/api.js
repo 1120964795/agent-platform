@@ -7,14 +7,14 @@ export class ApiError extends Error {
 
 function electronAPI() {
   const electron = window.electronAPI
-  if (!electron?.invoke) throw new ApiError('NOT_SUPPORTED', 'Electron IPC is not available.')
+  if (!electron?.invoke) throw new ApiError('NOT_SUPPORTED', '当前环境不可用 Electron IPC。')
   return electron
 }
 
 function unwrap(result) {
   if (result?.ok === false) {
-    const error = result.error || { code: 'IPC_ERROR', message: 'IPC request failed.' }
-    throw new ApiError(error.code || 'IPC_ERROR', error.message || 'IPC request failed.')
+    const error = result.error || { code: 'IPC_ERROR', message: 'IPC 请求失败。' }
+    throw new ApiError(error.code || 'IPC_ERROR', error.message || 'IPC 请求失败。')
   }
   return result
 }
@@ -39,13 +39,13 @@ async function get(url) {
     const parsed = parseUrl(url)
     return invoke('files:search', { query: parsed.searchParams.get('query'), dir: parsed.searchParams.get('dir') })
   }
-  throw new ApiError('UNSUPPORTED_ROUTE', `No IPC mapping for GET ${url}`)
+  throw new ApiError('UNSUPPORTED_ROUTE', `没有对应的 GET IPC 路由：${url}`)
 }
 
 async function post(url, body) {
   if (url === '/api/config') return invoke('config:set', body)
   if (url === '/api/conversations') return invoke('conversations:upsert', body)
-  throw new ApiError('UNSUPPORTED_ROUTE', `No IPC mapping for POST ${url}`)
+  throw new ApiError('UNSUPPORTED_ROUTE', `没有对应的 POST IPC 路由：${url}`)
 }
 
 function stream(arg, legacyBody, legacyOnDelta, legacyOnDone, legacyOnError) {
@@ -80,7 +80,7 @@ function stream(arg, legacyBody, legacyOnDelta, legacyOnDone, legacyOnError) {
   listen('chat:done', () => { cleanup(); onDone?.() })
   listen('chat:error', (data) => {
     cleanup()
-    const error = data.error || { code: 'CHAT_ERROR', message: 'Chat failed.' }
+    const error = data.error || { code: 'CHAT_ERROR', message: '聊天请求失败。' }
     onError?.(new ApiError(error.code, error.message))
   })
 
@@ -95,8 +95,8 @@ function stream(arg, legacyBody, legacyOnDelta, legacyOnDone, legacyOnError) {
 export const api = {
   get,
   post,
-  del: async (url) => { throw new ApiError('UNSUPPORTED_ROUTE', `No IPC mapping for DELETE ${url}`) },
-  patch: async (url) => { throw new ApiError('UNSUPPORTED_ROUTE', `No IPC mapping for PATCH ${url}`) },
+  del: async (url) => { throw new ApiError('UNSUPPORTED_ROUTE', `没有对应的 DELETE IPC 路由：${url}`) },
+  patch: async (url) => { throw new ApiError('UNSUPPORTED_ROUTE', `没有对应的 PATCH IPC 路由：${url}`) },
   stream,
   invoke
 }

@@ -1,23 +1,23 @@
 ---
 name: word-writer
-description: Optional compatibility example for creating a Word document, report, essay, paper draft, or .docx output.
-when-to-use: Use only when the user explicitly asks for Word/docx generation in compatibility chat mode. This is not an AionUi V2 core execution surface.
+description: 可选兼容示例，用于创建 Word 文档、报告、文章、论文草稿或 .docx 输出。
+when-to-use: 仅当用户在兼容聊天模式中明确要求生成 Word/docx 时使用。这不是 AionUi V2 的核心执行界面。
 tools: [read_file, list_dir, generate_docx]
 resources:
   - templates/report.docx
 ---
 
-# Word Writer (Compatibility Example)
+# Word 写作器（兼容示例）
 
-This skill remains for users who still need document generation. AionUi V2 centers on brokered Qwen planning, Open Interpreter execution, UI-TARS screen control, confirmations, audit logs, and run outputs.
+此技能保留给仍需要文档生成的用户。AionUi V2 的核心聚焦于经过代理的 Qwen 规划、Open Interpreter 执行、UI-TARS 屏幕控制、确认、审计日志和运行输出。
 
-## Workflow
-1. Clarify the topic, audience, length, and required structure when missing.
-2. Read any local reference files the user provided.
-3. Build an outline with headings and section content.
-4. Call `generate_docx` with the outline and a clear output path when requested.
-5. Return the generated file path and briefly note what was included.
+## 工作流
+1. 如果信息缺失，先明确主题、受众、篇幅和结构要求。
+2. 读取用户提供的本地参考文件。
+3. 用标题和章节内容构建大纲。
+4. 用户要求时，使用大纲和清晰的输出路径调用 `generate_docx`。
+5. 返回生成文件路径，并简要说明包含了哪些内容。
 
-## Defaults
-- Use the configured workspace root for outputs unless the user gives a path.
-- Prefer concise section titles and complete paragraphs.
+## 默认规则
+- 除非用户给出路径，否则使用已配置的工作区根目录输出。
+- 优先使用简洁的小节标题和完整段落。

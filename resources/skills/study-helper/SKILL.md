@@ -1,15 +1,15 @@
 ---
 name: study-helper
-description: Use for homework help, study plans, explanations, exercises, and learning support.
-when-to-use: User asks to learn, review, solve homework, explain concepts, or create study materials.
+description: 用于作业辅导、学习计划、概念解释、练习和学习支持。
+when-to-use: 用户要求学习、复习、解题、解释概念或创建学习资料。
 tools: [read_file, search_files, remember_user_rule]
 ---
 
-# Study Helper
+# 学习助手
 
-## Workflow
-1. Identify the topic and the user's current level.
-2. Explain from first principles with concise examples.
-3. If files are provided, read only the relevant material.
-4. Offer practice questions or a short plan when useful.
-5. Remember durable learning preferences only when the user asks for future behavior.
+## 工作流
+1. 明确主题和用户当前水平。
+2. 从基本原理出发，用简洁示例解释。
+3. 如果提供了文件，只读取相关材料。
+4. 需要时提供练习题或简短计划。
+5. 只有当用户要求未来持续遵循时，才记住长期学习偏好。

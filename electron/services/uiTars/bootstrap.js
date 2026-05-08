@@ -5,18 +5,18 @@ function getSetupGuide(config = store.getConfig()) {
   return {
     runtime: 'ui-tars',
     status: config.uiTarsEndpoint || config.uiTarsCommand ? 'needs-verification' : 'not-installed',
-    title: 'Configure UI-TARS Desktop or adapter service',
+    title: '配置 UI-TARS Desktop 或适配服务',
     steps: [
-      'Install UI-TARS Desktop, SDK, or a maintained fork.',
-      'Expose an AionUi-compatible adapter endpoint, or configure the local command used to start one.',
-      'Keep screen authorization visible and revocable in AionUi.',
-      'Run observe/click/type smoke tests from dry-run or a controlled screen.'
+      '安装 UI-TARS Desktop、SDK 或维护中的分支版本。',
+      '暴露一个兼容 AionUi 的适配器端点，或配置用于启动适配器的本地命令。',
+      '确保屏幕授权在 AionUi 中可见且可随时撤销。',
+      '在演示模式或受控屏幕上运行观察、点击、输入冒烟测试。'
     ],
     proposedSetupActions: [{
       runtime: 'ui-tars',
       type: 'runtime.setup',
-      title: 'Open UI-TARS setup guide',
-      summary: 'Show UI-TARS Desktop or adapter service setup guidance.',
+      title: '打开 UI-TARS 设置指引',
+      summary: '显示 UI-TARS Desktop 或适配服务的设置说明。',
       payload: { guide: 'https://github.com/bytedance/UI-TARS-desktop', license: 'Apache-2.0' },
       risk: 'high',
       requiresConfirmation: true
@@ -36,7 +36,7 @@ async function detect(config = store.getConfig()) {
 
 async function repair(config = store.getConfig()) {
   const status = await detect(config)
-  return { ...status, repaired: false, message: 'UI-TARS is external. Configure Desktop, SDK, fork, or adapter service, then authorize screen access.' }
+  return { ...status, repaired: false, message: 'UI-TARS 是外部运行时。请配置 Desktop、SDK、分支版本或适配服务，然后授权屏幕访问。' }
 }
 
 module.exports = { detect, repair, getSetupGuide }

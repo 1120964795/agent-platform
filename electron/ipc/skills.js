@@ -8,7 +8,7 @@ function getShell(deps = {}) {
 }
 
 function skillSkeleton({ name, description, body }) {
-  return `---\nname: ${name}\ndescription: ${description}\ntools: []\n---\n\n${body || `# ${name}\n\n## Workflow\n1. Describe the workflow here.\n`}\n`
+  return `---\nname: ${name}\ndescription: ${description}\ntools: []\n---\n\n${body || `# ${name}\n\n## 工作流\n1. 在这里描述工作流。\n`}\n`
 }
 
 function register(ipcMain, deps = {}) {
@@ -24,10 +24,10 @@ function register(ipcMain, deps = {}) {
 
   ipcMain.handle('skills:copyBuiltin', async (_event, payload = {}) => {
     const skill = registry.findSkill(payload.name)
-    if (!skill) return { ok: false, error: { code: 'PATH_NOT_FOUND', message: `skill not found: ${payload.name}` } }
+    if (!skill) return { ok: false, error: { code: 'PATH_NOT_FOUND', message: `未找到技能：${payload.name}` } }
     const destName = payload.destName || skill.name
     const destDir = path.join(registry.userSkillsRoot(), destName)
-    if (fs.existsSync(destDir) && !payload.overwrite) return { ok: false, error: { code: 'ALREADY_EXISTS', message: `skill already exists: ${destName}` } }
+    if (fs.existsSync(destDir) && !payload.overwrite) return { ok: false, error: { code: 'ALREADY_EXISTS', message: `技能已存在：${destName}` } }
     fs.rmSync(destDir, { recursive: true, force: true })
     fs.mkdirSync(path.dirname(destDir), { recursive: true })
     fs.cpSync(skill.dir, destDir, { recursive: true })
@@ -45,9 +45,9 @@ function register(ipcMain, deps = {}) {
   ipcMain.handle('skills:create', async (_event, payload = {}) => {
     const name = String(payload.name || '').trim()
     const description = String(payload.description || '').trim()
-    if (!name || !description) return { ok: false, error: { code: 'INVALID_ARGS', message: 'name and description are required' } }
+    if (!name || !description) return { ok: false, error: { code: 'INVALID_ARGS', message: '需要提供名称和描述。' } }
     const destDir = path.join(registry.userSkillsRoot(), name)
-    if (fs.existsSync(destDir) && !payload.overwrite) return { ok: false, error: { code: 'ALREADY_EXISTS', message: `skill already exists: ${name}` } }
+    if (fs.existsSync(destDir) && !payload.overwrite) return { ok: false, error: { code: 'ALREADY_EXISTS', message: `技能已存在：${name}` } }
     fs.mkdirSync(destDir, { recursive: true })
     fs.writeFileSync(path.join(destDir, 'SKILL.md'), skillSkeleton({ name, description, body: payload.body }), 'utf-8')
     registry.reload()
@@ -56,8 +56,8 @@ function register(ipcMain, deps = {}) {
 
   ipcMain.handle('skills:delete', async (_event, payload = {}) => {
     const skill = registry.findSkill(payload.name)
-    if (!skill) return { ok: false, error: { code: 'PATH_NOT_FOUND', message: `skill not found: ${payload.name}` } }
-    if (skill.readonly) return { ok: false, error: { code: 'PERMISSION_DENIED', message: 'builtin skills cannot be deleted' } }
+    if (!skill) return { ok: false, error: { code: 'PATH_NOT_FOUND', message: `未找到技能：${payload.name}` } }
+    if (skill.readonly) return { ok: false, error: { code: 'PERMISSION_DENIED', message: '内置技能不能删除。' } }
     fs.rmSync(skill.dir, { recursive: true, force: true })
     registry.reload()
     return { ok: true }

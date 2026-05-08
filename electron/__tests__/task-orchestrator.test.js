@@ -23,7 +23,7 @@ test('uses dry-run planning when Qwen is not configured', async () => {
   expect(result.dryRun).toBe(true)
   expect(broker.submitActions).toHaveBeenCalled()
   expect(events.map((item) => item.event)).toEqual(['chat:action-plan', 'chat:action-update'])
-  expect(result.content).toContain('[DRY-RUN]')
+  expect(result.content).toContain('[演示模式]')
 })
 
 test('uses Qwen model router when configured', async () => {
@@ -48,5 +48,5 @@ test('uses Qwen model router when configured', async () => {
 })
 
 test('summarizes action statuses for chat', () => {
-  expect(summarizeSubmitted([{ status: 'pending' }, { status: 'completed' }])).toContain('1 pending')
+  expect(summarizeSubmitted([{ status: 'pending' }, { status: 'completed' }])).toContain('待审批 1 个')
 })

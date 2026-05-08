@@ -20,7 +20,7 @@ async function status(config = store.getConfig()) {
 async function start(config = store.getConfig()) {
   if (isRunning()) return status(config)
   if (!config.openInterpreterCommand) {
-    return { ...(await status(config)), running: false, message: 'Open Interpreter command is not configured.' }
+    return { ...(await status(config)), running: false, message: '尚未配置 Open Interpreter 启动命令。' }
   }
   child = spawn(config.openInterpreterCommand, {
     shell: true,

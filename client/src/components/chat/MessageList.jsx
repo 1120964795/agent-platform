@@ -19,7 +19,7 @@ export default function MessageList({ messages }) {
     <div className="flex-1 overflow-y-auto px-6 py-4">
       {messages.length === 0 && (
         <div className="h-full flex items-center justify-center text-[color:var(--text-muted)] text-sm text-center">
-          Ask naturally. In full permission mode, local files, shell commands, and skills are available as tools.
+          直接描述你的问题或任务。普通聊天只回复内容，执行模式会先生成动作计划并请求必要确认。
         </div>
       )}
       {messages.map((message) => {
@@ -37,7 +37,7 @@ export default function MessageList({ messages }) {
         if (message.role === 'actions') {
           return (
             <div key={message.id} className="my-3 max-w-[820px] space-y-2">
-              <div className="text-xs font-medium uppercase text-[color:var(--text-muted)]">{message.title || 'Actions'}</div>
+              <div className="text-xs font-medium uppercase text-[color:var(--text-muted)]">{message.title || '动作'}</div>
               {(message.actions || []).map((action) => <ActionCard key={action.id} action={action} compact={false} />)}
             </div>
           )
@@ -46,7 +46,7 @@ export default function MessageList({ messages }) {
           if (message.cardType === 'word') return <WordCard key={message.id} msg={message} />
           if (message.cardType === 'ppt') return <PptCard key={message.id} msg={message} />
           if (message.cardType === 'file') return <FileCard key={message.id} artifact={message.cardData} />
-          return <div key={message.id} className="text-xs text-[color:var(--text-muted)] my-2">[card: {message.cardType}]</div>
+          return <div key={message.id} className="text-xs text-[color:var(--text-muted)] my-2">[卡片：{message.cardType}]</div>
         }
         return null
       })}

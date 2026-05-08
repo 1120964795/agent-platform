@@ -23,7 +23,7 @@ test('runtime bootstrap returns expected failure wrapper for unknown runtime', a
   runtime.register(ipcMain)
   const result = await ipcMain.handlers.get('runtime:bootstrap')({}, { runtime: 'unknown' })
   expect(result.ok).toBe(false)
-  expect(result.error.message).toContain('Unknown runtime')
+  expect(result.error.message).toContain('未知运行时')
 })
 
 test('runtime configure sanitizes and masks provider keys', async () => {

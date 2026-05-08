@@ -15,7 +15,7 @@ async function status(config = store.getConfig()) {
 
 async function start(config = store.getConfig()) {
   if (isRunning()) return status(config)
-  if (!config.uiTarsCommand) return { ...(await status(config)), running: false, message: 'UI-TARS command is not configured.' }
+  if (!config.uiTarsCommand) return { ...(await status(config)), running: false, message: '尚未配置 UI-TARS 启动命令。' }
   child = spawn(config.uiTarsCommand, {
     shell: true,
     stdio: 'ignore',

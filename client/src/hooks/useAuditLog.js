@@ -14,7 +14,7 @@ export function useAuditLog(initialFilters = {}) {
       const result = await listAuditEvents(filters)
       setEvents(result.events || [])
     } catch (err) {
-      setError(err.message || 'Failed to load audit logs.')
+      setError(err.message || '加载审计日志失败。')
     } finally {
       setLoading(false)
     }

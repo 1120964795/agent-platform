@@ -26,12 +26,12 @@ test('allows DeepSeek only as plain-chat fallback', () => {
   expect(() => selectModelForRole(MODEL_ROLES.ACTION_INTENT, {
     fallbackProvider: 'deepseek',
     deepseekApiKey: 'sk-deepseek'
-  })).toThrow(/Qwen is required/)
+  })).toThrow(/需要配置 Qwen/)
 })
 
 test('execution planning fails closed without Qwen', () => {
-  expect(() => verifyProviderReadiness(MODEL_ROLES.TASK_PLANNING, {})).toThrow(/Qwen is required/)
-  expect(() => verifyProviderReadiness(MODEL_ROLES.CODING_REASONING, {})).toThrow(/Qwen is required/)
+  expect(() => verifyProviderReadiness(MODEL_ROLES.TASK_PLANNING, {})).toThrow(/需要配置 Qwen/)
+  expect(() => verifyProviderReadiness(MODEL_ROLES.CODING_REASONING, {})).toThrow(/需要配置 Qwen/)
 })
 
 test('coding role uses Qwen coding model', () => {

@@ -48,20 +48,11 @@ export default function FileCard({ artifact, onError }) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={handleOpen}
-          disabled={!artifact.path}
-          className="h-8 rounded-md border border-[color:var(--border)] px-3 text-xs flex items-center gap-1 hover:bg-[color:var(--bg-tertiary)] disabled:opacity-50"
-        >
+        <button type="button" onClick={handleOpen} disabled={!artifact.path} className="h-8 rounded-md border border-[color:var(--border)] px-3 text-xs flex items-center gap-1 hover:bg-[color:var(--bg-tertiary)] disabled:opacity-50">
           <ExternalLink size={13} />
           打开
         </button>
-        <a
-          href={downloadUrl(artifact)}
-          download={artifact.filename}
-          className="h-8 rounded-md bg-[color:var(--accent)] px-3 text-xs text-white flex items-center gap-1"
-        >
+        <a href={downloadUrl(artifact)} download={artifact.filename} className="h-8 rounded-md bg-[color:var(--accent)] px-3 text-xs text-white flex items-center gap-1">
           <Download size={13} />
           下载
         </a>

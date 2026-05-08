@@ -13,7 +13,7 @@ function getDeepSeekConfig(config = store.getConfig()) {
 
 function assertReady(config = store.getConfig()) {
   const deepseekConfig = getDeepSeekConfig(config)
-  if (!deepseekConfig.apiKey) throw new deepseek.DeepSeekError('DEEPSEEK_NOT_CONFIGURED', 'DeepSeek fallback API key is not configured.')
+  if (!deepseekConfig.apiKey) throw new deepseek.DeepSeekError('DEEPSEEK_NOT_CONFIGURED', '尚未配置 DeepSeek 备用 API Key。')
   return deepseekConfig
 }
 

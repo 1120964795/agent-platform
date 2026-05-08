@@ -11,7 +11,7 @@ function register(ipcMain) {
       const result = userRules.removeRulesBySubstring(payload.substring)
       return { ok: true, removed_count: result.removed_count }
     }
-    return { ok: false, error: { code: 'INVALID_ARGS', message: 'rule_id or substring is required' } }
+    return { ok: false, error: { code: 'INVALID_ARGS', message: '需要提供规则 ID 或匹配文本。' } }
   })
 }
 

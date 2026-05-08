@@ -10,11 +10,11 @@ export default function RightDrawer({ view, onClose }) {
   const [activeTab, setActiveTab] = useState(view || 'control')
 
   const tabs = [
-    { id: 'control', label: 'Control' },
-    { id: 'runtime', label: 'Runtimes' },
-    { id: 'logs', label: 'Logs' },
-    { id: 'outputs', label: 'Outputs' },
-    { id: 'settings', label: 'Settings' }
+    { id: 'control', label: '控制' },
+    { id: 'runtime', label: '运行时' },
+    { id: 'logs', label: '日志' },
+    { id: 'outputs', label: '输出' },
+    { id: 'settings', label: '设置' }
   ]
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function RightDrawer({ view, onClose }) {
         <div className="sticky top-0 bg-[color:var(--bg-primary)] border-b border-[color:var(--border)] z-10">
           <div className="h-14 px-4 flex items-center justify-between">
             <span className="font-medium">AionUi</span>
-            <button type="button" onClick={onClose} className="p-1 rounded hover:bg-[color:var(--bg-tertiary)]" aria-label="close drawer" title="Close">
+            <button type="button" onClick={onClose} className="p-1 rounded hover:bg-[color:var(--bg-tertiary)]" aria-label="关闭抽屉" title="关闭">
               <X size={16} />
             </button>
           </div>

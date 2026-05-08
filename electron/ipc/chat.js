@@ -5,9 +5,9 @@ const skillRegistry = require('../skills/registry')
 const userRules = require('../services/userRules')
 const { createTaskOrchestrator } = require('../services/taskOrchestrator')
 
-const BASE_PROMPT = 'You are AionUi, a desktop control-plane assistant. Answer concisely and professionally. Do not imply local actions have run unless AionUi reports approved execution results.'
-const FULL_PROMPT = `${BASE_PROMPT}\n\nLegacy full permission tools are compatibility helpers. For new execution tasks, use Execute mode so Qwen proposals pass through AionUi policy, confirmations, adapters, and audit logs.`
-const REMEMBER_GUIDANCE = 'When the user expresses a durable future preference using wording like after this, always, next time, or from now on, call remember_user_rule. Do not remember one-off task details.'
+const BASE_PROMPT = '你是 AionUi，一个桌面控制平面助手。请默认使用简体中文，回答要简洁、专业。除非 AionUi 已报告审批通过的执行结果，否则不要暗示本地动作已经运行。'
+const FULL_PROMPT = `${BASE_PROMPT}\n\n旧版完全权限工具仅作为兼容辅助。新的执行任务应使用执行模式，让 Qwen 提案经过 AionUi 策略、确认、适配器和审计日志。`
+const REMEMBER_GUIDANCE = '当用户表达长期偏好，例如“以后”“始终”“下次”或“从现在开始”时，调用 remember_user_rule。不要记住一次性任务细节。'
 
 function buildSystemPrompt(config, deps) {
   const parts = []
@@ -39,7 +39,7 @@ async function handleChatSend(evt, payload = {}, deps) {
       send('chat:done', {})
       return { ok: true }
     } catch (error) {
-      send('chat:error', { error: { code: error.code || 'EXECUTION_TASK_ERROR', message: error.message || 'Execution task failed.' } })
+      send('chat:error', { error: { code: error.code || 'EXECUTION_TASK_ERROR', message: error.message || '执行任务失败。' } })
       return { ok: true }
     }
   }
@@ -83,13 +83,13 @@ async function handleChatSend(evt, payload = {}, deps) {
       }
     }
 
-    fullMessages.push({ role: 'system', content: 'Tool call limit reached. Summarize based on existing tool results.' })
+    fullMessages.push({ role: 'system', content: '工具调用次数已达上限。请基于已有工具结果进行总结。' })
     await deps.deepseek.chat({ messages: fullMessages, stream: true, onDelta: (text) => send('chat:delta', { text }) })
     send('chat:done', {})
     return { ok: true }
   } catch (error) {
     const code = error instanceof deps.DeepSeekError ? error.code : 'INTERNAL'
-    send('chat:error', { error: { code, message: error.message || 'Unknown error' } })
+    send('chat:error', { error: { code, message: error.message || '未知错误' } })
     return { ok: true }
   }
 }

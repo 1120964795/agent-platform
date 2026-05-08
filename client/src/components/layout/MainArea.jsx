@@ -7,7 +7,7 @@ export default function MainArea({ conversationId, onOpenDrawer }) {
 
   return (
     <main className="flex-1 flex flex-col min-w-0">
-      <TopBar title="New task" onOpenDrawer={onOpenDrawer} executionMode={mode} />
+      <TopBar title="新任务" onOpenDrawer={onOpenDrawer} executionMode={mode} />
       <ChatArea conversationId={conversationId} mode={mode} onModeChange={setMode} />
     </main>
   )

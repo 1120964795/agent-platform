@@ -48,13 +48,13 @@ test('keeps model IDs when present', () => {
 test('rejects unknown runtime names', () => {
   expect(() => normalizeActionPlan([
     { runtime: 'raw-shell', type: 'shell.command', payload: {} }
-  ], { now: NOW })).toThrow(/Unknown runtime/)
+  ], { now: NOW })).toThrow(/未知运行时/)
 })
 
 test('rejects unknown action types', () => {
   expect(() => normalizeActionPlan([
     { runtime: 'open-interpreter', type: 'shell.raw', payload: {} }
-  ], { now: NOW })).toThrow(/Unknown action type/)
+  ], { now: NOW })).toThrow(/未知动作类型/)
 })
 
 test('planner prompt requires JSON proposals', () => {

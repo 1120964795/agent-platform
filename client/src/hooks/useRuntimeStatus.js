@@ -13,7 +13,7 @@ export function useRuntimeStatus() {
       const result = await getRuntimeStatus()
       setRuntimes(result.runtimes || [])
     } catch (err) {
-      setError(err.message || 'Failed to load runtimes.')
+      setError(err.message || '加载运行时状态失败。')
     } finally {
       setLoading(false)
     }

@@ -37,17 +37,17 @@ export default function RulesTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold">User Preferences</h2>
-          <p className="text-xs text-[color:var(--text-muted)]">Durable preferences remembered by the agent are stored here.</p>
+          <h2 className="text-lg font-semibold">用户偏好</h2>
+          <p className="text-xs text-[color:var(--text-muted)]">智能体记住的长期偏好会显示在这里。</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={load} className="h-8 rounded-md border border-[color:var(--border)] px-2 text-xs hover:bg-[color:var(--bg-tertiary)] flex items-center gap-1"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Reload</button>
-          <button type="button" onClick={() => rulesPath && openFile(rulesPath)} className="h-8 rounded-md border border-[color:var(--border)] px-2 text-xs hover:bg-[color:var(--bg-tertiary)] flex items-center gap-1"><ExternalLink size={13} /> Open file</button>
+          <button type="button" onClick={load} className="h-8 rounded-md border border-[color:var(--border)] px-2 text-xs hover:bg-[color:var(--bg-tertiary)] flex items-center gap-1"><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> 重新加载</button>
+          <button type="button" onClick={() => rulesPath && openFile(rulesPath)} className="h-8 rounded-md border border-[color:var(--border)] px-2 text-xs hover:bg-[color:var(--bg-tertiary)] flex items-center gap-1"><ExternalLink size={13} /> 打开文件</button>
         </div>
       </div>
 
       {rules.length === 0 ? (
-        <div className="rounded-lg border border-[color:var(--border)] p-4 text-sm text-[color:var(--text-muted)]">No saved preferences.</div>
+        <div className="rounded-lg border border-[color:var(--border)] p-4 text-sm text-[color:var(--text-muted)]">暂无保存的偏好。</div>
       ) : (
         <div className="space-y-2">
           {rules.map((rule) => (

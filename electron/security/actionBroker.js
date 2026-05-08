@@ -50,7 +50,7 @@ function createActionBroker(options = {}) {
   }
 
   function registerAdapter(runtime, adapter) {
-    if (!runtime || !adapter || typeof adapter.execute !== 'function') throw new ActionBrokerError('ADAPTER_INVALID', 'Adapter must expose execute(action, context).')
+    if (!runtime || !adapter || typeof adapter.execute !== 'function') throw new ActionBrokerError('ADAPTER_INVALID', '适配器必须暴露 execute(action, context)。')
     adapters.set(runtime, adapter)
   }
 
@@ -58,7 +58,7 @@ function createActionBroker(options = {}) {
     const adapter = adapters.get(action.runtime)
     if (!adapter) {
       action.status = ACTION_STATUS.FAILED
-      action.error = { code: 'ADAPTER_MISSING', message: `No adapter registered for ${action.runtime}.` }
+      action.error = { code: 'ADAPTER_MISSING', message: `未注册 ${action.runtime} 适配器。` }
       emitAudit(action, AUDIT_PHASES.FAILED, action.error.message)
       setAction(action)
       return snapshot(action)
@@ -68,7 +68,7 @@ function createActionBroker(options = {}) {
     controllers.set(action.id, controller)
     action.status = ACTION_STATUS.RUNNING
     action.startedAt = new Date().toISOString()
-    emitAudit(action, AUDIT_PHASES.STARTED, `Started ${action.title}`)
+    emitAudit(action, AUDIT_PHASES.STARTED, `开始执行：${action.title}`)
     setAction(action)
 
     const start = Date.now()
@@ -86,10 +86,10 @@ function createActionBroker(options = {}) {
         ...(result?.metadata ? { metadata: result.metadata } : {})
       }
       action.status = action.result.ok ? ACTION_STATUS.COMPLETED : ACTION_STATUS.FAILED
-      emitAudit(action, action.result.ok ? AUDIT_PHASES.COMPLETED : AUDIT_PHASES.FAILED, action.result.ok ? `Completed ${action.title}` : `Failed ${action.title}`, { payload: { ...action.payload, result: action.result } })
+      emitAudit(action, action.result.ok ? AUDIT_PHASES.COMPLETED : AUDIT_PHASES.FAILED, action.result.ok ? `已完成：${action.title}` : `执行失败：${action.title}`, { payload: { ...action.payload, result: action.result } })
     } catch (error) {
       action.status = controller.signal.aborted ? ACTION_STATUS.CANCELLED : ACTION_STATUS.FAILED
-      action.error = { code: error.code || (controller.signal.aborted ? 'ACTION_CANCELLED' : 'ACTION_FAILED'), message: error.message || 'Action failed.' }
+      action.error = { code: error.code || (controller.signal.aborted ? 'ACTION_CANCELLED' : 'ACTION_FAILED'), message: error.message || '动作执行失败。' }
       emitAudit(action, action.status === ACTION_STATUS.CANCELLED ? AUDIT_PHASES.CANCELLED : AUDIT_PHASES.FAILED, action.error.message)
     } finally {
       controllers.delete(action.id)
@@ -108,7 +108,7 @@ function createActionBroker(options = {}) {
       policyReasons: policy.reasons
     }
 
-    emitAudit(next, AUDIT_PHASES.PROPOSED, `Proposed ${next.title}`)
+    emitAudit(next, AUDIT_PHASES.PROPOSED, `已提议：${next.title}`)
 
     if (policy.blocked) {
       next.status = ACTION_STATUS.BLOCKED
@@ -120,7 +120,7 @@ function createActionBroker(options = {}) {
 
     if (policy.risk === RISK_LEVELS.LOW && submitOptions.autoRunLowRisk !== false) {
       next.status = ACTION_STATUS.APPROVED
-      emitAudit(next, AUDIT_PHASES.APPROVED, `Policy approved low-risk action: ${next.title}`)
+      emitAudit(next, AUDIT_PHASES.APPROVED, `策略自动批准低风险动作：${next.title}`)
       setAction(next)
       return executeAction(next)
     }
@@ -140,17 +140,17 @@ function createActionBroker(options = {}) {
 
   async function approveAction(id) {
     const action = actions.get(id)
-    if (!action) throw new ActionBrokerError('ACTION_NOT_FOUND', `Action ${id} not found.`)
-    if (action.status !== ACTION_STATUS.PENDING) throw new ActionBrokerError('ACTION_NOT_PENDING', `Action ${id} is not pending.`)
+    if (!action) throw new ActionBrokerError('ACTION_NOT_FOUND', `未找到动作 ${id}。`)
+    if (action.status !== ACTION_STATUS.PENDING) throw new ActionBrokerError('ACTION_NOT_PENDING', `动作 ${id} 不是待审批状态。`)
     action.status = ACTION_STATUS.APPROVED
-    emitAudit(action, AUDIT_PHASES.APPROVED, `User approved ${action.title}`)
+    emitAudit(action, AUDIT_PHASES.APPROVED, `用户已批准：${action.title}`)
     setAction(action)
     return executeAction(action)
   }
 
-  function denyAction(id, reason = 'User denied action.') {
+  function denyAction(id, reason = '用户已拒绝动作。') {
     const action = actions.get(id)
-    if (!action) throw new ActionBrokerError('ACTION_NOT_FOUND', `Action ${id} not found.`)
+    if (!action) throw new ActionBrokerError('ACTION_NOT_FOUND', `未找到动作 ${id}。`)
     if (FINAL_STATUSES.has(action.status)) return snapshot(action)
     action.status = ACTION_STATUS.DENIED
     action.deniedReason = reason
@@ -159,9 +159,9 @@ function createActionBroker(options = {}) {
     return snapshot(action)
   }
 
-  function cancelAction(id, reason = 'Action cancelled.') {
+  function cancelAction(id, reason = '动作已取消。') {
     const action = actions.get(id)
-    if (!action) throw new ActionBrokerError('ACTION_NOT_FOUND', `Action ${id} not found.`)
+    if (!action) throw new ActionBrokerError('ACTION_NOT_FOUND', `未找到动作 ${id}。`)
     if (FINAL_STATUSES.has(action.status)) return snapshot(action)
     controllers.get(id)?.abort()
     action.status = ACTION_STATUS.CANCELLED
@@ -171,7 +171,7 @@ function createActionBroker(options = {}) {
     return snapshot(action)
   }
 
-  function cancelSession(sessionId, reason = 'Session cancelled.') {
+  function cancelSession(sessionId, reason = '会话已取消。') {
     const cancelled = []
     for (const action of actions.values()) {
       if (action.sessionId === sessionId && !FINAL_STATUSES.has(action.status)) cancelled.push(cancelAction(action.id, reason))
@@ -179,7 +179,7 @@ function createActionBroker(options = {}) {
     return cancelled
   }
 
-  function emergencyStop(reason = 'Emergency stop requested.') {
+  function emergencyStop(reason = '已请求紧急停止。') {
     const stopped = []
     for (const action of actions.values()) {
       if (!FINAL_STATUSES.has(action.status)) stopped.push(cancelAction(action.id, reason))

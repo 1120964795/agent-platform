@@ -37,7 +37,7 @@ function reducer(state, action) {
 
 function makeTitle(messages) {
   const firstUser = messages.find((message) => message.role === 'user' && message.content)
-  return firstUser?.content.slice(0, 24) || 'New Chat'
+  return firstUser?.content.slice(0, 24) || '新对话'
 }
 
 export function useChat(conversationId) {
@@ -64,7 +64,7 @@ export function useChat(conversationId) {
           .filter((message) => message.role === 'user' || message.role === 'assistant')
           .forEach((message) => dispatch({ type: 'ADD', msg: { id: uid(), role: message.role, content: message.content } }))
       } catch (error) {
-        if (!ignored && error.code !== 'NOT_FOUND') console.error('[chat] load conversation failed:', error)
+        if (!ignored && error.code !== 'NOT_FOUND') console.error('[chat] 加载对话失败:', error)
       }
     }
 
@@ -80,7 +80,7 @@ export function useChat(conversationId) {
     try {
       await api.post('/api/conversations', { id: convId, title: makeTitle(messages), assistant: 'general', messages })
     } catch (error) {
-      console.error('[chat] save conversation failed:', error)
+      console.error('[chat] 保存对话失败:', error)
     }
   }, [])
 
@@ -138,15 +138,15 @@ export function useChat(conversationId) {
         dispatch({ type: 'ADD', msg: { id: uid(), role: 'skill', skillName: event.name } })
       },
       onActionPlan: (event) => {
-        dispatch({ type: 'ADD_ACTIONS', title: event.dryRun ? 'Dry-run action plan' : 'Action plan', actions: event.actions || [] })
+        dispatch({ type: 'ADD_ACTIONS', title: event.dryRun ? '演示模式动作计划' : '动作计划', actions: event.actions || [] })
       },
       onActionUpdate: (event) => {
         window.dispatchEvent(new CustomEvent('aionui:actions-changed'))
-        dispatch({ type: 'ADD_ACTIONS', title: 'Action progress', actions: event.actions || [] })
+        dispatch({ type: 'ADD_ACTIONS', title: '动作进展', actions: event.actions || [] })
       },
       onDone: finish,
       onError: (error) => {
-        const errorText = `\n\n[Error] ${error.message}`
+        const errorText = `\n\n[错误] ${error.message}`
         assistantContent += errorText
         dispatch({ type: 'APPEND_DELTA', id: assistantId, delta: errorText })
         finish()
@@ -160,7 +160,7 @@ export function useChat(conversationId) {
 
     const displayText = referencePath ? `/${command} "${referencePath}" ${prompt}` : `/${command} ${prompt}`
     const userMessage = { id: uid(), role: 'user', content: displayText }
-    const assistantContent = 'This slash command has been removed. In full permission mode, describe the task in natural language instead.'
+    const assistantContent = '旧版斜杠命令已移除。请直接用自然语言描述任务；需要执行时请切换到“执行”模式。'
     dispatch({ type: 'ADD', msg: userMessage })
     dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', content: assistantContent } })
     const history = [...state.messages, userMessage].filter((message) => message.role === 'user' || message.role === 'assistant').map((message) => ({ role: message.role, content: message.content }))
