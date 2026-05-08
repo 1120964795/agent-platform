@@ -130,3 +130,12 @@ npm run electron:build
 ```
 
 If Electron download fails because of TLS interception or proxy behavior, use a trusted mirror or pre-populated Electron cache before packaging.
+
+## More Documentation
+
+- Runtime setup: `docs/runtime-setup.md`
+- Developer guide: `docs/developer-guide.md`
+- Security policy: `docs/security-policy.md`
+- Dry-run demo: `docs/demo-script.md`
+- Release checklist: `docs/release-checklist.md`
+- Test report: `docs/test-report.md`
