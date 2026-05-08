@@ -23,7 +23,7 @@ async function generatePptxTool({ slides = [], out_path, template }) {
   return { path: finalPath, bytes_written: fs.statSync(finalPath).size, artifact }
 }
 
-register({ name: 'generate_docx', description: 'Generate a Word DOCX from an outline.', parameters: { type: 'object', properties: { outline: { type: 'array' }, out_path: { type: 'string' }, template: { type: 'string' } }, required: ['outline'] } }, generateDocxTool)
-register({ name: 'generate_pptx', description: 'Generate a PowerPoint PPTX from slides.', parameters: { type: 'object', properties: { slides: { type: 'array' }, out_path: { type: 'string' }, template: { type: 'string' } }, required: ['slides'] } }, generatePptxTool)
+register({ name: 'generate_docx', description: 'Compatibility helper: generate a Word DOCX from an outline. Not exposed to AionUi Execute mode.', parameters: { type: 'object', properties: { outline: { type: 'array' }, out_path: { type: 'string' }, template: { type: 'string' } }, required: ['outline'] } }, generateDocxTool)
+register({ name: 'generate_pptx', description: 'Compatibility helper: generate a PowerPoint PPTX from slides. Not exposed to AionUi Execute mode.', parameters: { type: 'object', properties: { slides: { type: 'array' }, out_path: { type: 'string' }, template: { type: 'string' } }, required: ['slides'] } }, generatePptxTool)
 
 module.exports = { generateDocxTool, generatePptxTool }

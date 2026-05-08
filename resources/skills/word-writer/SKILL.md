@@ -1,13 +1,15 @@
 ---
 name: word-writer
-description: Use when the user wants a Word document, report, essay, paper draft, or .docx output.
-when-to-use: User asks for Word, docx, report writing, paper drafting, or a structured written document.
+description: Optional compatibility example for creating a Word document, report, essay, paper draft, or .docx output.
+when-to-use: Use only when the user explicitly asks for Word/docx generation in compatibility chat mode. This is not an AionUi V2 core execution surface.
 tools: [read_file, list_dir, generate_docx]
 resources:
   - templates/report.docx
 ---
 
-# Word Writer
+# Word Writer (Compatibility Example)
+
+This skill remains for users who still need document generation. AionUi V2 centers on brokered Qwen planning, Open Interpreter execution, UI-TARS screen control, confirmations, audit logs, and run outputs.
 
 ## Workflow
 1. Clarify the topic, audience, length, and required structure when missing.

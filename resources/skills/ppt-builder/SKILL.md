@@ -1,11 +1,13 @@
 ---
 name: ppt-builder
-description: Use when the user wants a PowerPoint presentation, slide deck, or .pptx output.
-when-to-use: User asks for PPT, slides, presentation, talk outline, or .pptx generation.
+description: Optional compatibility example for creating a PowerPoint presentation, slide deck, or .pptx output.
+when-to-use: Use only when the user explicitly asks for PPT/pptx generation in compatibility chat mode. This is not an AionUi V2 core execution surface.
 tools: [read_file, list_dir, generate_pptx]
 ---
 
-# PPT Builder
+# PPT Builder (Compatibility Example)
+
+This skill remains for users who still need slide generation. AionUi V2 centers on brokered Qwen planning, Open Interpreter execution, UI-TARS screen control, confirmations, audit logs, and run outputs.
 
 ## Workflow
 1. Clarify topic, audience, slide count, and tone when missing.

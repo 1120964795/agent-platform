@@ -44,3 +44,11 @@ test('load_skill returns markdown once per conversation and expands resources', 
   expect(second.already_loaded).toBe(true)
   expect(second.content).toBe('')
 })
+
+test('builtin Office skills are documented as compatibility examples', () => {
+  const root = process.cwd()
+  const word = fs.readFileSync(path.join(root, 'resources', 'skills', 'word-writer', 'SKILL.md'), 'utf-8')
+  const ppt = fs.readFileSync(path.join(root, 'resources', 'skills', 'ppt-builder', 'SKILL.md'), 'utf-8')
+  expect(word).toContain('Compatibility Example')
+  expect(ppt).toContain('Compatibility Example')
+})

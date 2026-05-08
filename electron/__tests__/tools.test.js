@@ -8,7 +8,7 @@ const TMP = path.join(os.tmpdir(), `agentdev-tools-test-${Date.now()}`)
 process.env.AGENTDEV_DATA_DIR = path.join(TMP, 'data')
 process.env.AGENTDEV_GENERATED_DIR = path.join(TMP, 'generated')
 const require = createRequire(import.meta.url)
-const { execute, TOOL_SCHEMAS, TOOLS } = require('../tools')
+const { execute, TOOL_SCHEMAS, TOOLS, getExecutionToolSchemas } = require('../tools')
 const { setDialogProvider, clearConfirmCache } = require('../confirm')
 const { store } = require('../store')
 
@@ -25,6 +25,10 @@ test('tool registry loads expected stage B tools', () => {
     'read_file', 'write_file', 'edit_file', 'list_dir', 'search_files', 'create_dir', 'delete_path', 'move_path', 'run_shell_command', 'get_os_info', 'which', 'remember_user_rule', 'forget_user_rule', 'generate_docx', 'generate_pptx', 'load_skill'
   ]))
   expect(typeof TOOLS.read_file).toBe('function')
+})
+
+test('legacy tools are hidden from AionUi Execute mode', () => {
+  expect(getExecutionToolSchemas()).toEqual([])
 })
 
 test('fs tools read, write, edit, list and search files', async () => {

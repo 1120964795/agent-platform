@@ -71,7 +71,7 @@ export default function SkillsTab() {
       <div className="flex items-center justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold">Skills</h2>
-          <p className="text-xs text-[color:var(--text-muted)]">Builtin skills ship with the app. User skills override builtin skills with the same name.</p>
+          <p className="text-xs text-[color:var(--text-muted)]">Skills are optional compatibility helpers. Execute mode uses brokered actions instead of legacy tool schemas.</p>
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={openSkillsFolder} className="h-8 rounded-md border border-[color:var(--border)] px-2 text-xs hover:bg-[color:var(--bg-tertiary)] flex items-center gap-1"><FolderOpen size={13} /> Folder</button>
