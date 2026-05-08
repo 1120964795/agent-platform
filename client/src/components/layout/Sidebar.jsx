@@ -1,4 +1,4 @@
-import { Settings, FolderOpen, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Activity, FileText, Plus, Settings, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function Sidebar({ collapsed, onToggle, onOpenDrawer, onNewConversation }) {
   const width = collapsed ? 'w-[60px]' : 'w-[260px]'
@@ -6,46 +6,45 @@ export default function Sidebar({ collapsed, onToggle, onOpenDrawer, onNewConver
   return (
     <aside className={`${width} transition-all duration-200 bg-[color:var(--bg-secondary)] border-r border-[color:var(--border)] flex flex-col`}>
       <div className="h-14 px-4 flex items-center justify-between border-b border-[color:var(--border)]">
-        {!collapsed && <span className="font-semibold text-base">AgentDev Lite</span>}
-        <button
-          type="button"
-          onClick={onToggle}
-          className="p-1 rounded hover:bg-[color:var(--bg-tertiary)]"
-          aria-label="toggle sidebar"
-        >
+        {!collapsed && (
+          <div className="min-w-0">
+            <div className="font-semibold text-base leading-tight">AionUi</div>
+            <div className="text-[11px] text-[color:var(--text-muted)] leading-tight">Agent control plane</div>
+          </div>
+        )}
+        <button type="button" onClick={onToggle} className="p-1 rounded hover:bg-[color:var(--bg-tertiary)]" aria-label="toggle sidebar" title="Toggle sidebar">
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
       </div>
 
       <div className="p-3">
-        <button
-          type="button"
-          onClick={onNewConversation}
-          className="w-full h-9 flex items-center justify-center gap-2 rounded-lg bg-[color:var(--accent)] text-white text-sm hover:opacity-90"
-        >
+        <button type="button" onClick={onNewConversation} className="w-full h-9 flex items-center justify-center gap-2 rounded-md bg-[color:var(--accent)] text-white text-sm hover:opacity-90">
           <Plus size={16} />
-          {!collapsed && <span>新对话</span>}
+          {!collapsed && <span>New Task</span>}
+        </button>
+      </div>
+
+      <div className="px-2 space-y-1">
+        <button type="button" onClick={() => onOpenDrawer('control')} className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-[color:var(--bg-tertiary)]">
+          <Activity size={16} />
+          {!collapsed && <span>Control</span>}
+        </button>
+        <button type="button" onClick={() => onOpenDrawer('runtime')} className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-[color:var(--bg-tertiary)]">
+          <ShieldCheck size={16} />
+          {!collapsed && <span>Runtimes</span>}
+        </button>
+        <button type="button" onClick={() => onOpenDrawer('outputs')} className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-[color:var(--bg-tertiary)]">
+          <FileText size={16} />
+          {!collapsed && <span>Outputs</span>}
         </button>
       </div>
 
       <div className="flex-1" />
 
       <div className="p-2 border-t border-[color:var(--border)] flex flex-col gap-1">
-        <button
-          type="button"
-          onClick={() => onOpenDrawer('settings')}
-          className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-[color:var(--bg-tertiary)]"
-        >
+        <button type="button" onClick={() => onOpenDrawer('settings')} className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-[color:var(--bg-tertiary)]">
           <Settings size={16} />
-          {!collapsed && <span>设置</span>}
-        </button>
-        <button
-          type="button"
-          onClick={() => onOpenDrawer('artifacts')}
-          className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-sm hover:bg-[color:var(--bg-tertiary)]"
-        >
-          <FolderOpen size={16} />
-          {!collapsed && <span>产物</span>}
+          {!collapsed && <span>Settings</span>}
         </button>
       </div>
     </aside>

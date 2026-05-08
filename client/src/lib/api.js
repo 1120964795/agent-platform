@@ -109,6 +109,7 @@ export function copyBuiltinSkill(payload) { return invoke('skills:copyBuiltin', 
 export function openSkillsFolder() { return invoke('skills:openFolder') }
 export function listRules() { return invoke('rules:list') }
 export function deleteRule(payload) { return invoke('rules:delete', payload) }
+export function emergencyStop() { return invoke('actions:emergencyStop') }
 
 export async function openFile(filePath) {
   if (window.electronAPI?.openPath) return unwrap(await window.electronAPI.openPath(filePath))

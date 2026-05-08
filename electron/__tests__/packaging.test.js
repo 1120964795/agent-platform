@@ -31,6 +31,11 @@ test('desktop build bundles renderer and skills resources', () => {
   ]))
 })
 
+test('package metadata uses AionUi product identity', () => {
+  expect(pkg.name).toBe('agentdev-lite')
+  expect(pkg.description).toContain('AionUi V2')
+  expect(pkg.build.productName).toBe('AionUi')
+})
 
 test('main-process runtime modules are production dependencies', () => {
   for (const dependency of ['docx', 'gray-matter', 'mammoth', 'pptxgenjs']) {
@@ -38,20 +43,18 @@ test('main-process runtime modules are production dependencies', () => {
     expect(pkg.devDependencies[dependency]).toBeUndefined()
   }
 })
-test('README keeps the manual acceptance checklist', () => {
+
+test('README describes the V2 control plane scope', () => {
   const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf-8')
-  const checklistItems = [
-    'exe 安装后首次启动能看到 5 个内置 skill',
-    '给本地 pdf 路径说“总结这个文件”',
-    '说“帮我装 uv”',
-    '说“删掉 D:\\temp”',
-    '说“写一份关于 XX 的 Word 报告”',
-    '切到 `normal` 模式',
-    '自己写 `SKILL.md` 放到用户 `skills/` 目录',
-    '`user_rules.md` 新增规则'
+  const requiredText = [
+    'Qwen is the primary planner',
+    'Open Interpreter is integrated as a managed external runtime',
+    'UI-TARS is integrated as a managed runtime',
+    'AionUi owns policy',
+    'High-risk actions always require explicit confirmation'
   ]
 
-  for (const item of checklistItems) {
+  for (const item of requiredText) {
     expect(readme).toContain(item)
   }
 })

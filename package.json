@@ -2,7 +2,7 @@
   "name": "agentdev-lite",
   "version": "0.1.0",
   "private": true,
-  "description": "Lightweight AionUi-style agent app",
+  "description": "AionUi V2 control-plane agent desktop app",
   "main": "electron/main.js",
   "scripts": {
     "setup": "npm install && npm --prefix client install",
@@ -21,7 +21,7 @@
   },
   "build": {
     "appId": "com.agentdev.lite",
-    "productName": "AgentDev Lite",
+    "productName": "AionUi",
     "asar": false,
     "directories": {
       "output": "dist-electron"

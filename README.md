@@ -1,81 +1,103 @@
-# AgentDev Lite
+# AionUi
 
-AgentDev Lite 是一个 Electron 桌面 Agent。当前架构已经移除 Express 常驻后端，聊天循环、工具执行、skill 加载和本地能力都运行在 Electron 主进程中，前端通过 `window.electronAPI.invoke/on` 与主进程通信。
+AionUi is a Windows desktop control plane for agentic work. It keeps the model, local execution, screen control, confirmations, audit logs, and runtime setup in one visible Electron app.
 
-## 功能
+The V2 product direction is deliberately narrow:
 
-- DeepSeek 聊天，支持流式输出。
-- 全权限模式下启用本地工具：读写文件、目录浏览、文件搜索、shell 命令、环境探测、Word/PPT 生成、用户偏好记忆。
-- 工具调用会在聊天区显示为工具卡片，shell 输出会流式显示。
-- Skill 系统支持内置 skill 和用户自定义 skill。用户 skill 位于应用数据目录，且同名覆盖内置 skill。
-- 用户持久偏好写入 `user_rules.md`，新会话会自动加入 system prompt。
+- Qwen is the primary planner for task execution, action intent, and coding reasoning.
+- DeepSeek remains available as an optional plain-chat fallback only.
+- Open Interpreter is integrated as a managed external runtime for command, file, and code work.
+- UI-TARS is integrated as a managed runtime for screen observation, mouse, and keyboard actions.
+- AionUi owns policy, confirmations, audit logging, emergency stop, setup guidance, and run outputs.
 
-## 启动
+The model proposes actions. AionUi validates and classifies them. The user approves risky work. Adapters execute only approved actions. Every meaningful event is recorded in the audit log.
 
-首次安装依赖：
+## Features
+
+- Chat and Execute modes in the main conversation surface.
+- Models and Runtimes setup for Qwen, optional DeepSeek, Open Interpreter, UI-TARS, and dry-run demos.
+- Control Center for pending, running, completed, failed, denied, blocked, and cancelled actions.
+- Structured confirmation UI for medium and high risk actions.
+- Sanitized append-only audit logs with filters and export.
+- Run Outputs panel for command summaries, generated files, screenshots, and demo artifacts.
+- Dry-run runtime so the full flow can be demonstrated without external installs.
+- Windows NSIS packaging through electron-builder.
+
+## Architecture
+
+```text
+React UI -> Electron IPC -> Model Router -> Qwen Planner
+                                      -> Action Planner
+                                      -> Action Broker
+                                      -> Policy + Confirmation + Audit
+                                      -> Open Interpreter / UI-TARS / Dry Run adapters
+                                      -> Run Outputs
+```
+
+Hard boundaries:
+
+- Open Interpreter source is not vendored in this repository.
+- UI-TARS input actions require active screen authorization.
+- Model output never executes commands directly.
+- High-risk actions always require explicit confirmation.
+- Legacy Office, diagnostics, and workflow surfaces are compatibility helpers, not the product center.
+
+## Install
 
 ```powershell
 npm run setup
 ```
 
-开发模式启动 Electron：
+If Electron binary download fails behind a corporate proxy, retry with a reachable mirror or a local Electron cache before packaging.
+
+## Development
 
 ```powershell
 npm run electron:dev
 ```
 
-构建 Windows 安装包：
+## Test
+
+```powershell
+npm test
+npm run build:client
+```
+
+## Package
 
 ```powershell
 npm run electron:build
 ```
 
-运行测试：
+The Windows installer is written to `dist-electron/`.
 
-```powershell
-npm test
-```
+## Configuration
 
-## 使用
+Open Settings inside the app:
 
-1. 打开设置面板，填写 DeepSeek API Key。
-2. 需要本地文件、shell、skill 能力时，将权限模式切到 `Full Permission` 并保存。
-3. 在聊天框自然描述任务，例如：
-   - `总结 "D:\docs\paper.pdf"`
-   - `帮我装 uv`
-   - `写一份关于点云目标检测的 Word 报告`
-4. 模型会按需调用工具或加载 skill。破坏性文件操作和灰名单 shell 命令会弹出确认。
+- Add a Qwen API key, base URL, primary model, and coding model.
+- Optionally configure DeepSeek as a plain-chat fallback.
+- Configure Open Interpreter as an external sidecar command or endpoint.
+- Configure UI-TARS Desktop, SDK, fork endpoint, or adapter service.
+- Pick a workspace root for command/file context.
+- Keep dry-run enabled when external runtimes are not installed.
 
-## 内置 Skills
+## Safety Model
 
-- `word-writer`：生成 Word 文档、报告、论文草稿。
-- `ppt-builder`：生成 PPT 演示文稿。
-- `study-helper`：学习解释、练习题、学习计划。
-- `file-explorer`：理解目录结构、查找文件、摘要本地文件。
-- `dep-installer`：检查和安装本地开发依赖，标准流程是 `get_os_info -> which -> run_shell_command`。
+Risk levels:
 
-## 数据位置
+- `low`: safe observation, status checks, and non-mutating reads.
+- `medium`: local command/file/code work that is bounded but may change the workspace.
+- `high`: install, delete, overwrite, GUI input, submit, or other impactful work.
+- `blocked`: credential exfiltration, formatting disks, disabling security tooling, hidden background execution, and unbounded recursive delete.
 
-应用数据位于 Electron `userData` 目录下，主要文件包括：
+Medium and high risk actions pause in the Control Center until approved or denied. Blocked actions never reach runtime adapters.
 
-- `data/config.json`：模型配置、权限模式、工作区、shell 白/黑名单。
-- `data/data.json`：会话和生成文件索引。
-- `user_rules.md`：用户持久偏好。
-- `skills/`：用户自定义 skill。
+## Documentation
 
-## 手动回归 Checklist
-
-- [ ] exe 安装后首次启动能看到 5 个内置 skill。
-- [ ] 给本地 pdf 路径说“总结这个文件”后，模型调 `read_file` 并总结正确。
-- [ ] 说“帮我装 uv”后，模型按 `get_os_info -> which uv -> run_shell_command(...)` 执行，shell 卡片实时显示输出。
-- [ ] 说“删掉 D:\temp”后，模型调 `delete_path` 并弹出原生确认 dialog。
-- [ ] 说“写一份关于 XX 的 Word 报告”后，模型调 `load_skill("word-writer")` 并按工作流生成文档。
-- [ ] 切到 `normal` 模式后，同样问题只文字回答，不调工具。
-- [ ] 自己写 `SKILL.md` 放到用户 `skills/` 目录后，重启或 reload 后列表可见。
-- [ ] 对模型说“之后我做写报告时请调用 word-writer”后，`user_rules.md` 新增规则，新会话能读取该规则。
-
-## 当前限制
-
-- 第一版不做多 Agent、PTY/xterm 终端、Skill 市场、远程 skill 仓库、RAG 或文件监听。
-- `workspace_root` 是默认工作目录，不是硬访问边界。
-- 旧 `/word`、`/ppt`、`/local` slash 命令已移除，请用自然语言触发工具和 skill。
+- Final delivery plan: `docs/superpowers/plans/2026-05-08-aionui-v2-final-delivery-plan.md`
+- User manual: `docs/USER_MANUAL.md`
+- Runtime setup: `docs/runtime-setup.md`
+- Developer guide: `docs/developer-guide.md`
+- Release checklist: `docs/release-checklist.md`
+- Test report: `docs/test-report.md`
