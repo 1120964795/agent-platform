@@ -16,6 +16,18 @@ npm run build:client
 
 Result: passed.
 
+```text
+npm run electron:build
+```
+
+Result: passed. Output included `dist-electron\AionUi Setup 0.1.0.exe`.
+
+```text
+dist-electron\win-unpacked\AionUi.exe
+```
+
+Result: launch smoke passed. The packaged app process started and stayed alive for the smoke window, then was closed.
+
 ## Notes
 
 - Initial dependency setup required using a reachable Electron mirror because the default Electron binary download failed behind TLS/proxy behavior.
@@ -24,11 +36,7 @@ Result: passed.
 
 ## Pending Release-Machine Verification
 
-```powershell
-npm run electron:build
-```
-
-Manual packaged-app smoke test:
+Manual in-app smoke test still recommended on the release machine:
 
 - Normal chat.
 - Dry-run Execute mode.

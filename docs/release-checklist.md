@@ -14,6 +14,6 @@
 - [x] Legacy Office and tool surfaces marked compatibility-only.
 - [x] Security policy documented.
 - [x] Dry-run demo documented.
-- [ ] `npm run electron:build` passes on release machine.
-- [ ] Packaged app launches.
+- [x] `npm run electron:build` passes on release machine.
+- [x] Packaged app launch smoke passes.
 - [ ] Manual smoke test verifies chat, dry-run execute, approvals, logs export, outputs, runtime cards, and emergency stop.
