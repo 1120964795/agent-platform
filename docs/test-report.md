@@ -8,7 +8,7 @@ Date: 2026-05-08
 npm test
 ```
 
-Result: passed.
+Result: passed. Final run: 26 test files, 93 tests.
 
 ```text
 npm run build:client
@@ -26,7 +26,7 @@ Result: passed. Output included `dist-electron\AionUi Setup 0.1.0.exe`.
 dist-electron\win-unpacked\AionUi.exe
 ```
 
-Result: launch smoke passed. The packaged app process started and stayed alive for the smoke window, then was closed.
+Result: launch smoke passed after the final package build. The packaged app process started and stayed alive for the smoke window, then was closed.
 
 ## Notes
 
