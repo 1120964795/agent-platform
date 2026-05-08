@@ -3,7 +3,8 @@ import { X } from 'lucide-react'
 import SettingsPanel from '../../panels/SettingsPanel.jsx'
 import RuntimeStatusPanel from '../../panels/RuntimeStatusPanel.jsx'
 import ControlCenterPanel from '../../panels/ControlCenterPanel.jsx'
-import ArtifactsPanel from '../../panels/ArtifactsPanel.jsx'
+import LogsPanel from '../../panels/LogsPanel.jsx'
+import RunOutputsPanel from '../../panels/RunOutputsPanel.jsx'
 
 export default function RightDrawer({ view, onClose }) {
   const [activeTab, setActiveTab] = useState(view || 'control')
@@ -43,8 +44,8 @@ export default function RightDrawer({ view, onClose }) {
         </div>
         {activeTab === 'control' && <ControlCenterPanel />}
         {activeTab === 'runtime' && <RuntimeStatusPanel />}
-        {activeTab === 'logs' && <div className="p-6 text-sm text-[color:var(--text-muted)]">Logs panel is available after audit UI loads.</div>}
-        {activeTab === 'outputs' && <ArtifactsPanel />}
+        {activeTab === 'logs' && <LogsPanel />}
+        {activeTab === 'outputs' && <RunOutputsPanel />}
         {activeTab === 'settings' && <SettingsPanel />}
       </aside>
     </>
