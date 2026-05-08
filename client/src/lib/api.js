@@ -53,7 +53,7 @@ function stream(arg, legacyBody, legacyOnDelta, legacyOnDone, legacyOnError) {
     ? { channel: arg === '/api/chat' ? 'chat:send' : arg, payload: legacyBody, onDelta: legacyOnDelta, onDone: legacyOnDone, onError: legacyOnError }
     : arg
 
-  const { channel, payload, onDelta, onDone, onError, onToolStart, onToolLog, onToolResult, onToolError, onSkillLoaded } = options
+  const { channel, payload, onDelta, onDone, onError, onToolStart, onToolLog, onToolResult, onToolError, onSkillLoaded, onActionPlan, onActionUpdate } = options
   const electron = electronAPI()
   const cleanupFns = []
   let closed = false
@@ -75,6 +75,8 @@ function stream(arg, legacyBody, legacyOnDelta, legacyOnDone, legacyOnError) {
   listen('chat:tool-result', (data) => onToolResult?.(data))
   listen('chat:tool-error', (data) => onToolError?.(data))
   listen('chat:skill-loaded', (data) => onSkillLoaded?.(data))
+  listen('chat:action-plan', (data) => onActionPlan?.(data))
+  listen('chat:action-update', (data) => onActionUpdate?.(data))
   listen('chat:done', () => { cleanup(); onDone?.() })
   listen('chat:error', (data) => {
     cleanup()
@@ -110,6 +112,19 @@ export function openSkillsFolder() { return invoke('skills:openFolder') }
 export function listRules() { return invoke('rules:list') }
 export function deleteRule(payload) { return invoke('rules:delete', payload) }
 export function emergencyStop() { return invoke('actions:emergencyStop') }
+export function getRuntimeStatus() { return invoke('runtime:status') }
+export function bootstrapRuntime(runtime) { return invoke('runtime:bootstrap', { runtime }) }
+export function startRuntime(runtime) { return invoke('runtime:start', { runtime }) }
+export function stopRuntime(runtime) { return invoke('runtime:stop', { runtime }) }
+export function listActions(filters = {}) { return invoke('actions:list', filters) }
+export function approveAction(id) { return invoke('actions:approve', { id }) }
+export function denyAction(id, reason) { return invoke('actions:deny', { id, reason }) }
+export function cancelAction(id, reason) { return invoke('actions:cancel', { id, reason }) }
+export function listAuditEvents(filters = {}) { return invoke('audit:list', { filters }) }
+export function exportAuditEvents(filters = {}, outputPath) { return invoke('audit:export', { filters, outputPath }) }
+export function listRunOutputs(filters = {}) { return invoke('outputs:list', { filters }) }
+export function exportRunOutputs(filters = {}, outputPath) { return invoke('outputs:export', { filters, outputPath }) }
+export function openRunOutput(filePath) { return invoke('outputs:open', { path: filePath }) }
 
 export async function openFile(filePath) {
   if (window.electronAPI?.openPath) return unwrap(await window.electronAPI.openPath(filePath))
