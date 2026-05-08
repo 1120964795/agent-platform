@@ -72,6 +72,16 @@ Supported actions include `shell.command`, `file.read`, `file.write`, `file.dele
 
 Open Interpreter never receives raw model output directly. It only executes actions approved by the broker.
 
+### Setup
+
+1. Install Open Interpreter outside this repository.
+2. Start an AionUi-compatible sidecar or wrapper process.
+3. Set `Open Interpreter endpoint` in Settings, for example `http://127.0.0.1:8756`.
+4. Run a health check from Models/Runtimes.
+5. Test a command action such as `npm test`, a workspace file write, and a small code execution snippet.
+
+Every proposed command, file write, or code execution appears in Control Center and Audit Logs. Setup or install commands are high risk and require confirmation.
+
 ## UI-TARS
 
 UI-TARS is a default screen-control capability. Configure UI-TARS Desktop, SDK, fork endpoint, or adapter service in Settings.

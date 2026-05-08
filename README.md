@@ -84,6 +84,12 @@ Open Settings inside the app:
 - Pick a workspace root for command/file context.
 - Keep dry-run enabled when external runtimes are not installed.
 
+## Open Interpreter Runtime
+
+AionUi treats Open Interpreter as an external default capability. Install and run Open Interpreter outside this repository, then expose an AionUi-compatible sidecar endpoint such as `http://127.0.0.1:8756`. The adapter posts approved protocol requests to `/execute`.
+
+Open Interpreter's AGPL source is not vendored here. Setup commands are high risk and must be confirmed through AionUi before running.
+
 ## Safety Model
 
 Risk levels:
