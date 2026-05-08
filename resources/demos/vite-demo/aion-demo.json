@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "vite-demo",
+  "name": "Vite Demo",
+  "technologyStack": ["Node.js", "Vite", "React"],
+  "entryFiles": ["package.json", "src/main.jsx"],
+  "demoQuestions": [
+    "入口文件在哪？",
+    "这个项目怎么启动？"
+  ],
+  "expectedErrors": ["EADDRINUSE"],
+  "workflowTemplateId": "official-vite-local-start"
+}
