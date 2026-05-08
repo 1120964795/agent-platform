@@ -65,3 +65,27 @@ test('buildSystemPrompt includes rules and skill index only in full mode', () =>
   expect(buildSystemPrompt({ permissionMode: 'default' }, deps)).not.toContain('skills')
   expect(buildSystemPrompt({ permissionMode: 'full' }, deps)).toContain('skills')
 })
+
+test('chat:send routes execute mode through task orchestrator', async () => {
+  const ipcMain = createIpcMain()
+  const send = vi.fn()
+  const taskOrchestrator = {
+    runExecutionTask: vi.fn(async ({ onEvent }) => {
+      onEvent('chat:action-plan', { actions: [{ id: 'act1' }] })
+      return { content: 'prepared', actions: [], outputs: [] }
+    })
+  }
+  const register = createRegister({
+    storeRef: { getConfig: () => ({ permissionMode: 'default' }) },
+    taskOrchestrator,
+    userRules: { buildSystemPromptSection: () => '' },
+    skillRegistry: { listSkills: () => [], buildSkillIndex: () => '' }
+  })
+  register(ipcMain)
+
+  await ipcMain.handlers.get('chat:send')({ sender: { send } }, { convId: 'conv-1', mode: 'execute', messages: [{ role: 'user', content: 'run tests' }] })
+  expect(taskOrchestrator.runExecutionTask).toHaveBeenCalled()
+  expect(send).toHaveBeenCalledWith('chat:action-plan', { convId: 'conv-1', actions: [{ id: 'act1' }] })
+  expect(send).toHaveBeenCalledWith('chat:delta', { convId: 'conv-1', text: 'prepared' })
+  expect(send).toHaveBeenCalledWith('chat:done', { convId: 'conv-1' })
+})

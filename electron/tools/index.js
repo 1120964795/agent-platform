@@ -33,5 +33,9 @@ function loadBuiltins() {
   require('../skills/loader')
 }
 
-module.exports = { TOOLS, TOOL_SCHEMAS, register, execute, loadBuiltins }
+function getExecutionToolSchemas() {
+  return []
+}
+
+module.exports = { TOOLS, TOOL_SCHEMAS, register, execute, loadBuiltins, getExecutionToolSchemas }
 loadBuiltins()

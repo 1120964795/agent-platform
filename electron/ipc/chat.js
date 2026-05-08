@@ -3,9 +3,10 @@ const deepseek = require('../services/deepseek')
 const tools = require('../tools')
 const skillRegistry = require('../skills/registry')
 const userRules = require('../services/userRules')
+const { createTaskOrchestrator } = require('../services/taskOrchestrator')
 
-const BASE_PROMPT = 'You are AgentDev Lite, a student learning assistant. Answer concisely and professionally. Provide runnable examples when discussing code.'
-const FULL_PROMPT = `${BASE_PROMPT}\n\nYou are in full permission mode. You may call local file, shell, skill, and document tools to actively complete the user task. Prefer load_skill() when a suitable skill exists.`
+const BASE_PROMPT = 'You are AionUi, a desktop control-plane assistant. Answer concisely and professionally. Do not imply local actions have run unless AionUi reports approved execution results.'
+const FULL_PROMPT = `${BASE_PROMPT}\n\nLegacy full permission tools are compatibility helpers. For new execution tasks, use Execute mode so Qwen proposals pass through AionUi policy, confirmations, adapters, and audit logs.`
 const REMEMBER_GUIDANCE = 'When the user expresses a durable future preference using wording like after this, always, next time, or from now on, call remember_user_rule. Do not remember one-off task details.'
 
 function buildSystemPrompt(config, deps) {
@@ -26,6 +27,22 @@ async function handleChatSend(evt, payload = {}, deps) {
   const { convId, messages = [] } = payload
   const send = (event, data = {}) => evt.sender.send(event, { convId, ...data })
   const config = deps.storeRef.getConfig()
+  if (payload.mode === 'execute') {
+    try {
+      const result = await deps.taskOrchestrator.runExecutionTask({
+        convId,
+        messages,
+        dryRun: Boolean(payload.dryRun),
+        onEvent: (event, data) => send(event, data)
+      })
+      send('chat:delta', { text: result.content })
+      send('chat:done', {})
+      return { ok: true }
+    } catch (error) {
+      send('chat:error', { error: { code: error.code || 'EXECUTION_TASK_ERROR', message: error.message || 'Execution task failed.' } })
+      return { ok: true }
+    }
+  }
   const isFull = config.permissionMode === 'full'
   const fullMessages = [{ role: 'system', content: buildSystemPrompt(config, deps) }, ...messages]
 
@@ -86,6 +103,7 @@ function createRegister(overrides = {}) {
     toolSchemas: tools.TOOL_SCHEMAS,
     skillRegistry,
     userRules,
+    taskOrchestrator: createTaskOrchestrator(),
     ...overrides
   }
   return function register(ipcMain) {
