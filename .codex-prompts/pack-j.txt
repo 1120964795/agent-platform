@@ -1,0 +1,70 @@
+你现在要执行 AgentDev Lite 项目的 Day 2 Pack J（最后一个 Day 2 包）。
+
+前置：Pack I 已完成，后端 /api/ppt 能产出 .pptx。Day 1 的 commands.js 已有 5 个命令，useCommand/CommandPalette/ArtifactsPanel 都就位。
+
+请打开并阅读这个 plan 文件：
+D:\claude project\agentdev-lite\docs\superpowers\plans\2026-04-10-agentdev-lite.md
+
+需要执行的任务：
+- Task 2.3（Client - PptCard）
+- Task 2.4（Day 2 验收）
+
+执行规则：
+1. 工作目录固定为 D:\claude project\agentdev-lite\。Windows 路径里有空格，shell 命令里所有路径都加双引号。
+2. PptCard 是 WordCard 的姊妹组件——三态（form/loading/done），状态走 useChat reducer，**不要在 PptCard 里 useState 管 loading/done 状态**。
+3. PptCard 表单字段：title、topic、slides 数量。最大 slides 限制按 plan（一般 10）。
+4. PptCard form 状态收集到字段后，调用 lib/api.js 的 generatePpt（POST /api/ppt），返回结果通过 reducer 更新到 done 状态，并自动 addFileCard。
+5. PptCard 颜色风格用主题里的强调色（和 WordCard 蓝色不同，参考 plan），**不要照抄 WordCard 的蓝色**。
+6. lib/api.js 里如果还没有 generatePpt 函数，按 plan 加上。
+7. MessageList 里 card 类型识别需要能 dispatch 到 PptCard（如果 plan 里有改 MessageList 的步骤就按 plan 来，如果没有，检查现有代码是否已经通过 cardType 自动匹配）。
+8. 每个 Task 末尾的 git commit 必须执行。
+9. 验证时本机 curl 对 localhost 走代理会返回 502，带 `--noproxy "*"`。
+
+**重要：端到端真实 API 测试由用户在浏览器里做，你不要尝试调用 /api/ppt 或 /api/word。**
+流程是：
+a) 你完成 Task 2.3 所有代码 + commit
+b) 你做非 API 冒烟验证（见下）
+c) 你打印给用户的操作说明，然后停下来
+d) **暂时不要** `git tag day2-complete`——tag 等用户确认端到端通过后再打。
+
+完成后必须做的非 API 验证：
+- 后台启 `npm run dev`，等 5~8 秒。
+- `curl --noproxy "*" http://localhost:5173/` 返回 200
+- `curl --noproxy "*" http://localhost:8787/api/health` 返回 ok
+- `npm --prefix client run build` 成功（验证 PptCard 集成后无 import 错误）
+- kill 掉所有 node 进程。
+- 跑 `git log --oneline`，应该比 Pack I 多 1~2 个 commit。
+
+最后停下来做一件事：**给用户打印如下端到端操作清单**，然后停，**不要自动继续、不要自己打 tag**：
+
+==========================================
+Pack J 代码部分已完成，请在浏览器里做 Day 2 端到端验收：
+
+1. 启动：npm run dev
+
+2. 打开 http://localhost:5173
+
+3. 测试 /ppt 命令：InputBar 输入 /，选 /ppt
+   PptCard 表单出现，填：
+     title: 测试演示
+     topic: 介绍 React
+     slides: 5
+   点"生成"，等 15-40 秒，done 态显示 FileCard。
+
+4. 点"打开"，PowerPoint/WPS 打开 .pptx：
+   a) 封面有标题"测试演示"+ 蓝色横条
+   b) 后面 4 页有 AI 内容 + bullet 列表
+   c) 每页右下角有页码
+   d) 中文正常
+
+5. 产物 Tab：⚙ → 产物 Tab，看到 .docx + .pptx 都在列表里
+
+6. 回归测试：再跑一次 /word，确认 Word 功能没坏
+
+7. 刷新页面，产物 + 对话历史仍在
+
+8. 全部 OK → 告诉我 "Day 2 验收通过"
+   任何失败 → 贴报错给我
+==========================================
+
+打印完清单后，再输出 `git status` 和 `git log --oneline -25`，然后停止。

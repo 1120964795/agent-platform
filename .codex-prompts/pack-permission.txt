@@ -1,0 +1,775 @@
+你现在要给 AgentDev Lite 添加权限管理功能 + 文件浏览器。
+
+工作目录：D:\claude project\agentdev-lite\
+Windows 路径里有空格，shell 命令里所有路径都加双引号。
+
+## 目标
+
+在设置面板里加权限模式切换（默认模式 / 全权限模式）：
+- **默认模式**：不能浏览本地文件系统，附件按钮隐藏，/api/files/* 返回 403，AI 不主动提及文件操作
+- **全权限模式**：可以浏览本地文件，附件按钮可见，文件浏览器面板可用，AI 知道自己能操作文件并主动引导用户
+
+## 严格按以下步骤执行
+
+### Step 1: 后端 - config 加 permissionMode 字段
+
+打开 `server/store.js`，找到 DEFAULT_CONFIG 对象：
+```js
+const DEFAULT_CONFIG = {
+  apiKey: '',
+  baseUrl: 'https://api.deepseek.com',
+  model: 'deepseek-chat',
+  temperature: 0.7
+}
+```
+
+在 temperature 后面加一行：
+```js
+  temperature: 0.7,
+  permissionMode: 'default'
+```
+
+git commit: `feat(server): add permissionMode to config defaults`
+
+### Step 2: 后端 - 文件路由加权限检查
+
+打开 `server/routes/files.js`，在 `const router = express.Router()` 后面、第一个 `router.get` 前面加权限中间件：
+
+```js
+import { store } from '../store.js'
+
+// 权限检查中间件
+router.use((req, res, next) => {
+  const config = store.getConfig()
+  if (config.permissionMode !== 'full') {
+    return res.status(403).json({
+      ok: false,
+      error: { code: 'PERMISSION_DENIED', message: '请在设置中开启全权限模式' }
+    })
+  }
+  next()
+})
+```
+
+注意：`import { store } from '../store.js'` 加到文件顶部的 import 区域。
+
+git commit: `feat(server): add permission check to file routes`
+
+### Step 3: 后端 - chat 路由根据权限增强系统提示词
+
+打开 `server/routes/chat.js`，把它**完全替换**成：
+
+```js
+import express from 'express'
+import { chatStream, DeepSeekError } from '../services/deepseek.js'
+import { store } from '../store.js'
+
+const router = express.Router()
+
+const BASE_PROMPT = '你是 AgentDev Lite，一个学生学习助手。用中文简洁专业地回答问题。涉及代码时给可运行示例。'
+
+const FULL_PERMISSION_PROMPT = `你是 AgentDev Lite，一个学生学习助手。用中文简洁专业地回答问题。涉及代码时给可运行示例。
+
+当前已开启【全权限模式】，你拥有以下文件操作能力：
+- 用户可以通过 /word 命令生成 Word 文档，支持引用本地文件作为参考：/word "文件路径" 指令
+- 用户可以通过 /ppt 命令生成 PPT 演示文稿，同样支持引用本地文件：/ppt "文件路径" 指令
+- 用户可以点击输入框左侧的 📎 按钮选择本地文件
+- 用户可以在右侧面板的"文件"标签页浏览本地文件系统
+- 生成的文件保存在本地，可以直接打开
+
+当用户询问文件相关的问题时，主动引导他们使用这些功能。例如：
+- "你可以用 /word 命令来生成文档，如果需要参考某个文件，点击 📎 按钮选择它"
+- "你可以在右侧面板的'文件'标签页浏览你的本地文件"
+- "试试 /ppt 帮我做个演示 来快速生成 PPT"`
+
+router.post('/', async (req, res) => {
+  const { messages = [] } = req.body || {}
+
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+  res.flushHeaders()
+
+  const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`)
+
+  try {
+    const config = store.getConfig()
+    const systemPrompt = config.permissionMode === 'full' ? FULL_PERMISSION_PROMPT : BASE_PROMPT
+
+    const fullMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages
+    ]
+    for await (const delta of chatStream({ messages: fullMessages })) {
+      send({ delta })
+    }
+    send({ done: true })
+  } catch (e) {
+    const payload = e instanceof DeepSeekError
+      ? { error: { code: e.code, message: e.message } }
+      : { error: { code: 'INTERNAL', message: e.message || '未知错误' } }
+    send(payload)
+  } finally {
+    res.end()
+  }
+})
+
+export default router
+```
+
+git commit: `feat(server): enhance chat system prompt in full permission mode`
+
+### Step 4: 前端 - SettingsPanel 添加权限模式切换
+
+打开 `client/src/panels/SettingsPanel.jsx`，**完全替换**成：
+
+```jsx
+import { useEffect, useState } from 'react'
+import { Shield, ShieldCheck } from 'lucide-react'
+import { getConfig, setConfig } from '../lib/api.js'
+
+const DEFAULT_FORM = {
+  apiKey: '',
+  baseUrl: 'https://api.deepseek.com',
+  model: 'deepseek-chat',
+  temperature: 0.7,
+  permissionMode: 'default'
+}
+
+export default function SettingsPanel() {
+  const [form, setForm] = useState(DEFAULT_FORM)
+  const [maskedKey, setMaskedKey] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    let ignored = false
+
+    async function loadConfig() {
+      try {
+        const r = await getConfig()
+        if (ignored || !r.config) return
+        setMaskedKey(r.config.apiKey || '')
+        const mode = r.config.permissionMode || 'default'
+        setForm({
+          apiKey: '',
+          baseUrl: r.config.baseUrl || DEFAULT_FORM.baseUrl,
+          model: r.config.model || DEFAULT_FORM.model,
+          temperature: r.config.temperature ?? DEFAULT_FORM.temperature,
+          permissionMode: mode
+        })
+        localStorage.setItem('agentdev-permission-mode', mode)
+      } catch (e) {
+        if (!ignored) setMsg('读取配置失败: ' + e.message)
+      }
+    }
+
+    loadConfig()
+    return () => { ignored = true }
+  }, [])
+
+  async function handleSave() {
+    setSaving(true)
+    setMsg('')
+    try {
+      const patch = {
+        ...form,
+        temperature: Number(form.temperature)
+      }
+      if (!patch.apiKey) delete patch.apiKey
+      const r = await setConfig(patch)
+      setMaskedKey(r.config?.apiKey || '')
+      setForm(current => ({ ...current, apiKey: '' }))
+      // 同步权限模式到 localStorage 并广播事件
+      const mode = r.config?.permissionMode || form.permissionMode
+      localStorage.setItem('agentdev-permission-mode', mode)
+      window.dispatchEvent(new CustomEvent('agentdev:permission-changed', { detail: { mode } }))
+      setMsg('已保存')
+      setTimeout(() => setMsg(''), 2000)
+    } catch (e) {
+      setMsg('保存失败: ' + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handlePermissionChange(mode) {
+    setForm(current => ({ ...current, permissionMode: mode }))
+  }
+
+  const isFull = form.permissionMode === 'full'
+
+  return (
+    <div className="p-6 space-y-5">
+      {/* 权限模式 */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold">权限模式</h2>
+        <div className="grid grid-cols-1 gap-2">
+          <button
+            type="button"
+            onClick={() => handlePermissionChange('default')}
+            className={`flex items-start gap-3 p-3 rounded-lg border text-left transition-colors ${
+              !isFull
+                ? 'border-[color:var(--accent)] bg-[color:var(--accent)]/5'
+                : 'border-[color:var(--border)] hover:bg-[color:var(--bg-tertiary)]'
+            }`}
+          >
+            <Shield size={18} className={!isFull ? 'text-[color:var(--accent)]' : 'text-[color:var(--text-muted)]'} />
+            <div>
+              <div className="text-sm font-medium">默认模式</div>
+              <div className="text-xs text-[color:var(--text-muted)] mt-0.5">
+                仅限对话和文档生成，不访问本地文件系统
+              </div>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => handlePermissionChange('full')}
+            className={`flex items-start gap-3 p-3 rounded-lg border text-left transition-colors ${
+              isFull
+                ? 'border-[color:var(--success)] bg-[color:var(--success)]/5'
+                : 'border-[color:var(--border)] hover:bg-[color:var(--bg-tertiary)]'
+            }`}
+          >
+            <ShieldCheck size={18} className={isFull ? 'text-[color:var(--success)]' : 'text-[color:var(--text-muted)]'} />
+            <div>
+              <div className="text-sm font-medium">全权限模式</div>
+              <div className="text-xs text-[color:var(--text-muted)] mt-0.5">
+                可浏览和引用本地文件，AI 主动协助文件操作
+              </div>
+            </div>
+          </button>
+        </div>
+        {isFull && (
+          <div className="text-xs text-[color:var(--warning,#f59e0b)] bg-[color:var(--warning,#f59e0b)]/5 rounded-md px-3 py-2">
+            全权限模式下，应用可以读取你电脑上的文件。请确保你信任当前的 AI 服务提供商。
+          </div>
+        )}
+      </div>
+
+      {/* 分隔线 */}
+      <div className="border-t border-[color:var(--border)]" />
+
+      {/* 模型配置 */}
+      <h2 className="text-lg font-semibold">模型配置</h2>
+
+      <div className="space-y-2">
+        <label className="text-xs text-[color:var(--text-muted)]">DeepSeek API Key</label>
+        <input
+          type="password"
+          value={form.apiKey}
+          onChange={e => setForm({ ...form, apiKey: e.target.value })}
+          placeholder={maskedKey || 'sk-...'}
+          className="w-full px-3 py-2 rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] text-sm focus:outline-none focus:border-[color:var(--accent)]"
+        />
+        {maskedKey && <div className="text-xs text-[color:var(--text-muted)]">当前: {maskedKey}</div>}
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs text-[color:var(--text-muted)]">Base URL</label>
+        <input
+          type="text"
+          value={form.baseUrl}
+          onChange={e => setForm({ ...form, baseUrl: e.target.value })}
+          className="w-full px-3 py-2 rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] text-sm focus:outline-none focus:border-[color:var(--accent)]"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs text-[color:var(--text-muted)]">模型名</label>
+        <select
+          value={form.model}
+          onChange={e => setForm({ ...form, model: e.target.value })}
+          className="w-full px-3 py-2 rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] text-sm focus:outline-none focus:border-[color:var(--accent)]"
+        >
+          <option value="deepseek-chat">deepseek-chat</option>
+          <option value="deepseek-reasoner">deepseek-reasoner</option>
+        </select>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs text-[color:var(--text-muted)]">Temperature: {form.temperature}</label>
+        <input
+          type="range"
+          min="0"
+          max="2"
+          step="0.1"
+          value={form.temperature}
+          onChange={e => setForm({ ...form, temperature: Number(e.target.value) })}
+          className="w-full"
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving}
+        className="w-full h-9 rounded-md bg-[color:var(--accent)] text-white text-sm font-medium disabled:opacity-50"
+      >
+        {saving ? '保存中...' : '保存'}
+      </button>
+      {msg && <div className="text-xs text-[color:var(--text-muted)]">{msg}</div>}
+    </div>
+  )
+}
+```
+
+git commit: `feat(client): add permission mode toggle to SettingsPanel`
+
+### Step 5: 前端 - 创建 FileBrowser 面板
+
+创建文件 `client/src/panels/FileBrowser.jsx`：
+
+```jsx
+import { useCallback, useEffect, useState } from 'react'
+import { ChevronRight, Folder, FileText, File, Home, ArrowUp, RefreshCw, HardDrive } from 'lucide-react'
+import { listFiles } from '../lib/api.js'
+
+const EXT_ICONS = {
+  '.docx': FileText,
+  '.doc': FileText,
+  '.pptx': FileText,
+  '.ppt': FileText,
+  '.pdf': FileText,
+  '.txt': FileText,
+  '.md': FileText
+}
+
+function getStartDir() {
+  // 默认 Documents 或桌面
+  if (window.electronAPI?.getPaths) {
+    return window.electronAPI.getPaths().then(p => p.documents || p.home || 'C:\\')
+  }
+  return Promise.resolve('C:\\')
+}
+
+export default function FileBrowser() {
+  const [currentDir, setCurrentDir] = useState('')
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [drives, setDrives] = useState([])
+
+  const loadDir = useCallback(async (dir) => {
+    setLoading(true)
+    setError('')
+    try {
+      const r = await listFiles(dir)
+      setItems(r.items || [])
+      setCurrentDir(dir)
+    } catch (e) {
+      setError(e.message || '无法读取目录')
+      setItems([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    getStartDir().then(dir => loadDir(dir))
+  }, [loadDir])
+
+  function handleNavigate(dirPath) {
+    loadDir(dirPath)
+  }
+
+  function handleUp() {
+    const parent = currentDir.replace(/[\\/][^\\/]+[\\/]?$/, '')
+    if (parent && parent !== currentDir) {
+      loadDir(parent)
+    }
+  }
+
+  function handleSelectFile(item) {
+    if (item.isDirectory) {
+      loadDir(item.path)
+      return
+    }
+    // 广播选中文件事件，InputBar 监听并插入路径
+    window.dispatchEvent(new CustomEvent('agentdev:file-selected', { detail: { path: item.path, name: item.name } }))
+  }
+
+  function formatSize(size) {
+    if (size == null) return ''
+    if (size < 1024) return `${size} B`
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  // 面包屑
+  const pathParts = currentDir.split(/[\\/]/).filter(Boolean)
+
+  return (
+    <div className="p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">文件浏览</h2>
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={handleUp} className="p-1.5 rounded hover:bg-[color:var(--bg-tertiary)]" title="上级目录">
+            <ArrowUp size={14} />
+          </button>
+          <button type="button" onClick={() => loadDir(currentDir)} className="p-1.5 rounded hover:bg-[color:var(--bg-tertiary)]" title="刷新">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {/* 快捷位置 */}
+      <div className="flex gap-1 flex-wrap">
+        {['C:\\', 'D:\\'].map(d => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => handleNavigate(d)}
+            className="h-7 px-2 text-xs rounded border border-[color:var(--border)] hover:bg-[color:var(--bg-tertiary)] flex items-center gap-1"
+          >
+            <HardDrive size={10} /> {d}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => getStartDir().then(d => handleNavigate(d))}
+          className="h-7 px-2 text-xs rounded border border-[color:var(--border)] hover:bg-[color:var(--bg-tertiary)] flex items-center gap-1"
+        >
+          <Home size={10} /> 文档
+        </button>
+      </div>
+
+      {/* 面包屑路径 */}
+      <div className="text-xs text-[color:var(--text-muted)] flex items-center gap-0.5 flex-wrap overflow-hidden">
+        {pathParts.map((part, i) => {
+          const fullPath = pathParts.slice(0, i + 1).join('\\')
+          const display = i === 0 ? part + '\\' : part
+          return (
+            <span key={i} className="flex items-center gap-0.5 shrink-0">
+              {i > 0 && <ChevronRight size={10} />}
+              <button
+                type="button"
+                onClick={() => handleNavigate(fullPath + (i === 0 ? '\\' : ''))}
+                className="hover:text-[color:var(--accent)] hover:underline truncate max-w-[120px]"
+                title={fullPath}
+              >
+                {display}
+              </button>
+            </span>
+          )
+        })}
+      </div>
+
+      {error && <div className="text-xs text-[color:var(--error)] py-2">{error}</div>}
+
+      {/* 文件列表 */}
+      <div className="space-y-0.5 max-h-[calc(100vh-300px)] overflow-y-auto">
+        {items.length === 0 && !loading && !error && (
+          <div className="text-xs text-[color:var(--text-muted)] py-8 text-center">空目录</div>
+        )}
+        {items.map(item => {
+          const IconComp = item.isDirectory ? Folder : (EXT_ICONS[item.ext] || File)
+          const iconColor = item.isDirectory ? 'text-[color:var(--accent)]' : 'text-[color:var(--text-muted)]'
+          return (
+            <button
+              key={item.path}
+              type="button"
+              onClick={() => handleSelectFile(item)}
+              className="w-full text-left px-2 py-1.5 rounded hover:bg-[color:var(--bg-tertiary)] flex items-center gap-2 group"
+            >
+              <IconComp size={14} className={`shrink-0 ${iconColor}`} />
+              <span className="flex-1 min-w-0 text-sm truncate">{item.name}</span>
+              {!item.isDirectory && item.size != null && (
+                <span className="text-xs text-[color:var(--text-muted)] shrink-0">{formatSize(item.size)}</span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="text-xs text-[color:var(--text-muted)] pt-2 border-t border-[color:var(--border)]">
+        点击文件可将路径插入到输入框中
+      </div>
+    </div>
+  )
+}
+```
+
+git commit: `feat(client): add FileBrowser panel for local file navigation`
+
+### Step 6: 前端 - RightDrawer 根据权限显示"文件"tab
+
+打开 `client/src/components/layout/RightDrawer.jsx`，**完全替换**成：
+
+```jsx
+import { useEffect, useState } from 'react'
+import { X } from 'lucide-react'
+import SettingsPanel from '../../panels/SettingsPanel.jsx'
+import ArtifactsPanel from '../../panels/ArtifactsPanel.jsx'
+import FileBrowser from '../../panels/FileBrowser.jsx'
+
+function usePermissionMode() {
+  const [mode, setMode] = useState(() => localStorage.getItem('agentdev-permission-mode') || 'default')
+
+  useEffect(() => {
+    function handleChange(e) {
+      setMode(e.detail?.mode || 'default')
+    }
+    window.addEventListener('agentdev:permission-changed', handleChange)
+    return () => window.removeEventListener('agentdev:permission-changed', handleChange)
+  }, [])
+
+  return mode
+}
+
+export default function RightDrawer({ view, onClose }) {
+  const permissionMode = usePermissionMode()
+  const [activeTab, setActiveTab] = useState(view || 'settings')
+
+  const tabs = [
+    { id: 'settings', label: '设置' },
+    ...(permissionMode === 'full' ? [{ id: 'files', label: '文件' }] : []),
+    { id: 'artifacts', label: '产物' }
+  ]
+
+  useEffect(() => {
+    if (view) setActiveTab(view)
+  }, [view])
+
+  // 如果切到了 files tab 但权限被关闭了，回退到 settings
+  useEffect(() => {
+    if (activeTab === 'files' && permissionMode !== 'full') {
+      setActiveTab('settings')
+    }
+  }, [permissionMode, activeTab])
+
+  if (!view) return null
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/20 z-10" onClick={onClose} />
+      <aside className="fixed top-0 right-0 h-full w-[360px] bg-[color:var(--bg-primary)] border-l border-[color:var(--border)] z-20 shadow-xl overflow-y-auto">
+        <div className="sticky top-0 bg-[color:var(--bg-primary)] border-b border-[color:var(--border)] z-10">
+          <div className="h-14 px-4 flex items-center justify-between">
+            <span className="font-medium">侧边面板</span>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded hover:bg-[color:var(--bg-tertiary)]"
+              aria-label="close drawer"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="px-4 pb-3 flex gap-2">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`h-8 px-3 rounded-md text-sm border ${
+                  activeTab === tab.id
+                    ? 'border-[color:var(--accent)] bg-[color:var(--bg-tertiary)] text-[color:var(--text-primary)]'
+                    : 'border-[color:var(--border)] text-[color:var(--text-muted)] hover:bg-[color:var(--bg-tertiary)]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {activeTab === 'settings' && <SettingsPanel />}
+        {activeTab === 'files' && permissionMode === 'full' && <FileBrowser />}
+        {activeTab === 'artifacts' && <ArtifactsPanel />}
+      </aside>
+    </>
+  )
+}
+```
+
+git commit: `feat(client): show FileBrowser tab in drawer when full permission`
+
+### Step 7: 前端 - InputBar 根据权限显示/隐藏附件按钮 + 监听文件选择事件
+
+打开 `client/src/components/chat/InputBar.jsx`，**完全替换**成：
+
+```jsx
+import { useEffect, useState } from 'react'
+import { Send, Paperclip } from 'lucide-react'
+import { useCommand } from '../../hooks/useCommand.js'
+import { parseCommandLine } from '../../lib/commands.js'
+import CommandPalette from './CommandPalette.jsx'
+
+function usePermissionMode() {
+  const [mode, setMode] = useState(() => localStorage.getItem('agentdev-permission-mode') || 'default')
+
+  useEffect(() => {
+    function handleChange(e) {
+      setMode(e.detail?.mode || 'default')
+    }
+    window.addEventListener('agentdev:permission-changed', handleChange)
+    return () => window.removeEventListener('agentdev:permission-changed', handleChange)
+  }, [])
+
+  return mode
+}
+
+export default function InputBar({ onSend, onCommand, disabled }) {
+  const [text, setText] = useState('')
+  const command = useCommand()
+  const permissionMode = usePermissionMode()
+  const isFull = permissionMode === 'full'
+
+  // 监听文件浏览器的文件选择事件
+  useEffect(() => {
+    function handleFileSelected(e) {
+      const filePath = e.detail?.path
+      if (!filePath) return
+      setText(current => {
+        const trimmed = current.trim()
+        if (trimmed.startsWith('/') && trimmed.includes(' ')) {
+          const spaceIdx = trimmed.indexOf(' ')
+          return `${trimmed.slice(0, spaceIdx + 1)}"${filePath}" ${trimmed.slice(spaceIdx + 1)}`
+        }
+        if (trimmed.startsWith('/')) {
+          return `${trimmed} "${filePath}" `
+        }
+        return `"${filePath}" ${trimmed}`.trim()
+      })
+    }
+    window.addEventListener('agentdev:file-selected', handleFileSelected)
+    return () => window.removeEventListener('agentdev:file-selected', handleFileSelected)
+  }, [])
+
+  function handleSelectCommand(cmd) {
+    setText(`/${cmd.id} `)
+    command.close()
+  }
+
+  function handleChange(e) {
+    const nextText = e.target.value
+    setText(nextText)
+
+    if (nextText.startsWith('/') && !nextText.includes(' ')) {
+      command.update(nextText)
+    } else {
+      command.close()
+    }
+  }
+
+  async function handleAttachFile() {
+    let filePath = null
+    if (window.electronAPI?.selectFile) {
+      filePath = await window.electronAPI.selectFile()
+    } else {
+      filePath = window.prompt('输入文件绝对路径:')
+    }
+    if (filePath) {
+      setText(current => {
+        const trimmed = current.trim()
+        if (trimmed.startsWith('/') && trimmed.includes(' ')) {
+          const spaceIdx = trimmed.indexOf(' ')
+          return `${trimmed.slice(0, spaceIdx + 1)}"${filePath}" ${trimmed.slice(spaceIdx + 1)}`
+        }
+        if (trimmed.startsWith('/')) {
+          return `${trimmed} "${filePath}" `
+        }
+        return `"${filePath}" ${trimmed}`.trim()
+      })
+    }
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    if (command.active && command.choose(handleSelectCommand)) return
+
+    const v = text.trim()
+    if (!v || disabled) return
+
+    const parsed = parseCommandLine(v)
+    if (parsed) {
+      onCommand?.(parsed)
+    } else {
+      onSend(v)
+    }
+    setText('')
+    command.close()
+  }
+
+  function handleKey(e) {
+    if (command.handleKeyDown(e, handleSelectCommand)) return
+
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit(e)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="border-t border-[color:var(--border)] bg-[color:var(--bg-secondary)] px-6 py-4">
+      <div className="relative flex items-end gap-3 bg-[color:var(--bg-primary)] border border-[color:var(--border)] rounded-xl px-3 py-2 focus-within:border-[color:var(--accent)]">
+        {command.active && (
+          <CommandPalette
+            matches={command.matches}
+            index={command.index}
+            onSelect={handleSelectCommand}
+            onHover={command.setIndex}
+          />
+        )}
+        {isFull && (
+          <button
+            type="button"
+            onClick={handleAttachFile}
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-tertiary)]"
+            aria-label="附件"
+            title="选择本地文件"
+          >
+            <Paperclip size={14} />
+          </button>
+        )}
+        <textarea
+          value={text}
+          onChange={handleChange}
+          onKeyDown={handleKey}
+          placeholder={isFull
+            ? '发送消息，"/" 触发命令，📎 选择文件，Shift+Enter 换行...'
+            : '发送消息，"/" 触发命令，Shift+Enter 换行...'
+          }
+          rows={1}
+          className="flex-1 resize-none bg-transparent outline-none text-sm max-h-40 py-1"
+        />
+        <button
+          type="submit"
+          disabled={disabled || !text.trim()}
+          className="h-8 w-8 flex items-center justify-center rounded-lg bg-[color:var(--accent)] text-white disabled:opacity-40"
+          aria-label="send"
+        >
+          <Send size={14} />
+        </button>
+      </div>
+    </form>
+  )
+}
+```
+
+git commit: `feat(client): permission-aware InputBar with file selection listener`
+
+### Step 8: 前端 - 确保 config GET 返回 permissionMode
+
+打开 `server/routes/config.js`，检查 GET 路由是否返回完整 config（包括 permissionMode）。如果 getMaskedConfig() 已经返回所有字段（应该是的，因为它展开了整个 config），就不需要改。
+
+**如果** getMaskedConfig 没有返回 permissionMode，在 store.js 的 getMaskedConfig 方法里确保包含它。检查一下，如果已经有就跳过。
+
+git commit（如果有改动）: `fix(server): ensure permissionMode in masked config`
+
+### Step 9: 验证
+
+1. `npm --prefix client run build` — 无错误
+2. 后台启 `npm run dev`，等 5-8 秒
+3. `curl --noproxy "*" http://localhost:8787/api/config` — 返回的 JSON 里应该有 `permissionMode` 字段（值为 "default"）
+4. `curl --noproxy "*" "http://localhost:8787/api/files/list?dir=D:/claude%20project/agentdev-lite"` — 应该返回 **403**（因为默认模式）
+5. 切换权限：`curl --noproxy "*" -X POST http://localhost:8787/api/config -H "Content-Type: application/json" -d "{\"permissionMode\":\"full\"}"` — 返回 ok
+6. 再次请求文件列表：`curl --noproxy "*" "http://localhost:8787/api/files/list?dir=D:/claude%20project/agentdev-lite"` — 这次应该返回 **200** + 文件列表
+7. 切回默认：`curl --noproxy "*" -X POST http://localhost:8787/api/config -H "Content-Type: application/json" -d "{\"permissionMode\":\"default\"}"` — 返回 ok
+8. kill 掉所有 node 进程
+
+最后停下来：
+1. 贴出上面 curl 验证结果（步骤 3-7 每步的 HTTP 状态码和关键响应）
+2. 输出 `npm --prefix client run build` 最后 5 行
+3. 输出 `git status` 和 `git log --oneline -15`
+4. 报告完成

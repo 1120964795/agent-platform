@@ -1,0 +1,42 @@
+你现在要执行 AgentDev Lite 项目的 Day 1 Pack G。
+
+前置：Pack F 已完成，后端 /api/word 能产出 .docx，/api/artifacts 能列产物。
+
+请打开并阅读这个 plan 文件：
+D:\claude project\agentdev-lite\docs\superpowers\plans\2026-04-10-agentdev-lite.md
+
+需要执行的任务：
+- Task 1.4（Client - lib/commands.js + useCommand hook + CommandPalette）
+- Task 1.5（Client - WordCard 三态组件）
+- Task 1.6（Client - FileCard）
+
+执行规则：
+1. 工作目录固定为 D:\claude project\agentdev-lite\。Windows 路径里有空格，shell 命令里所有路径都加双引号。
+2. lib/commands.js 必须导出 5 个命令的元数据（/word、/ppt、/paper、/plan、/schedule），**全部 5 个都写进去**——后续 Day 2/3/4 会用，现在不要图省事只写 /word。
+3. useCommand hook 必须支持键盘上下选择 + Enter 选中 + Esc 关闭，按 plan 实现，**不要换成鼠标点击 only**。
+4. CommandPalette 浮层定位用 absolute + bottom，参考 plan 里的 className。
+5. WordCard 三态：form / loading / done。state 转换走 useChat reducer 里的 updateCard action，**不要在 WordCard 里自己 useState 管状态**——理由：Day 4 的 PlanCard 需要外部强制重置卡片状态，只能走 reducer。
+6. WordCard 的"打开文件"按钮调用 lib/api.js 里的 openFile（GET /api/open-file），不要直接 window.open。
+7. FileCard 是一个通用文件展示组件（图标 + 文件名 + 大小 + 打开/下载按钮），WordCard done 状态会复用它。
+8. 每个 Task 末尾的 git commit 必须执行。
+9. 这个 Pack **不修改 InputBar / MessageList / ChatArea**——集成是 Pack H 的事。
+10. 验证时本机 curl 对 localhost 走代理会返回 502，带 `--noproxy "*"`。
+
+完成后必须验证：
+- `npm --prefix client install` 无错
+- 后台启 `npm --prefix client run dev`，等 3~5 秒看到 vite "Local: http://localhost:5173/"
+- curl 验证各组件文件能被 vite 编译返回（200 而非 404/500）：
+    curl --noproxy "*" -s -o /dev/null -w "%{http_code}" http://localhost:5173/src/lib/commands.js
+    curl --noproxy "*" -s -o /dev/null -w "%{http_code}" http://localhost:5173/src/hooks/useCommand.js
+    curl --noproxy "*" -s -o /dev/null -w "%{http_code}" http://localhost:5173/src/components/chat/CommandPalette.jsx
+    curl --noproxy "*" -s -o /dev/null -w "%{http_code}" http://localhost:5173/src/components/cards/WordCard.jsx
+    curl --noproxy "*" -s -o /dev/null -w "%{http_code}" http://localhost:5173/src/components/cards/FileCard.jsx
+  所有都应返回 200。
+- kill 掉 node 进程。
+- 跑 `git log --oneline`，应该比 Pack F 多 3 个 commit（共 21 个）。
+
+最后停下来：
+1. 贴出上面 5 个 curl 的 http_code
+2. 列出 client/src/components/cards/ 和 client/src/components/chat/ 和 client/src/hooks/ 和 client/src/lib/ 下的所有文件
+3. 输出 `git status` 和 `git log --oneline -25`
+4. 报告完成，**不要自动开 Pack H**。

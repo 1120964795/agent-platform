@@ -1,0 +1,71 @@
+你现在要执行 AgentDev Lite 项目的 Day 0 Pack E（最后一个 Day 0 包）。
+
+前置：Pack A/B/C/D 已完成（14 个 commit），能看到 layout 外壳和设置面板。
+
+请打开并阅读这个 plan 文件：
+D:\claude project\agentdev-lite\docs\superpowers\plans\2026-04-10-agentdev-lite.md
+
+需要执行的任务：
+- Task 0.15（useChat hook + ChatArea + MessageBubble + InputBar）
+- Task 0.16（Day 0 验收）中**除端到端 API 调用以外**的所有步骤
+
+执行规则：
+1. 工作目录固定为 D:\claude project\agentdev-lite\。Windows 路径里有空格，shell 命令里所有路径都加双引号。
+2. useChat 必须用 useReducer，按 plan 里的 reducer 完整照搬，**不要换成 useState**。理由：后续 Day 1+ 的 cards 状态机依赖这套 reducer。
+3. lib/api.js 里的 streamChat（SSE 流封装）在 Pack C 已经写好了，useChat 直接调用即可，**不要重新实现 SSE 解析**。
+4. ChatArea / MessageList / MessageBubble / InputBar 的文件路径严格按 plan：client/src/components/chat/。
+5. InputBar 这阶段只要支持 Enter 发送 + Shift+Enter 换行，**不要加 / 命令补全**——slash command 是 Day 1 的事。
+6. MessageBubble 这阶段渲染纯文本即可，**不要加 markdown 渲染**——markdown 是 Day 3 的事。
+7. App.jsx 里把通用对话 Assistant 默认选中，主区域渲染 ChatArea。
+8. 每个 Task 末尾的 git commit 必须执行。
+9. 验证时本机 curl 对 localhost 走代理会返回 502，带 `--noproxy "*"`。
+
+**重要：端到端真实 API 测试由用户在浏览器里做，你不要尝试调用 DeepSeek。**
+流程是：
+a) 你完成 Task 0.15 所有代码 + commit
+b) 你做非 API 冒烟验证（见下）
+c) 你打印给用户的操作说明，然后停下来等用户报告结果
+d) **暂时不要** `git tag day0-complete`——tag 等用户确认端到端通过后再打。
+
+完成后必须做的非 API 验证：
+- 后台启 `npm run dev`，等 5~8 秒。
+- `curl --noproxy "*" http://localhost:5173/` 拿到 HTML。
+- `curl --noproxy "*" http://localhost:5173/src/components/chat/ChatArea.jsx` 和同目录下 MessageList.jsx / MessageBubble.jsx / InputBar.jsx、以及 client/src/hooks/useChat.js（按 plan 路径为准）都能被 vite 编译返回 200。
+- `curl --noproxy "*" http://localhost:8787/api/health` 返回 ok。
+- kill 掉所有 node 进程。
+- 跑 `git log --oneline`，应该比 Pack D 多 1 个 commit（共 15 个，Task 0.16 的 tag/finalize commit 留到用户验收之后再打）。
+
+最后停下来做一件事：**给用户打印如下端到端操作清单**，一字不差（可以适当中文润色，但步骤顺序必须一样），然后停，**不要自动继续、不要自己打 tag**：
+
+==========================================
+Pack E 代码部分已完成，请在浏览器里做 Day 0 端到端验收：
+
+1. 启动：在项目根目录运行
+     npm run dev
+   等 server 和 client 都启起来，看到 vite 的 "Local: http://localhost:5173/" 提示。
+
+2. 填 API Key：打开 http://localhost:5173，点右上角 ⚙ 设置按钮，
+   右侧 SettingsPanel 里 apiKey 字段填你的真 DeepSeek key，
+   model 保持 deepseek-chat，点"保存"。
+   刷新页面，确认 apiKey 字段被 mask 成 "***" 或类似。
+
+3. 第一轮对话：左侧 Sidebar 选"通用对话"（默认就是），
+   在底部输入框打 "你好，用一句话介绍你自己" 回车。
+   你应该看到：
+     a) 用户气泡立刻出现
+     b) AI 气泡的文字**逐字流式**出现（不是一次性弹整段）
+     c) 流结束后下方还能继续输入第二条
+
+4. 第二轮对话：再输入 "那我刚才问的第一个问题是什么？"
+   AI 应该能 reference 上一轮（证明 conversation 历史被持久化并传给 API）。
+
+5. 刷新验证：关掉前端标签页，重新打开 http://localhost:5173，
+   对话历史应该还在（store.js 的 JSON 持久化生效）。
+
+6. 全部 OK 后，Ctrl+C 停掉 npm run dev，回来告诉你的 orchestrator
+   "Day 0 端到端验收通过"，orchestrator 会打最后的 day0-complete tag。
+
+如果中间任何一步失败：停下，把错误贴出来，**不要自己改 plan 里的代码绕过去**。
+==========================================
+
+打印完上面的清单后，再输出 `git status` 和 `git log --oneline -20`，然后停止。

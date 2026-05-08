@@ -1,0 +1,41 @@
+你现在要执行 AgentDev Lite 项目的 Day 0 Pack B。
+
+前置：Pack A 已完成，仓库里已经有 server/index.js（占位版）、server/package.json、根 package.json、git 仓库已初始化，根目录和 server/ 的 node_modules 都已安装好。
+
+请打开并阅读这个 plan 文件：
+D:\claude project\agentdev-lite\docs\superpowers\plans\2026-04-10-agentdev-lite.md
+
+需要执行的任务，**严格按顺序**：
+- Task 0.4（Server - store.js 持久化层）
+- Task 0.5（Server - services/deepseek.js LLM 客户端）
+- Task 0.6（Server - routes/config.js）
+- Task 0.7（Server - routes/chat.js 流式 SSE）
+- Task 0.8（Server - index.js 挂路由，会**覆盖** Pack A 里写的占位 index.js）
+
+执行规则：
+1. 工作目录固定为 D:\claude project\agentdev-lite\。Windows 路径里有空格，shell 命令里所有路径都加双引号。
+2. 每个 Task 的 Step 顺序执行，代码完整照搬 plan，**不要简化任何函数**，特别是 deepseek.js 里的 chatStream / parseJsonStrict / chatJson。
+3. 每个 Task 末尾的 git commit 必须执行，commit message 完整照抄。
+4. 如果 plan 里的代码引用了其它文件（比如 routes/chat.js 引用 services/deepseek.js），用相对路径，照搬 import 语句。
+5. 数据目录：plan 里的 store.js 会自动创建 data/ 目录，不要手动建。
+6. **不要修改 plan 里的任何 prompt 文本**（中文系统提示词原样保留）。
+7. 不要触碰 client/ 目录。
+
+完成后必须验证（不要把 server 一直挂着，验完立刻关掉）：
+- 启动后端：在后台启动 `npm --prefix server run dev`，等 2~3 秒让它打印 "[server] running on http://localhost:8787"。
+- 在另一个终端跑：
+    curl http://localhost:8787/api/health
+  应该返回 `{"ok":true,"version":"0.1.0"}` 或类似。
+- 跑：
+    curl http://localhost:8787/api/config
+  应该返回 JSON，apiKey 字段被 mask 成 "***" 或空字符串。
+- 跑（不需要真 key，只验证路由通）：
+    curl -X POST http://localhost:8787/api/config -H "Content-Type: application/json" -d "{\"apiKey\":\"sk-test\",\"model\":\"deepseek-chat\"}"
+  应该返回 ok。
+- 关闭后端进程（taskkill /F /IM node.exe 或 kill PID 都行）。
+- 跑 `git log --oneline`，应该比 Pack A 多 5 个 commit（共 8 个）。
+
+最后停下来：
+1. 贴出上面所有 curl 命令的实际响应
+2. 输出 `git status` 和 `git log --oneline -10`
+3. 报告完成，**不要自动开 Pack C**。
