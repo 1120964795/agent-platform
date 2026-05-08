@@ -24,6 +24,22 @@ const DEFAULT_CONFIG = {
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
   model: 'deepseek-chat',
+  qwenApiKey: '',
+  qwenBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  qwenPrimaryModel: 'qwen-max-latest',
+  qwenCodingModel: 'qwen3-coder-plus',
+  fallbackProvider: '',
+  fallbackModel: 'deepseek-chat',
+  deepseekApiKey: '',
+  deepseekBaseUrl: 'https://api.deepseek.com',
+  openInterpreterCommand: '',
+  openInterpreterEndpoint: '',
+  uiTarsEndpoint: '',
+  uiTarsCommand: '',
+  uiTarsScreenAuthorized: false,
+  dryRunEnabled: true,
+  auditRetentionDays: 30,
+  outputRetentionDays: 30,
   temperature: 0.7,
   permissionMode: 'default',
   workspace_root: os.homedir(),
@@ -86,10 +102,12 @@ const store = {
 
   getMaskedConfig() {
     const config = this.getConfig()
-    const key = config.apiKey || ''
+    const mask = (key = '') => key.length > 10 ? `${key.slice(0, 6)}***${key.slice(-4)}` : (key ? '***' : '')
     return {
       ...config,
-      apiKey: key.length > 10 ? `${key.slice(0, 6)}***${key.slice(-4)}` : (key ? '***' : '')
+      apiKey: mask(config.apiKey || ''),
+      qwenApiKey: mask(config.qwenApiKey || ''),
+      deepseekApiKey: mask(config.deepseekApiKey || '')
     }
   },
 

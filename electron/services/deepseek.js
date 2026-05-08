@@ -37,7 +37,7 @@ function normalizeTools(tools = []) {
 function buildBody({ messages, json = false, temperature = 0.7, stream = false, tools }) {
   const config = store.getConfig()
   return {
-    model: config.model || 'deepseek-chat',
+    model: config.fallbackModel || config.model || 'deepseek-chat',
     messages,
     temperature,
     stream,
@@ -77,13 +77,15 @@ function messageToChatResult(message = {}) {
 
 async function postChat(body, timeout = 60000) {
   const config = store.getConfig()
-  if (!config.apiKey) throw new DeepSeekError('DEEPSEEK_AUTH', 'API key is not configured.')
+  const apiKey = config.deepseekApiKey || config.apiKey
+  const baseUrl = (config.deepseekBaseUrl || config.baseUrl || 'https://api.deepseek.com').replace(/\/+$/, '')
+  if (!apiKey) throw new DeepSeekError('DEEPSEEK_AUTH', 'API key is not configured.')
   let resp
   try {
-    resp = await getFetch()(`${config.baseUrl}/v1/chat/completions`, {
+    resp = await getFetch()(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body),
