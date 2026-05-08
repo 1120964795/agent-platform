@@ -1,4 +1,5 @@
 const { store } = require('../store')
+const { sanitizeConfigPatch } = require('./config')
 const qwenProvider = require('../services/models/qwenProvider')
 const deepseekProvider = require('../services/models/deepseekProvider')
 const oiBootstrap = require('../services/openInterpreter/bootstrap')
@@ -33,7 +34,10 @@ function register(ipcMain) {
     try { return ok({ runtimes: await runtimeStatus() }) } catch (error) { return fail(error) }
   })
   ipcMain.handle('runtime:configure', async (_event, payload = {}) => {
-    try { return ok({ config: store.setConfig(payload) }) } catch (error) { return fail(error) }
+    try {
+      store.setConfig(sanitizeConfigPatch(payload))
+      return ok({ config: store.getMaskedConfig() })
+    } catch (error) { return fail(error) }
   })
   ipcMain.handle('runtime:bootstrap', async (_event, payload = {}) => {
     try { return ok({ runtime: await bootstrapRuntime(payload.runtime) }) } catch (error) { return fail(error) }

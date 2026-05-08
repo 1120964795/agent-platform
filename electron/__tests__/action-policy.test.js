@@ -51,3 +51,10 @@ test('requires active screen authorization for UI-TARS input', () => {
   expect(allowed.risk).toBe('high')
   expect(allowed.requiresConfirmation).toBe(true)
 })
+
+test('allows dry-run GUI simulation without real screen authorization', () => {
+  const result = evaluateAction({ runtime: 'aionui-dry-run', type: 'mouse.click', payload: { x: 1, y: 2 } }, { uiTarsScreenAuthorized: false })
+  expect(result.blocked).toBe(false)
+  expect(result.risk).toBe('high')
+  expect(result.requiresConfirmation).toBe(true)
+})

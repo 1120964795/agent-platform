@@ -61,6 +61,10 @@ function fileRisk(action) {
 }
 
 function uiRisk(action, config = {}) {
+  if (action.runtime === 'aionui-dry-run') {
+    if (action.type === ACTION_TYPES.SCREEN_OBSERVE || action.type === ACTION_TYPES.SCREEN_REGION_SELECT) return { risk: RISK_LEVELS.LOW, reason: 'Dry-run screen simulation.' }
+    return { risk: RISK_LEVELS.HIGH, reason: 'Dry-run GUI input simulation still requires confirmation.' }
+  }
   if (action.type === ACTION_TYPES.SCREEN_OBSERVE || action.type === ACTION_TYPES.SCREEN_REGION_SELECT) {
     if (!config.uiTarsScreenAuthorized) return { risk: RISK_LEVELS.HIGH, reason: 'Screen authorization is required before observation.' }
     return { risk: RISK_LEVELS.LOW, reason: 'Authorized screen observation.' }

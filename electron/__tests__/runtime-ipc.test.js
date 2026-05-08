@@ -25,3 +25,12 @@ test('runtime bootstrap returns expected failure wrapper for unknown runtime', a
   expect(result.ok).toBe(false)
   expect(result.error.message).toContain('Unknown runtime')
 })
+
+test('runtime configure sanitizes and masks provider keys', async () => {
+  const ipcMain = ipc()
+  runtime.register(ipcMain)
+  const result = await ipcMain.handlers.get('runtime:configure')({}, { qwenApiKey: 'sk-qwen-secret-value' })
+  expect(result.ok).toBe(true)
+  expect(result.config.qwenApiKey).toContain('***')
+  expect(result.config.qwenApiKey).not.toContain('secret-value')
+})
