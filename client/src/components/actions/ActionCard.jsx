@@ -7,7 +7,7 @@ function payloadText(payload) {
 }
 
 export default function ActionCard({ action, onApprove, onDeny, compact = false }) {
-  const canDecide = action.status === 'pending'
+  const canDecide = action.status === 'pending' && onApprove && onDeny
   return (
     <div className="rounded-md border border-[color:var(--border)] bg-[color:var(--bg-secondary)] p-3">
       <div className="flex items-start justify-between gap-3">

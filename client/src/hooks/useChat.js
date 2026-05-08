@@ -26,6 +26,8 @@ function reducer(state, action) {
           return { ...message, ...action.patch, logs }
         })
       }
+    case 'ADD_ACTIONS':
+      return { ...state, messages: [...state.messages, { id: uid(), role: 'actions', title: action.title, actions: action.actions || [] }] }
     case 'CLEAR':
       return initialState
     default:
@@ -82,7 +84,7 @@ export function useChat(conversationId) {
     }
   }, [])
 
-  const sendUserMessage = useCallback((text) => {
+  const sendUserMessage = useCallback((text, options = {}) => {
     const convId = conversationIdRef.current
     if (!convId) return
 
@@ -110,7 +112,7 @@ export function useChat(conversationId) {
 
     abortRef.current = api.stream({
       channel: 'chat:send',
-      payload: { convId, messages: history },
+      payload: { convId, messages: history, mode: options.mode || 'chat' },
       onDelta: (delta) => {
         assistantContent += delta
         dispatch({ type: 'APPEND_DELTA', id: assistantId, delta })
@@ -134,6 +136,13 @@ export function useChat(conversationId) {
       },
       onSkillLoaded: (event) => {
         dispatch({ type: 'ADD', msg: { id: uid(), role: 'skill', skillName: event.name } })
+      },
+      onActionPlan: (event) => {
+        dispatch({ type: 'ADD_ACTIONS', title: event.dryRun ? 'Dry-run action plan' : 'Action plan', actions: event.actions || [] })
+      },
+      onActionUpdate: (event) => {
+        window.dispatchEvent(new CustomEvent('aionui:actions-changed'))
+        dispatch({ type: 'ADD_ACTIONS', title: 'Action progress', actions: event.actions || [] })
       },
       onDone: finish,
       onError: (error) => {

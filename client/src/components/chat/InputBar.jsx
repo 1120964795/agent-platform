@@ -1,36 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Send, Paperclip } from 'lucide-react'
-import { useCommand } from '../../hooks/useCommand.js'
-import { parseCommandLine } from '../../lib/commands.js'
-import CommandPalette from './CommandPalette.jsx'
-
-function usePermissionMode() {
-  const [mode, setMode] = useState(() => localStorage.getItem('agentdev-permission-mode') || 'default')
-  useEffect(() => {
-    function handleChange(event) {
-      setMode(event.detail?.mode || 'default')
-    }
-    window.addEventListener('agentdev:permission-changed', handleChange)
-    return () => window.removeEventListener('agentdev:permission-changed', handleChange)
-  }, [])
-  return mode
-}
+import { MessageSquare, Paperclip, Play, Send } from 'lucide-react'
 
 function insertPath(current, filePath) {
   const trimmed = current.trim()
-  if (trimmed.startsWith('/') && trimmed.includes(' ')) {
-    const spaceIdx = trimmed.indexOf(' ')
-    return `${trimmed.slice(0, spaceIdx + 1)}"${filePath}" ${trimmed.slice(spaceIdx + 1)}`
-  }
-  if (trimmed.startsWith('/')) return `${trimmed} "${filePath}" `
   return `"${filePath}" ${trimmed}`.trim()
 }
 
-export default function InputBar({ onSend, onCommand, disabled }) {
+export default function InputBar({ mode = 'chat', onModeChange, onSend, disabled }) {
   const [text, setText] = useState('')
-  const command = useCommand()
-  const permissionMode = usePermissionMode()
-  const isFull = permissionMode === 'full'
 
   useEffect(() => {
     function handleFileSelected(event) {
@@ -41,18 +18,6 @@ export default function InputBar({ onSend, onCommand, disabled }) {
     return () => window.removeEventListener('agentdev:file-selected', handleFileSelected)
   }, [])
 
-  function handleSelectCommand(cmd) {
-    setText(`/${cmd.id} `)
-    command.close()
-  }
-
-  function handleChange(event) {
-    const nextText = event.target.value
-    setText(nextText)
-    if (nextText.startsWith('/') && !nextText.includes(' ')) command.update(nextText)
-    else command.close()
-  }
-
   async function handleAttachFile() {
     const filePath = window.electronAPI?.selectFile
       ? await window.electronAPI.selectFile()
@@ -62,38 +27,43 @@ export default function InputBar({ onSend, onCommand, disabled }) {
 
   function handleSubmit(event) {
     event.preventDefault()
-    if (command.active && command.choose(handleSelectCommand)) return
     const value = text.trim()
     if (!value || disabled) return
-    const parsed = parseCommandLine(value)
-    if (parsed) onCommand?.(parsed)
-    else onSend(value)
+    onSend(value)
     setText('')
-    command.close()
   }
 
   function handleKey(event) {
-    if (command.handleKeyDown(event, handleSelectCommand)) return
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       handleSubmit(event)
     }
   }
 
+  const isExecute = mode === 'execute'
+
   return (
     <form onSubmit={handleSubmit} className="border-t border-[color:var(--border)] bg-[color:var(--bg-secondary)] px-6 py-4">
-      <div className="relative flex items-end gap-3 bg-[color:var(--bg-primary)] border border-[color:var(--border)] rounded-lg px-3 py-2 focus-within:border-[color:var(--accent)]">
-        {command.active && <CommandPalette matches={command.matches} index={command.index} onSelect={handleSelectCommand} onHover={command.setIndex} />}
-        {isFull && (
-          <button type="button" onClick={handleAttachFile} className="h-8 w-8 flex items-center justify-center rounded-md text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-tertiary)]" aria-label="Attach file" title="Attach local file path">
-            <Paperclip size={14} />
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="inline-flex rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] p-1">
+          <button type="button" onClick={() => onModeChange?.('chat')} className={`h-8 px-3 rounded text-sm inline-flex items-center gap-1 ${!isExecute ? 'bg-[color:var(--accent)] text-white' : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-tertiary)]'}`}>
+            <MessageSquare size={14} /> Chat
           </button>
-        )}
+          <button type="button" onClick={() => onModeChange?.('execute')} className={`h-8 px-3 rounded text-sm inline-flex items-center gap-1 ${isExecute ? 'bg-[color:var(--accent)] text-white' : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-tertiary)]'}`}>
+            <Play size={14} /> Execute
+          </button>
+        </div>
+        <div className="text-xs text-[color:var(--text-muted)]">{isExecute ? 'Qwen plans. AionUi asks before risky actions.' : 'Plain chat. No action is executed from this input.'}</div>
+      </div>
+      <div className="flex items-end gap-3 bg-[color:var(--bg-primary)] border border-[color:var(--border)] rounded-md px-3 py-2 focus-within:border-[color:var(--accent)]">
+        <button type="button" onClick={handleAttachFile} className="h-8 w-8 flex items-center justify-center rounded-md text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--bg-tertiary)]" aria-label="Attach file" title="Attach local file path">
+          <Paperclip size={14} />
+        </button>
         <textarea
           value={text}
-          onChange={handleChange}
+          onChange={(event) => setText(event.target.value)}
           onKeyDown={handleKey}
-          placeholder={isFull ? 'Describe the task naturally, e.g. summarize "D:\\docs\\paper.pdf" or install uv. Shift+Enter for newline.' : 'Send a message. Shift+Enter for newline.'}
+          placeholder={isExecute ? 'Describe the task AionUi should plan and broker.' : 'Send a message. Shift+Enter for newline.'}
           rows={1}
           className="flex-1 resize-none bg-transparent outline-none text-sm max-h-40 py-1"
         />

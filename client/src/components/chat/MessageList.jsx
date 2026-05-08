@@ -6,6 +6,7 @@ import SkillBadge from './SkillBadge.jsx'
 import WordCard from '../cards/WordCard.jsx'
 import PptCard from '../cards/PptCard.jsx'
 import FileCard from '../cards/FileCard.jsx'
+import ActionCard from '../actions/ActionCard.jsx'
 
 export default function MessageList({ messages }) {
   const endRef = useRef(null)
@@ -32,6 +33,14 @@ export default function MessageList({ messages }) {
         }
         if (message.role === 'skill') {
           return <SkillBadge key={message.id} name={message.skillName} />
+        }
+        if (message.role === 'actions') {
+          return (
+            <div key={message.id} className="my-3 max-w-[820px] space-y-2">
+              <div className="text-xs font-medium uppercase text-[color:var(--text-muted)]">{message.title || 'Actions'}</div>
+              {(message.actions || []).map((action) => <ActionCard key={action.id} action={action} compact={false} />)}
+            </div>
+          )
         }
         if (message.role === 'card') {
           if (message.cardType === 'word') return <WordCard key={message.id} msg={message} />

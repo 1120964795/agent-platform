@@ -33,7 +33,7 @@ export default function ToolCard({ message }) {
       >
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         <StatusIcon status={status} />
-        <span className="text-sm font-medium">{message.toolName || 'tool'}</span>
+        <span className="text-sm font-medium">Compatibility tool: {message.toolName || 'tool'}</span>
         <span className="ml-auto text-xs text-[color:var(--text-muted)]">{status}</span>
       </button>
       {open && (
