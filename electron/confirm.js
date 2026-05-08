@@ -12,6 +12,8 @@ async function defaultDialogProvider({ kind, payload }) {
   const window = BrowserWindow?.getFocusedWindow?.()
   const detail = kind === 'shell-command'
     ? `Command:\n${payload.command}\n\nWorking directory:\n${payload.cwd || ''}`
+    : kind === 'action-proposal'
+      ? `Action:\n${payload.title || payload.type || ''}\n\nRisk: ${payload.risk || ''}\n\n${JSON.stringify(payload.payload || {}, null, 2)}`
     : JSON.stringify(payload, null, 2)
   const result = await dialog.showMessageBox(window, {
     type: 'warning',
@@ -52,4 +54,8 @@ async function requestConfirm({ kind, payload = {} }) {
   return allowed
 }
 
-module.exports = { requestConfirm, setDialogProvider, clearConfirmCache, shellCommandKey }
+async function requestActionConfirm(action) {
+  return requestConfirm({ kind: 'action-proposal', payload: action })
+}
+
+module.exports = { requestConfirm, requestActionConfirm, setDialogProvider, clearConfirmCache, shellCommandKey }
