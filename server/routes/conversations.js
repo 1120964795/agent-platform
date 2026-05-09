@@ -10,6 +10,10 @@ function normalizeMessages(messages) {
     .map(m => ({ role: m.role, content: m.content }))
 }
 
+router.get('/', (_req, res) => {
+  res.json({ ok: true, conversations: store.listConversations() })
+})
+
 router.get('/:id', (req, res) => {
   const conversation = store.getConversation(req.params.id)
   if (!conversation) {
@@ -23,7 +27,8 @@ router.get('/:id', (req, res) => {
 })
 
 router.post('/', (req, res) => {
-  const { id, title, assistant = 'general', messages = [] } = req.body || {}
+  const payload = req.body || {}
+  const { id, title, assistant = 'general' } = payload
   if (!id) {
     res.status(400).json({
       ok: false,
@@ -34,13 +39,14 @@ router.post('/', (req, res) => {
 
   const now = new Date().toISOString()
   const existing = store.getConversation(id)
+  const hasMessages = Object.prototype.hasOwnProperty.call(payload, 'messages')
   const conversation = {
     id,
     title: title || existing?.title || '通用对话',
     assistant,
     createdAt: existing?.createdAt || now,
     updatedAt: now,
-    messages: normalizeMessages(messages)
+    messages: hasMessages ? normalizeMessages(payload.messages) : (existing?.messages || [])
   }
 
   res.json({ ok: true, conversation: store.upsertConversation(conversation) })

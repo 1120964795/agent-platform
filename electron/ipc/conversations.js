@@ -18,18 +18,19 @@ function register(ipcMain) {
   })
 
   ipcMain.handle('conversations:upsert', async (_event, payload = {}) => {
-    const { id, title, assistant = 'general', messages = [] } = payload
+    const { id, title, assistant = 'general' } = payload
     if (!id) return { ok: false, error: { code: 'BAD_REQUEST', message: '需要提供对话 ID。' } }
 
     const now = new Date().toISOString()
     const existing = store.getConversation(id)
+    const hasMessages = Object.prototype.hasOwnProperty.call(payload, 'messages')
     const conversation = {
       id,
       title: title || existing?.title || '新对话',
       assistant,
       createdAt: existing?.createdAt || now,
       updatedAt: now,
-      messages: normalizeMessages(messages)
+      messages: hasMessages ? normalizeMessages(payload.messages) : (existing?.messages || [])
     }
 
     return { ok: true, conversation: store.upsertConversation(conversation) }

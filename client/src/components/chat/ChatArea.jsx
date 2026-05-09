@@ -2,8 +2,8 @@ import { useChat } from '../../hooks/useChat.js'
 import MessageList from './MessageList.jsx'
 import InputBar from './InputBar.jsx'
 
-export default function ChatArea({ conversationId, mode, onModeChange }) {
-  const { messages, streaming, sendUserMessage, updateCard, addFileCard } = useChat(conversationId)
+export default function ChatArea({ conversationId, mode, onModeChange, onConversationUpdated }) {
+  const { messages, streaming, sendUserMessage, updateCard, addFileCard } = useChat(conversationId, { onConversationUpdated })
 
   function handleSend(text) {
     sendUserMessage(text, { mode })

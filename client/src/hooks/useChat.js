@@ -40,11 +40,13 @@ function makeTitle(messages) {
   return firstUser?.content.slice(0, 24) || '新对话'
 }
 
-export function useChat(conversationId) {
+export function useChat(conversationId, options = {}) {
+  const { onConversationUpdated } = options
   const [state, dispatch] = useReducer(reducer, initialState)
   const abortRef = useRef(null)
   const conversationIdRef = useRef(conversationId)
   const toolMessageIdsRef = useRef(new Map())
+  conversationIdRef.current = conversationId
 
   useEffect(() => {
     if (!conversationId) return undefined
@@ -78,11 +80,12 @@ export function useChat(conversationId) {
 
   const saveConversation = useCallback(async (convId, messages) => {
     try {
-      await api.post('/api/conversations', { id: convId, title: makeTitle(messages), assistant: 'general', messages })
+      const response = await api.post('/api/conversations', { id: convId, title: makeTitle(messages), assistant: 'general', messages })
+      onConversationUpdated?.(response.conversation)
     } catch (error) {
       console.error('[chat] 保存对话失败:', error)
     }
-  }, [])
+  }, [onConversationUpdated])
 
   const sendUserMessage = useCallback((text, options = {}) => {
     const convId = conversationIdRef.current

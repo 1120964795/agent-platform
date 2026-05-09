@@ -30,6 +30,7 @@ function parseUrl(url) {
 async function get(url) {
   if (url === '/api/config') return invoke('config:get')
   if (url === '/api/artifacts') return invoke('artifacts:list')
+  if (url === '/api/conversations') return invoke('conversations:list')
   if (url.startsWith('/api/conversations/')) return invoke('conversations:get', { id: decodeURIComponent(url.slice('/api/conversations/'.length)) })
   if (url.startsWith('/api/files/list')) {
     const parsed = parseUrl(url)
@@ -103,6 +104,7 @@ export const api = {
 
 export function getConfig() { return invoke('config:get') }
 export function setConfig(patch) { return invoke('config:set', patch) }
+export function listConversations() { return invoke('conversations:list') }
 export function listSkills() { return invoke('skills:list') }
 export function reloadSkills() { return invoke('skills:reload') }
 export function createSkill(payload) { return invoke('skills:create', payload) }

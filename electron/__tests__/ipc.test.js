@@ -76,6 +76,33 @@ test('conversation upsert and get handlers round trip data', async () => {
   expect(result.conversation.messages).toEqual([{ role: 'user', content: 'hi' }])
 })
 
+test('conversation upsert without messages preserves existing chat history', async () => {
+  const ipcMain = createIpcMain()
+  registerAll(ipcMain)
+
+  await ipcMain.handlers.get('conversations:upsert')({}, {
+    id: 'conv-keep',
+    title: 'Original',
+    messages: [
+      { role: 'user', content: 'first question' },
+      { role: 'assistant', content: 'first answer' }
+    ]
+  })
+
+  await ipcMain.handlers.get('conversations:upsert')({}, {
+    id: 'conv-keep',
+    title: 'Renamed'
+  })
+
+  const result = await ipcMain.handlers.get('conversations:get')({}, { id: 'conv-keep' })
+  expect(result.ok).toBe(true)
+  expect(result.conversation.title).toBe('Renamed')
+  expect(result.conversation.messages).toEqual([
+    { role: 'user', content: 'first question' },
+    { role: 'assistant', content: 'first answer' }
+  ])
+})
+
 test('files:list returns directory entries in full permission mode', async () => {
   const root = path.join(TMP, 'files')
   fs.mkdirSync(root, { recursive: true })
