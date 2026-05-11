@@ -17,6 +17,26 @@ function reducer(state, action) {
       return { ...state, streaming: false, messages: state.messages.map((message) => message.id === action.id ? { ...message, streaming: false } : message) }
     case 'UPDATE_CARD':
       return { ...state, messages: state.messages.map((message) => message.id === action.id ? { ...message, cardState: action.cardState, cardData: action.cardData ?? message.cardData } : message) }
+    case 'ADD_CONFIRMATION':
+      return { ...state, messages: [...state.messages, action.msg] }
+    case 'UPDATE_CONFIRMATION':
+      return {
+        ...state,
+        messages: state.messages.map((message) => (
+          message.type === 'confirmation' && message.confirmation?.callId === action.callId
+            ? { ...message, confirmationStatus: action.status }
+            : message
+        ))
+      }
+    case 'CLEAR_CONFIRMATIONS':
+      return {
+        ...state,
+        messages: state.messages.map((message) => (
+          message.type === 'confirmation' && message.confirmationStatus === 'pending'
+            ? { ...message, confirmationStatus: action.status }
+            : message
+        ))
+      }
     case 'CLEAR':
       return initialState
     default:
@@ -46,6 +66,16 @@ function appendActionSummary(actions = []) {
     const status = action.status || 'pending'
     return `- ${title}: ${status}`
   }).join('\n')
+}
+
+function formatConfirmationContent(pending) {
+  const args = JSON.stringify(pending.args || {}, null, 2)
+  return [
+    `需要确认高风险操作: ${pending.toolName}`,
+    `风险原因: ${pending.reason || 'high risk operation'}`,
+    '参数:',
+    args
+  ].join('\n')
 }
 
 export function useChat(conversationId) {
@@ -194,9 +224,23 @@ export function useChat(conversationId) {
       },
       onConfirmationRequest: (event) => {
         setPendingConfirmation(event.pending)
+        dispatch({
+          type: 'ADD_CONFIRMATION',
+          msg: {
+            id: `confirm-${event.pending.callId}`,
+            role: 'assistant',
+            type: 'confirmation',
+            content: formatConfirmationContent(event.pending),
+            confirmation: event.pending,
+            confirmationStatus: 'pending'
+          }
+        })
       },
-      onConfirmationCleared: () => {
+      onConfirmationCleared: (event) => {
         setPendingConfirmation(null)
+        if (event?.reason === 'timeout' || event?.reason === 'aborted' || event?.reason === 'run-ended') {
+          dispatch({ type: 'CLEAR_CONFIRMATIONS', status: event.reason === 'timeout' ? 'timeout' : 'rejected' })
+        }
       },
       onDone: finish,
       onError: (error) => {
@@ -208,6 +252,24 @@ export function useChat(conversationId) {
       }
     })
   }, [pendingConfirmation, state.messages, saveConversation])
+
+  const respondToConfirmation = useCallback((approved) => {
+    const convId = conversationIdRef.current
+    const pending = pendingConfirmation
+    if (!convId || !pending) return
+    dispatch({ type: 'UPDATE_CONFIRMATION', callId: pending.callId, status: approved ? 'confirmed' : 'rejected' })
+    api.invoke('chat:send', { convId, confirmationReply: true, approved }).then((result) => {
+      if (result.status === 'confirmed' || result.status === 'rejected' || result.status === 'missing') {
+        setPendingConfirmation(null)
+      }
+      if (result.assistantText) {
+        dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', content: result.assistantText } })
+      }
+    }).catch((error) => {
+      dispatch({ type: 'UPDATE_CONFIRMATION', callId: pending.callId, status: 'pending' })
+      dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', content: `[确认失败] ${error.message}` } })
+    })
+  }, [pendingConfirmation])
 
   const handleAbort = useCallback(() => {
     const convId = conversationIdRef.current
@@ -243,5 +305,5 @@ export function useChat(conversationId) {
   }, [])
   const clear = useCallback(() => dispatch({ type: 'CLEAR' }), [])
 
-  return { ...state, agentRunning, pendingConfirmation, sendUserMessage, handleAbort, sendCommand, addCard, updateCard, addFileCard, clear }
+  return { ...state, agentRunning, pendingConfirmation, sendUserMessage, respondToConfirmation, handleAbort, sendCommand, addCard, updateCard, addFileCard, clear }
 }

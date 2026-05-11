@@ -81,6 +81,11 @@ async function handleConfirmationReply(evt, payload = {}) {
   const pending = pendingConfirmations.get(convId)
   if (!pending) return { ok: true, status: 'missing', assistantText: buildNoPendingMessage() }
 
+  if (typeof payload.approved === 'boolean') {
+    settlePendingConfirmation(convId, payload.approved, payload.approved ? 'confirmed' : 'rejected')
+    return { ok: true, status: payload.approved ? 'confirmed' : 'rejected' }
+  }
+
   const classification = classifyConfirmationReply(message)
   if (classification === 'confirm') {
     settlePendingConfirmation(convId, true, 'confirmed')

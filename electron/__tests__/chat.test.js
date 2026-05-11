@@ -126,6 +126,41 @@ test('chat:send waits for high-risk confirmation through a natural chat reply', 
   expect(send).toHaveBeenCalledWith('chat:done', { convId: 'conv-1' })
 })
 
+test('chat confirmation accepts explicit approved boolean from renderer choices', async () => {
+  const ipcMain = createIpcMain()
+  const send = vi.fn()
+  const call = { id: 'call-choice', name: 'desktop_task', args: { goal: 'open qq' } }
+  const decision = { risk: 'high', reason: 'desktop automation' }
+  let approvedValue
+  const runTurn = vi.fn(async ({ requestApproval }) => {
+    approvedValue = await requestApproval({ call, decision })
+    return { finalText: approvedValue ? 'approved' : 'denied', history: [] }
+  })
+  const register = createRegister({
+    storeRef: { getConfig: () => ({ permissionMode: 'default' }) },
+    runTurn,
+    userRules: { buildSystemPromptSection: () => '' },
+    skillRegistry: { listSkills: () => [], buildSkillIndex: () => '', findSkill: () => null }
+  })
+  register(ipcMain)
+
+  const pending = ipcMain.handlers.get('chat:send')({ sender: { send } }, {
+    convId: 'conv-choice',
+    messages: [{ role: 'user', content: 'open qq' }]
+  })
+  await Promise.resolve()
+
+  const reply = await ipcMain.handlers.get('chat:send')({ sender: { send } }, {
+    convId: 'conv-choice',
+    confirmationReply: true,
+    approved: true
+  })
+
+  expect(reply).toEqual({ ok: true, status: 'confirmed' })
+  await pending
+  expect(approvedValue).toBe(true)
+})
+
 test('normal chat:send while confirmation is pending returns clarification without starting a new run', async () => {
   const ipcMain = createIpcMain()
   const send = vi.fn()

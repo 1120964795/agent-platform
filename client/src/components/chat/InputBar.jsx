@@ -107,8 +107,7 @@ export default function InputBar({ onSend, disabled, agentRunning, pendingConfir
     <form onSubmit={handleSubmit} className="border-t border-[color:var(--border)] bg-[color:var(--bg-secondary)] px-6 py-4">
       {pendingConfirmation && (
         <div className="mb-2 flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          <span className="min-w-0 truncate">Waiting for confirmation: {pendingConfirmation.toolName}</span>
-          <span className="shrink-0 text-amber-700">确认 / 可以 / 同意 / 继续</span>
+          <span className="min-w-0 truncate">等待确认：{pendingConfirmation.toolName}，请选择聊天消息中的“确定”或“取消”。</span>
         </div>
       )}
       <div className="flex items-end gap-3 bg-[color:var(--bg-primary)] border border-[color:var(--border)] rounded-md px-3 py-2 focus-within:border-[color:var(--accent)]">

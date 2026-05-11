@@ -275,6 +275,7 @@ describe('unified chat UI wiring', () => {
 
     expect(useChat).toContain('pendingConfirmation')
     expect(useChat).toContain('confirmationReply: true')
+    expect(useChat).toContain('respondToConfirmation')
     expect(useChat).toContain('onConfirmationRequest')
     expect(useChat).toContain('onConfirmationCleared')
     expect(useChat).toContain('setPendingConfirmation(null)')
@@ -288,15 +289,20 @@ describe('unified chat UI wiring', () => {
   test('InputBar exposes pending confirmation status and installed skill slash picker', () => {
     const input = readProjectFile('client/src/components/chat/InputBar.jsx')
     const chatArea = readProjectFile('client/src/components/chat/ChatArea.jsx')
+    const messageBubble = readProjectFile('client/src/components/chat/MessageBubble.jsx')
 
     expect(input).toContain('pendingConfirmation')
     expect(input).toContain('CommandPalette')
     expect(input).toContain('useCommand(skills)')
-    expect(input).toContain('Waiting for confirmation')
+    expect(input).toContain('等待确认')
+    expect(input).toContain('请选择')
     expect(input).toContain('listSkills')
     expect(chatArea).toContain('pendingConfirmation')
+    expect(chatArea).toContain('respondToConfirmation')
     expect(chatArea).toContain('parseSkillCommandLine')
     expect(chatArea).toContain('forcedSkill')
+    expect(messageBubble).toContain('确定')
+    expect(messageBubble).toContain('取消')
   })
 
   test('MessageList renders chat stream entries instead of approval tool and action cards', () => {

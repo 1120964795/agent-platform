@@ -1,5 +1,26 @@
-export default function MessageBubble({ message, role, content, streaming }) {
+export default function MessageBubble({ message, role, content, streaming, onRespondConfirmation }) {
   const isToolProgressStream = message?.type === 'tool_progress' || message?.type?.startsWith('tool_')
+
+  if (message?.type === 'confirmation') {
+    const disabled = message.confirmationStatus !== 'pending'
+    return (
+      <div className="flex justify-start mb-4">
+        <div className="max-w-[75%] px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap break-words bg-[color:var(--bg-secondary)] text-[color:var(--text-primary)] rounded-bl-sm border border-[color:var(--border)]">
+          <div>{content}</div>
+          <div className="mt-3 flex gap-3">
+            <button type="button" disabled={disabled} onClick={() => onRespondConfirmation?.(true)} className="inline-flex items-center gap-2 rounded-full border border-[color:var(--accent)] px-3 py-1 text-xs disabled:opacity-60">
+              <span className="h-3 w-3 rounded-full border border-current" />
+              确定
+            </button>
+            <button type="button" disabled={disabled} onClick={() => onRespondConfirmation?.(false)} className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-1 text-xs disabled:opacity-60">
+              <span className="h-3 w-3 rounded-full border border-current" />
+              取消
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (message?.stream && message.type === 'reasoning_summary') {
     return (

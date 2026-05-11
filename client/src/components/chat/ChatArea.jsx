@@ -8,7 +8,7 @@ import InputBar from './InputBar.jsx'
 import { loadModel } from './ModelSelector.jsx'
 
 export default function ChatArea({ conversationId }) {
-  const { messages, streaming, agentRunning, pendingConfirmation, sendUserMessage, handleAbort, updateCard, addFileCard } = useChat(conversationId)
+  const { messages, streaming, agentRunning, pendingConfirmation, sendUserMessage, respondToConfirmation, handleAbort, updateCard, addFileCard } = useChat(conversationId)
   const [selectedModel, setSelectedModel] = useState(loadModel)
   const [pluginMode, setPluginMode] = useState(null)
   const [skills, setSkills] = useState([])
@@ -43,6 +43,7 @@ export default function ChatArea({ conversationId }) {
     <div className="flex-1 flex flex-col min-h-0">
       <MessageList
         messages={messages}
+        onRespondConfirmation={respondToConfirmation}
         onUpdateCard={updateCard}
         onFileGenerated={addFileCard}
       />
