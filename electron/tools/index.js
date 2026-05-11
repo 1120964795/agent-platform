@@ -36,6 +36,10 @@ function loadBuiltins() {
   require('./desktopObserve')
   require('./desktopClick')
   require('./desktopType')
+  require('./desktopHotkey')
+  require('./desktopScroll')
+  require('./desktopWait')
+  require('./desktopTask')
 }
 
 function getExecutionToolSchemas() {

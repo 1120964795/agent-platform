@@ -1,4 +1,4 @@
-import { test, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vitest'
 import { createRequire } from 'module'
 
 const require = createRequire(import.meta.url)
@@ -10,25 +10,24 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-const { healthCheck, execute } = require('../services/desktop/adapter')
+const { healthCheck, execute, cancel, endpoint, PORT } = require('../services/desktop/adapter')
 
-test('healthCheck returns available when bridge responds ok', async () => {
+test('desktop adapter points to the desktop-use bridge', () => {
+  expect(PORT).toBe(8790)
+  expect(endpoint()).toBe('http://127.0.0.1:8790')
+})
+
+test('healthCheck returns available when desktop-use responds ok', async () => {
   fetchMock.mockResolvedValueOnce({
-    json: async () => ({ ok: true, runtime: 'ui-tars', agentReady: true }),
+    json: async () => ({ ok: true, runtime: 'desktop-use', ready: true }),
   })
 
   const result = await healthCheck()
   expect(result.available).toBe(true)
+  expect(result.detail.runtime).toBe('desktop-use')
 })
 
-test('healthCheck returns unavailable on fetch error', async () => {
-  fetchMock.mockRejectedValueOnce(new Error('ECONNREFUSED'))
-
-  const result = await healthCheck()
-  expect(result.available).toBe(false)
-})
-
-test('execute returns ok on successful bridge response', async () => {
+test('execute posts desktop-use action with approval and session id', async () => {
   fetchMock.mockResolvedValueOnce({
     ok: true,
     json: async () => ({
@@ -36,20 +35,68 @@ test('execute returns ok on successful bridge response', async () => {
       exitCode: 0,
       stdout: '',
       stderr: '',
-      metadata: { screenshotBase64: 'abc123', mime: 'image/png' },
-      durationMs: 500,
+      metadata: { action: { type: 'hotkey' } },
+      durationMs: 12,
     }),
   })
 
-  const result = await execute({ type: 'screen.observe', payload: {} })
+  const result = await execute(
+    { type: 'desktop.hotkey', payload: { keys: ['CTRL', 'S'] } },
+    { sessionId: 'conversation-1' }
+  )
+
   expect(result.ok).toBe(true)
-  expect(result.metadata.screenshotBase64).toBe('abc123')
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+  const [url, request] = fetchMock.mock.calls[0]
+  expect(url).toBe('http://127.0.0.1:8790/execute')
+  expect(request.method).toBe('POST')
+  expect(JSON.parse(request.body)).toMatchObject({
+    type: 'desktop.hotkey',
+    payload: { keys: ['CTRL', 'S'] },
+    approved: true,
+    sessionId: 'conversation-1',
+  })
+  expect(JSON.parse(request.body).actionId).toMatch(/^desktop-/)
 })
 
-test('execute returns BRIDGE_UNREACHABLE on fetch error', async () => {
-  fetchMock.mockRejectedValueOnce(new Error('ECONNREFUSED'))
+test('execute cancels the desktop-use task when aborted', async () => {
+  const controller = new AbortController()
+  fetchMock.mockImplementationOnce((_url, request) => {
+    expect(request.signal).toBe(controller.signal)
+    controller.abort()
+    return Promise.reject(new DOMException('Aborted', 'AbortError'))
+  })
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
 
-  const result = await execute({ type: 'mouse.click', payload: { target: 'button' } })
+  const result = await execute(
+    { type: 'desktop.task', payload: { goal: 'Open Notepad' } },
+    { signal: controller.signal, sessionId: 'conversation-2' }
+  )
+
   expect(result.ok).toBe(false)
-  expect(result.error.code).toBe('BRIDGE_UNREACHABLE')
+  expect(result.error.code).toBe('ABORTED')
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://127.0.0.1:8790/cancel',
+    expect.objectContaining({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: 'conversation-2' }),
+    })
+  )
+})
+
+test('cancel posts session cancellation to desktop-use bridge', async () => {
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
+
+  const result = await cancel({ sessionId: 'conversation-3' })
+
+  expect(result.ok).toBe(true)
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://127.0.0.1:8790/cancel',
+    expect.objectContaining({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: 'conversation-3' }),
+    })
+  )
 })

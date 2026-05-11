@@ -207,6 +207,42 @@ test('code_execute credential + exfil → blocked', () => {
   expect(r.risk).toBe('blocked')
 })
 
+// --- desktop-use tools ---
+
+test('desktop observe and wait are low risk without approval', () => {
+  const observe = evaluateToolCall('desktop_observe', {}, ctx)
+  const wait = evaluateToolCall('desktop_wait', { ms: 250 }, ctx)
+
+  expect(observe.risk).toBe('low')
+  expect(observe.requiresApproval).toBe(false)
+  expect(wait.risk).toBe('low')
+  expect(wait.requiresApproval).toBe(false)
+})
+
+test('desktop click drag type and task are high risk and require approval', () => {
+  for (const [tool, args] of [
+    ['desktop_click', { target: 'Submit' }],
+    ['desktop_drag', { from: { x: 1, y: 2 }, to: { x: 3, y: 4 } }],
+    ['desktop_type', { text: 'hello' }],
+    ['desktop_task', { goal: 'Open Notepad' }],
+  ]) {
+    const r = evaluateToolCall(tool, args, ctx)
+    expect(r.risk).toBe('high')
+    expect(r.requiresApproval).toBe(true)
+  }
+})
+
+test('desktop hotkey and scroll are medium risk without approval', () => {
+  for (const [tool, args] of [
+    ['desktop_hotkey', { keys: ['CTRL', 'S'] }],
+    ['desktop_scroll', { direction: 'down', amount: 3 }],
+  ]) {
+    const r = evaluateToolCall(tool, args, ctx)
+    expect(r.risk).toBe('medium')
+    expect(r.requiresApproval).toBe(false)
+  }
+})
+
 // --- unknown tool ---
 
 test('unknown tool → blocked', () => {

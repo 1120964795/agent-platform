@@ -1,25 +1,25 @@
 const { register } = require('./index')
 const { healthCheck, execute } = require('../services/desktop/adapter')
 
-async function desktopObserve(args, context = {}) {
+async function desktopObserve(_args, context = {}) {
   const health = await healthCheck()
   if (!health.available) {
     return {
       error: {
         code: 'RUNTIME_UNAVAILABLE',
-        message: 'UI-TARS 桌面运行时不可用。请确认 uitars-bridge (port 8765) 已启动并且 Doubao vision 模型已配置。',
+        message: 'Desktop-use runtime is unavailable. Make sure desktop-use-bridge is running on port 8790.',
         detail: health.detail,
       },
     }
   }
 
   const result = await execute(
-    { type: 'screen.observe', payload: {} },
-    { signal: context.signal, sessionId: context.sessionId }
+    { type: 'desktop.observe', payload: {} },
+    { signal: context.signal, sessionId: context.sessionId || context.convId }
   )
 
   if (!result.ok) {
-    return { error: result.error || { code: 'OBSERVE_FAILED', message: '屏幕截图失败。' } }
+    return { error: result.error || { code: 'OBSERVE_FAILED', message: 'Desktop screenshot failed.' } }
   }
 
   return {

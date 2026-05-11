@@ -2,21 +2,36 @@ const { register } = require('./index')
 const { healthCheck, execute } = require('../services/desktop/adapter')
 const { requestConfirm } = require('../confirm')
 
-async function desktopClick(args, context = {}) {
-  const { target } = args
+function hasNumber(value) {
+  return Number.isFinite(Number(value))
+}
 
-  if (!target || typeof target !== 'string') {
-    return { error: { code: 'INVALID_ARGS', message: '需要提供 target 参数（点击目标的自然语言描述）。' } }
+function buildPayload(args = {}) {
+  const target = typeof args.target === 'string' ? args.target.trim() : ''
+  if (target) return { target }
+  if (hasNumber(args.x) && hasNumber(args.y)) {
+    return {
+      x: Number(args.x),
+      y: Number(args.y),
+      button: args.button || 'left',
+    }
+  }
+  return null
+}
+
+async function desktopClick(args, context = {}) {
+  const payload = buildPayload(args)
+  if (!payload) {
+    return { error: { code: 'INVALID_ARGS', message: 'desktop_click requires target or x/y coordinates.' } }
   }
 
-  // High-risk operation — confirm with user
   if (!context.skipInternalConfirm) {
     const allowed = await requestConfirm({
       kind: 'desktop-click',
-      payload: { target },
+      payload,
     })
     if (!allowed) {
-      return { error: { code: 'USER_CANCELLED', message: '用户已取消桌面点击操作。' } }
+      return { error: { code: 'USER_CANCELLED', message: 'Desktop click cancelled by user.' } }
     }
   }
 
@@ -25,23 +40,23 @@ async function desktopClick(args, context = {}) {
     return {
       error: {
         code: 'RUNTIME_UNAVAILABLE',
-        message: 'UI-TARS 桌面运行时不可用。请确认 uitars-bridge (port 8765) 已启动。',
+        message: 'Desktop-use runtime is unavailable. Make sure desktop-use-bridge is running on port 8790.',
         detail: health.detail,
       },
     }
   }
 
   const result = await execute(
-    { type: 'mouse.click', payload: { target } },
-    { signal: context.signal, sessionId: context.sessionId }
+    { type: 'desktop.click', payload },
+    { signal: context.signal, sessionId: context.sessionId || context.convId }
   )
 
   if (!result.ok) {
-    return { error: result.error || { code: 'CLICK_FAILED', message: '桌面点击失败。' } }
+    return { error: result.error || { code: 'CLICK_FAILED', message: 'Desktop click failed.' } }
   }
 
   return {
-    target,
+    ...payload,
     exit_code: result.exitCode,
     duration_ms: result.durationMs,
     metadata: result.metadata,
@@ -50,14 +65,17 @@ async function desktopClick(args, context = {}) {
 
 register({
   name: 'desktop_click',
-  description: 'Click on a UI element on the desktop screen identified by a natural-language description. The AI vision model will locate the element and click it. Args: target (required) — natural-language description of what to click (e.g., "the blue Submit button in the bottom right", "the Chrome icon on the taskbar").',
+  description: 'Click on the desktop by natural-language target or explicit coordinates. Args: target (optional) describes the UI element, or x/y coordinates with optional button.',
   parameters: {
     type: 'object',
     properties: {
       target: { type: 'string', description: 'Natural-language description of the element to click.' },
+      x: { type: 'number', description: 'Screen x coordinate.' },
+      y: { type: 'number', description: 'Screen y coordinate.' },
+      button: { type: 'string', enum: ['left', 'right'], description: 'Mouse button. Default: left.' },
     },
-    required: ['target'],
+    required: [],
   },
 }, desktopClick)
 
-module.exports = { desktopClick }
+module.exports = { desktopClick, buildPayload }

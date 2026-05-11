@@ -122,7 +122,22 @@ function evaluateToolCall(name, args = {}, ctx = {}) {
       return { risk: RISK_LEVELS.HIGH, reason: '桌面点击会操作真实应用程序。' }
 
     case 'desktop_type':
-      return { risk: RISK_LEVELS.MEDIUM, reason: '桌面输入会在当前焦点处输入文本。' }
+      return { risk: RISK_LEVELS.HIGH, reason: '桌面输入会在当前焦点处输入文本。' }
+
+    case 'desktop_wait':
+      return { risk: RISK_LEVELS.LOW, reason: '桌面等待不会执行点击或输入。' }
+
+    case 'desktop_hotkey':
+      return { risk: RISK_LEVELS.MEDIUM, reason: '桌面快捷键可能影响当前应用程序。' }
+
+    case 'desktop_scroll':
+      return { risk: RISK_LEVELS.MEDIUM, reason: '桌面滚动会操作当前应用程序。' }
+
+    case 'desktop_drag':
+      return { risk: RISK_LEVELS.HIGH, reason: '桌面拖拽会操作真实应用程序。' }
+
+    case 'desktop_task':
+      return { risk: RISK_LEVELS.HIGH, reason: 'desktop-use 任务会自动操作真实桌面应用程序。' }
 
     default:
       return { risk: RISK_LEVELS.BLOCKED, reason: `未知工具：${name}` }
