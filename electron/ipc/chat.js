@@ -5,6 +5,7 @@ const skillRegistry = require('../skills/registry')
 const userRules = require('../services/userRules')
 const { runTurn } = require('../services/agentLoop')
 const { requestConfirm } = require('../confirm')
+const desktopCursorOverlay = require('../services/desktopCursorOverlay')
 const {
   CONFIRMATION_TIMEOUT_MS,
   classifyConfirmationReply,
@@ -116,6 +117,23 @@ function buildSystemPrompt(config, deps) {
 async function handleChatSend(evt, payload = {}, deps) {
   const { convId, messages = [], model, pluginMode, forcedSkill } = payload
   const send = (event, data = {}) => evt.sender.send(event, { convId, ...data })
+  let usedDesktopOverlay = false
+  const getOverlay = () => deps.desktopCursorOverlay?.getDesktopCursorOverlay?.() || desktopCursorOverlay.getDesktopCursorOverlay?.()
+  const handleDesktopEvents = (result) => {
+    const events = result?.metadata?.events || result?.events || []
+    if (!events.length) return
+    const overlay = getOverlay()
+    if (!overlay) return
+    usedDesktopOverlay = true
+    overlay.show?.()
+    for (const event of events) overlay.handleEvent?.(event)
+  }
+  const hideDesktopOverlaySoon = () => {
+    if (!usedDesktopOverlay) return
+    const overlay = getOverlay()
+    const timer = setTimeout(() => overlay?.hide?.(), 1200)
+    timer.unref?.()
+  }
   if (payload.confirmationReply) {
     return handleConfirmationReply(evt, payload)
   }
@@ -169,6 +187,7 @@ async function handleChatSend(evt, payload = {}, deps) {
           }
         } else if (type === 'tool_result') {
           send('chat:tool-result', { callId: data.call.id, result: data.result })
+          if (data.call.name === 'desktop_task') handleDesktopEvents(data.result)
           if (data.call.name === 'load_skill' && hasUsefulSkillLoadResult(data.result)) {
             send('chat:skill-loaded', { name: data.call.args.name })
           }
@@ -219,10 +238,12 @@ async function handleChatSend(evt, payload = {}, deps) {
     const finalText = result.finalText || ''
     if (finalText && !sentText.trimEnd().endsWith(finalText.trim())) sendDelta(finalText)
     send('chat:done', {})
+    hideDesktopOverlaySoon()
     return { ok: true }
   } catch (error) {
     const code = error instanceof deps.DeepSeekError ? error.code : 'INTERNAL'
     send('chat:error', { error: { code, message: error.message || '未知错误' } })
+    getOverlay()?.hide?.()
     return { ok: true }
   } finally {
     activeControllers.delete(convId)
@@ -250,6 +271,7 @@ function createRegister(overrides = {}) {
       const ctl = activeControllers.get(payload.convId)
       if (ctl) ctl.abort()
       clearPendingConfirmation(payload.convId, 'aborted')
+      deps.desktopCursorOverlay?.getDesktopCursorOverlay?.()?.hide?.()
       return { ok: true }
     })
   }

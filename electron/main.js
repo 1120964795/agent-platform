@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, screen } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { registerAll } = require('./ipc')
@@ -6,6 +6,7 @@ const { createSupervisor } = require('./services/bridgeSupervisor')
 const { setSupervisor } = require('./ipc/bridgeStatus')
 const { setBridgeContext } = require('./ipc/setupStatus')
 const { store } = require('./store')
+const { createCursorOverlayController, setDesktopCursorOverlay } = require('./services/desktopCursorOverlay')
 
 const isDev = !app.isPackaged
 let mainWindow = null
@@ -89,6 +90,7 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  setDesktopCursorOverlay(createCursorOverlayController({ BrowserWindow, screen }))
   registerAll(ipcMain)
   supervisor = createSupervisor()
   setSupervisor(supervisor)

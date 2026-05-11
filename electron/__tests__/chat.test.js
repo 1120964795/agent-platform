@@ -66,6 +66,37 @@ test('chat:send forwards unified agent loop tool events', async () => {
   expect(send).toHaveBeenCalledWith('chat:done', { convId: 'conv-1' })
 })
 
+test('chat:send forwards desktop task cursor events to overlay', async () => {
+  const ipcMain = createIpcMain()
+  const send = vi.fn()
+  const overlay = { show: vi.fn(), hide: vi.fn(), handleEvent: vi.fn() }
+  const cursorEvent = { type: 'cursor.move', x: 12, y: 34 }
+  const runTurn = vi.fn(async ({ onEvent }) => {
+    onEvent('tool_result', {
+      call: { id: 'desktop-call', name: 'desktop_task', args: { goal: 'open qq' } },
+      result: { metadata: { events: [cursorEvent] } }
+    })
+    return { finalText: 'done', history: [] }
+  })
+  const register = createRegister({
+    storeRef: { getConfig: () => ({ permissionMode: 'default' }) },
+    runTurn,
+    userRules: { buildSystemPromptSection: () => '' },
+    skillRegistry: { listSkills: () => [], buildSkillIndex: () => '' },
+    desktopCursorOverlay: { getDesktopCursorOverlay: () => overlay }
+  })
+  register(ipcMain)
+
+  await ipcMain.handlers.get('chat:send')({ sender: { send } }, {
+    convId: 'conv-desktop-overlay',
+    messages: [{ role: 'user', content: 'open qq' }],
+    pluginMode: 'desktop'
+  })
+
+  expect(overlay.show).toHaveBeenCalled()
+  expect(overlay.handleEvent).toHaveBeenCalledWith(cursorEvent)
+})
+
 test('chat:send waits for high-risk confirmation through a natural chat reply', async () => {
   const ipcMain = createIpcMain()
   const send = vi.fn()
