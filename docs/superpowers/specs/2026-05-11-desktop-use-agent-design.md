@@ -11,6 +11,7 @@ AionUi should keep the current chat-first product and replace the thin UI-TARS-o
 - Better general desktop control on Windows first, with a path to macOS/Linux.
 - Better GUI-agent intelligence through observe-act-verify loops, reflection, and retry.
 - Compatibility with GPT-compatible relay endpoints, matching the browser-use direction.
+- Codex-style activation from the existing plugin menu, matching the current browser-use entry.
 - Continued integration with existing tool policy, high-risk chat confirmation, abort, audit, and conversation history.
 
 This is not a full migration to UI-TARS-desktop. The current project remains the host application.
@@ -35,6 +36,8 @@ The bridge currently exposes only:
 
 Browser automation is already on a stronger track through `browser-use-bridge`, so this design mirrors that pattern for desktop automation.
 
+Current browser-use activation is user-driven from the chat input plugin menu. Desktop-use must follow the same product pattern: the user opens the plugin menu, selects Computer Use / Desktop Use, and the next chat task runs with `pluginMode = 'desktop'`. It should not appear as a separate page, card workflow, or always-on automation mode.
+
 ## 3. References
 
 These projects inform the design, but none should be copied wholesale into the app:
@@ -56,6 +59,7 @@ The bridge owns desktop runtime details. Electron owns product policy, user conf
 
 ```
 Chat input
+  -> plugin menu selects desktop-use
   -> electron/services/agentLoop.js
   -> desktop tool call
   -> electron/services/desktop/adapter.js
@@ -70,6 +74,21 @@ Chat input
 ```
 
 The current `uitars-bridge` can remain temporarily as a backend during migration, but it should no longer be the public Computer-use abstraction.
+
+### 4.1 Activation Model
+
+Desktop-use is started the same way current browser-use is started:
+
+1. User opens the `+` menu in the chat input.
+2. User enters the `插件` submenu.
+3. User selects `Computer Use` / `Desktop Use`.
+4. `InputBar` sets `pluginMode` to `desktop`.
+5. `ChatArea` sends the user's message with `{ pluginMode: 'desktop' }`.
+6. `electron/ipc/chat.js` routes that turn to the desktop runtime by forcing `desktop_task` or enabling the desktop tool catalog for that turn.
+
+This mirrors the Codex-style plugin picker: explicit mode selection, then natural-language chat. The user should not need to type a slash command to activate Computer-use, though slash skills may still coexist.
+
+When desktop-use is selected, the model chip should show a compact desktop runtime label, similar to the existing browser-use model chip. Leaving desktop-use or switching model should clear `pluginMode`, consistent with browser-use behavior.
 
 ## 5. Components
 
@@ -192,6 +211,8 @@ The planner can use GPT relay-compatible OpenAI Chat Completions with image inpu
 - `desktopUseModel`
 - `desktopUseGroundingBackend`
 
+If these fields are empty, desktop-use can initially fall back to the browser-use endpoint/key only when the user explicitly enables that fallback in settings. The default settings copy should keep them separate so browser and desktop failures are easier to diagnose.
+
 ### 5.5 Electron Tool Surface
 
 Keep existing tool names for compatibility, but route them to the new adapter:
@@ -254,6 +275,14 @@ Phase 2: Route current tools
 - Keep response shape compatible with existing `desktopObserve/Click/Type`.
 - Verify current chat/tool tests still pass.
 
+Phase 2.5: Plugin menu activation
+
+- Add a `Computer Use` / `Desktop Use` item beside the existing browser-use plugin entry.
+- Set `pluginMode = 'desktop'` when selected.
+- Show a compact desktop runtime chip in the model selector area.
+- Send `{ pluginMode: 'desktop' }` with the chat payload.
+- Route `pluginMode === 'desktop'` to `desktop_task` or equivalent desktop-enabled agent behavior.
+
 Phase 3: Grounding
 
 - Add grounding interface.
@@ -286,7 +315,9 @@ The upgrade is complete when:
 7. User abort stops an active desktop task.
 8. High-risk actions pause for chat confirmation.
 9. Existing browser-use flow remains unchanged.
-10. Focused tests and renderer build pass.
+10. User can activate desktop-use from the same plugin menu pattern as browser-use.
+11. Switching away from desktop-use clears `pluginMode`.
+12. Focused tests and renderer build pass.
 
 ## 10. Non-goals
 
@@ -295,6 +326,7 @@ The upgrade is complete when:
 - Do not require a local open-source vision model.
 - Do not remove current `desktop_observe`, `desktop_click`, and `desktop_type` tool names.
 - Do not change browser-use behavior.
+- Do not create a separate Computer-use page or card-first workflow; activation belongs in the chat plugin menu.
 
 ## 11. Open Implementation Choices
 
@@ -305,4 +337,3 @@ Default choices for implementation unless changed later:
 - UI-TARS grounding first, because current project already depends on it.
 - OmniParser integration later, behind the same grounding interface.
 - Single monitor / primary monitor mode first.
-
