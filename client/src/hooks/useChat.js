@@ -12,9 +12,11 @@ function reducer(state, action) {
     case 'ADD':
       return { ...state, messages: [...state.messages, action.msg] }
     case 'APPEND_DELTA':
-      return { ...state, streaming: true, messages: state.messages.map((message) => message.id === action.id ? { ...message, content: (message.content || '') + action.delta, streaming: true } : message) }
+      return { ...state, streaming: true, messages: state.messages.map((message) => message.id === action.id ? { ...message, content: (message.content || '') + action.delta, streaming: true, startedAt: message.startedAt || action.now || Date.now() } : message) }
     case 'FINISH':
-      return { ...state, streaming: false, messages: state.messages.map((message) => message.id === action.id ? { ...message, streaming: false } : message) }
+      return { ...state, streaming: false, messages: state.messages.map((message) => message.id === action.id ? { ...message, streaming: false, finishedAt: action.finishedAt || Date.now() } : message) }
+    case 'INCREMENT_COMMAND_COUNT':
+      return { ...state, messages: state.messages.map((message) => message.id === action.id ? { ...message, commandCount: (message.commandCount || 0) + 1 } : message) }
     case 'UPDATE_CARD':
       return { ...state, messages: state.messages.map((message) => message.id === action.id ? { ...message, cardState: action.cardState, cardData: action.cardData ?? message.cardData } : message) }
     case 'CLEAR':
@@ -58,10 +60,15 @@ function appendActionSummary(actions = []) {
   }).join('\n')
 }
 
+function isInternalChatStreamEvent(event) {
+  return event?.type === 'reasoning_summary' || event?.type?.startsWith('tool_')
+}
+
 export function useChat(conversationId) {
   const [state, dispatch] = useReducer(reducer, initialState)
   const abortRef = useRef(null)
   const conversationIdRef = useRef(conversationId)
+  const activeAssistantIdRef = useRef(null)
   const [agentRunning, setAgentRunning] = useState(false)
   const [pendingConfirmation, setPendingConfirmation] = useState(null)
 
@@ -76,6 +83,7 @@ export function useChat(conversationId) {
     conversationIdRef.current = conversationId
     abortRef.current?.()
     abortRef.current = null
+    activeAssistantIdRef.current = null
     setAgentRunning(false)
     setPendingConfirmation(null)
     dispatch({ type: 'CLEAR' })
@@ -97,6 +105,7 @@ export function useChat(conversationId) {
       ignored = true
       abortRef.current?.()
       abortRef.current = null
+      activeAssistantIdRef.current = null
       setPendingConfirmation(null)
     }
   }, [conversationId])
@@ -104,6 +113,7 @@ export function useChat(conversationId) {
   useEffect(() => {
     const unsubscribe = window.electronAPI?.onChatStream?.((payload) => {
       if (!payload?.event || payload.convId !== conversationIdRef.current) return
+      if (isInternalChatStreamEvent(payload.event)) return
       dispatch({
         type: 'ADD',
         msg: {
@@ -161,7 +171,9 @@ export function useChat(conversationId) {
     dispatch({ type: 'ADD', msg: userMessage })
 
     const assistantId = uid()
-    dispatch({ type: 'ADD', msg: { id: assistantId, role: 'assistant', content: '', streaming: true } })
+    const startedAt = Date.now()
+    activeAssistantIdRef.current = assistantId
+    dispatch({ type: 'ADD', msg: { id: assistantId, role: 'assistant', content: '', streaming: true, startedAt, commandCount: 0 } })
 
     const history = [...state.messages, userMessage]
       .filter((message) => (message.role === 'user' || message.role === 'assistant') && !message.stream)
@@ -169,12 +181,22 @@ export function useChat(conversationId) {
 
     let assistantContent = ''
     let finished = false
+    const countedToolCalls = new Set()
     const finish = () => {
       if (finished) return
       finished = true
-      dispatch({ type: 'FINISH', id: assistantId })
+      dispatch({ type: 'FINISH', id: assistantId, finishedAt: Date.now() })
+      if (activeAssistantIdRef.current === assistantId) activeAssistantIdRef.current = null
       setAgentRunning(false)
       saveConversation(convId, [...history, { role: 'assistant', content: assistantContent }])
+    }
+
+    const countCommand = (event = {}) => {
+      if (event.callId) {
+        if (countedToolCalls.has(event.callId)) return
+        countedToolCalls.add(event.callId)
+      }
+      dispatch({ type: 'INCREMENT_COMMAND_COUNT', id: assistantId })
     }
 
     abortRef.current = api.stream({
@@ -191,9 +213,7 @@ export function useChat(conversationId) {
         assistantContent += delta
         dispatch({ type: 'APPEND_DELTA', id: assistantId, delta })
       },
-      onSkillLoaded: (event) => {
-        dispatch({ type: 'ADD', msg: { id: uid(), role: 'skill', skillName: event.name } })
-      },
+      onToolStart: countCommand,
       onActionPlan: (event) => {
         for (const action of event.actions || []) schedulePendingActionTimeout(action)
         dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', type: 'action_plan', stream: true, content: appendActionSummary(event.actions || []) } })
@@ -223,6 +243,10 @@ export function useChat(conversationId) {
     const convId = conversationIdRef.current
     abortRef.current?.()
     if (convId) abortChat(convId).catch((error) => console.error('[chat] 取消请求失败:', error))
+    if (activeAssistantIdRef.current) {
+      dispatch({ type: 'FINISH', id: activeAssistantIdRef.current, finishedAt: Date.now() })
+      activeAssistantIdRef.current = null
+    }
     setPendingConfirmation(null)
     setAgentRunning(false)
   }, [])

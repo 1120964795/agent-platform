@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import MessageBubble from './MessageBubble.jsx'
-import SkillBadge from './SkillBadge.jsx'
 import WordCard from '../cards/WordCard.jsx'
 import PptCard from '../cards/PptCard.jsx'
 import FileCard from '../cards/FileCard.jsx'
@@ -22,9 +21,6 @@ export default function MessageList({ messages }) {
       {messages.map((message) => {
         if (message.role === 'user' || message.role === 'assistant') {
           return <MessageBubble key={message.id} message={message} role={message.role} content={message.content} streaming={message.streaming} />
-        }
-        if (message.role === 'skill') {
-          return <SkillBadge key={message.id} name={message.skillName} />
         }
         if (message.role === 'card') {
           if (message.cardType === 'word') return <WordCard key={message.id} msg={message} />

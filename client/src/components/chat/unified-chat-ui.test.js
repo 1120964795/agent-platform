@@ -228,12 +228,33 @@ describe('unified chat UI wiring', () => {
     expect(source).not.toContain('reasoning_summary')
   })
 
-  test('MessageBubble renders streamed reasoning and tool progress entries', () => {
-    const source = readProjectFile('client/src/components/chat/MessageBubble.jsx')
+  test('internal reasoning, tool stream, and skill load events stay out of visible message blocks', () => {
+    const bubble = readProjectFile('client/src/components/chat/MessageBubble.jsx')
+    const messageList = readProjectFile('client/src/components/chat/MessageList.jsx')
+    const useChat = readProjectFile('client/src/hooks/useChat.js')
 
-    expect(source).toContain('reasoning_summary')
-    expect(source).toContain('tool_progress')
-    expect(source).toContain('stream')
+    expect(useChat).toContain('isInternalChatStreamEvent')
+    expect(useChat).toContain('reasoning_summary')
+    expect(useChat).toContain('tool_')
+    expect(useChat).not.toContain("role: 'skill'")
+    expect(messageList).not.toContain('SkillBadge')
+    expect(bubble).not.toContain('reasoning_summary')
+    expect(bubble).not.toContain('tool_progress')
+    expect(bubble).not.toContain('StreamBlock')
+  })
+
+  test('message bubbles expose Codex-style copy and run metadata', () => {
+    const bubble = readProjectFile('client/src/components/chat/MessageBubble.jsx')
+    const useChat = readProjectFile('client/src/hooks/useChat.js')
+
+    expect(bubble).toContain('navigator.clipboard.writeText')
+    expect(bubble).toContain('思考中')
+    expect(bubble).toContain('已处理')
+    expect(bubble).toContain('已运行')
+    expect(useChat).toContain('startedAt')
+    expect(useChat).toContain('finishedAt')
+    expect(useChat).toContain('commandCount')
+    expect(useChat).toContain("type: 'INCREMENT_COMMAND_COUNT'")
   })
 
   test('slash commands are backed by installed skills instead of legacy cards', () => {

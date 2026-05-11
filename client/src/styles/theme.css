@@ -34,6 +34,30 @@ button {
   font-family: inherit;
 }
 
+.chat-thinking-gradient {
+  background: linear-gradient(90deg, var(--text-muted), var(--accent), #8b5cf6, var(--text-muted));
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: chat-thinking-shimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes chat-thinking-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-thinking-gradient {
+    animation: none;
+  }
+}
+
 /* 滚动条 */
 ::-webkit-scrollbar {
   width: 8px;
