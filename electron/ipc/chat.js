@@ -121,7 +121,9 @@ async function handleChatSend(evt, payload = {}, deps) {
   const config = deps.storeRef.getConfig()
   const ctl = new AbortController()
   activeControllers.set(convId, ctl)
-  const forceTool = pluginMode === 'browser' ? 'browser_task' : undefined
+  const forceTool = pluginMode === 'browser'
+    ? 'browser_task'
+    : (pluginMode === 'desktop' ? 'desktop_task' : undefined)
   const agentMessages = [
     { role: 'system', content: buildSystemPrompt(config, deps) },
     ...messages.filter(m => m.role === 'user' || m.role === 'assistant' || m.role === 'tool')

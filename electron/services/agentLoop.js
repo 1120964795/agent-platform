@@ -62,18 +62,19 @@ function latestUserContent(messages = []) {
 }
 
 function createForcedToolCall(forceTool, messages = []) {
-  if (forceTool !== 'browser_task') return null
+  const supported = new Set(['browser_task', 'desktop_task'])
+  if (!supported.has(forceTool)) return null
   const args = { goal: latestUserContent(messages) }
-  const id = `forced-browser-task-${Date.now()}`
+  const id = `forced-${forceTool.replace(/_/g, '-')}-${Date.now()}`
   return {
     id,
-    name: 'browser_task',
+    name: forceTool,
     args,
     raw: {
       id,
       type: 'function',
       function: {
-        name: 'browser_task',
+        name: forceTool,
         arguments: JSON.stringify(args)
       }
     }

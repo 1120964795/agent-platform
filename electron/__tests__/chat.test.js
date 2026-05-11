@@ -479,6 +479,34 @@ test('browser plugin mode marks user message for browser task routing', async ()
   }))
 })
 
+test('desktop plugin mode marks user message for desktop task routing', async () => {
+  const ipcMain = createIpcMain()
+  const send = vi.fn()
+  const runTurn = vi.fn(async ({ onEvent }) => {
+    onEvent('assistant_message', { content: 'desktop ready', toolCalls: [] })
+    return { finalText: 'desktop ready', history: [] }
+  })
+  const register = createRegister({
+    storeRef: { getConfig: () => ({ permissionMode: 'default' }) },
+    runTurn,
+    userRules: { buildSystemPromptSection: () => '' },
+    skillRegistry: { listSkills: () => [], buildSkillIndex: () => '' }
+  })
+  register(ipcMain)
+
+  await ipcMain.handlers.get('chat:send')({ sender: { send } }, {
+    convId: 'conv-desktop-plugin',
+    messages: [{ role: 'user', content: 'open notepad' }],
+    model: 'deepseek-chat',
+    pluginMode: 'desktop',
+  })
+
+  expect(runTurn).toHaveBeenCalledWith(expect.objectContaining({
+    model: 'deepseek-chat',
+    forceTool: 'desktop_task',
+  }))
+})
+
 test('chat:send forwards stream events from the agent loop', async () => {
   const ipcMain = createIpcMain()
   const send = vi.fn()

@@ -445,6 +445,34 @@ test('browser plugin mode creates a browser_task tool call', async () => {
   }), expect.objectContaining({ skipInternalConfirm: true }))
 })
 
+test('desktop plugin mode creates a desktop_task tool call', async () => {
+  const deepseek = mockDeepseek([
+    { content: 'Desktop summary', assistant_message: { role: 'assistant', content: 'Desktop summary' }, tool_calls: [] }
+  ])
+  const tools = {
+    execute: vi.fn(async () => ({ ok: true, metadata: { summary: 'Notepad opened' } })),
+    getAgentLoopToolSchemas: vi.fn(() => [])
+  }
+  const policy = mockPolicy({ desktop_task: { risk: 'high', reason: 'desktop automation', allowed: true, requiresApproval: true } })
+  const requestApproval = vi.fn(async () => true)
+
+  await runTurn(
+    {
+      messages: [{ role: 'user', content: 'Open Notepad and type hello' }],
+      forceTool: 'desktop_task',
+      requestApproval,
+    },
+    { deepseek, tools, policy }
+  )
+
+  expect(requestApproval).toHaveBeenCalledWith(expect.objectContaining({
+    call: expect.objectContaining({ name: 'desktop_task' })
+  }))
+  expect(tools.execute).toHaveBeenCalledWith('desktop_task', expect.objectContaining({
+    goal: 'Open Notepad and type hello'
+  }), expect.objectContaining({ skipInternalConfirm: true }))
+})
+
 test('forcedSkill loads the skill before the normal model turn', async () => {
   const calls = []
   let chatMessages = null
@@ -597,6 +625,37 @@ test('forcedSkill and browser forceTool run in skill then browser order', async 
   )
 
   expect(order).toEqual(['load_skill', 'browser_task'])
+})
+
+test('forcedSkill and desktop forceTool run in skill then desktop order', async () => {
+  const order = []
+  const deepseek = mockDeepseek([
+    { content: 'Desktop summary', assistant_message: { role: 'assistant', content: 'Desktop summary' }, tool_calls: [] }
+  ])
+  const tools = {
+    execute: vi.fn(async (name, args) => {
+      order.push(name)
+      return name === 'load_skill' ? { name: args.name, content: '# Desktop skill' } : { ok: true, metadata: { summary: 'Done' } }
+    }),
+    getAgentLoopToolSchemas: vi.fn(() => [])
+  }
+  const policy = mockPolicy({
+    load_skill: { risk: 'low', reason: 'skill', allowed: true, requiresApproval: false },
+    desktop_task: { risk: 'high', reason: 'desktop automation', allowed: true, requiresApproval: true }
+  })
+
+  await runTurn(
+    {
+      convId: 'conv-desktop-skill',
+      messages: [{ role: 'user', content: 'open notepad' }],
+      forcedSkill: 'desktop-skill',
+      forceTool: 'desktop_task',
+      requestApproval: async () => true
+    },
+    { deepseek, tools, policy }
+  )
+
+  expect(order).toEqual(['load_skill', 'desktop_task'])
 })
 
 test('agent loop emits user-visible reasoning and tool stream events', async () => {
