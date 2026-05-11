@@ -59,6 +59,56 @@ test('execute posts desktop-use action with approval and session id', async () =
   expect(JSON.parse(request.body).actionId).toMatch(/^desktop-/)
 })
 
+test('execute subscribes to desktop event stream and forwards events', async () => {
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"type":"observe","summary":"Looking"}\n\n'))
+      controller.close()
+    }
+  })
+  fetchMock
+    .mockResolvedValueOnce({ ok: true, body: stream })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, exitCode: 0, metadata: { summary: 'done' } }) })
+  const events = []
+
+  const result = await execute(
+    { type: 'desktop.task', payload: { goal: 'Open Notepad' } },
+    { sessionId: 'conversation-events', onEvent: event => events.push(event) }
+  )
+
+  expect(result.ok).toBe(true)
+  expect(fetchMock.mock.calls[0][0]).toBe('http://127.0.0.1:8790/events/conversation-events')
+  expect(events).toContainEqual(expect.objectContaining({ type: 'observe', summary: 'Looking' }))
+})
+
+test('execute answers ask_user events through resume endpoint', async () => {
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"type":"ask_user","requestId":"ask-1","question":"Continue?"}\n\n'))
+      controller.close()
+    }
+  })
+  fetchMock
+    .mockResolvedValueOnce({ ok: true, body: stream })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true, exitCode: 0, metadata: { summary: 'done' } }) })
+
+  await execute(
+    { type: 'desktop.task', payload: { goal: 'Continue task' } },
+    { sessionId: 'conversation-ask', waitForUser: vi.fn(async () => 'continue') }
+  )
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    'http://127.0.0.1:8790/resume',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ sessionId: 'conversation-ask', requestId: 'ask-1', answer: 'continue' })
+    })
+  )
+})
+
 test('execute cancels the desktop-use task when aborted', async () => {
   const controller = new AbortController()
   fetchMock.mockImplementationOnce((_url, request) => {

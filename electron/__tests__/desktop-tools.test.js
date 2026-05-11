@@ -124,6 +124,33 @@ test('desktop_task rejects empty goal', async () => {
   expect(result.error.code).toBe('INVALID_ARGS')
 })
 
+test('desktop_task forwards live desktop events from the bridge', async () => {
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"type":"observe","summary":"Looking"}\n\n'))
+      controller.close()
+    }
+  })
+  fetchMock
+    .mockResolvedValueOnce({ json: async () => ({ ok: true, runtime: 'desktop-use' }) })
+    .mockResolvedValueOnce({ ok: true, body: stream })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: true, exitCode: 0, metadata: { summary: 'done' }, durationMs: 40 }),
+    })
+
+  const events = []
+  const { desktopTask } = require('../tools/desktopTask')
+  const result = await desktopTask(
+    { goal: 'Open Notepad' },
+    { skipInternalConfirm: true, sessionId: 'tool-live', onDesktopEvent: event => events.push(event) }
+  )
+
+  expect(result.metadata.summary).toBe('done')
+  expect(events).toContainEqual(expect.objectContaining({ type: 'observe', summary: 'Looking' }))
+})
+
 test('desktop_scroll and desktop_wait call the desktop-use bridge', async () => {
   fetchMock
     .mockResolvedValueOnce({ json: async () => ({ ok: true, runtime: 'desktop-use' }) })

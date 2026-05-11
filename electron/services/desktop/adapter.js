@@ -35,10 +35,47 @@ async function cancel(context = {}) {
   }
 }
 
+async function postResume({ sessionId, requestId, answer }) {
+  const resp = await fetch(`${endpoint()}/resume`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId, requestId, answer }),
+  })
+  return resp.json().catch(() => ({ ok: false }))
+}
+
+async function readEventStream(resp, context = {}) {
+  if (!resp?.body?.getReader) return
+  const reader = resp.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  while (true) {
+    const chunk = await reader.read()
+    if (chunk.done) break
+    buffer += decoder.decode(chunk.value, { stream: true })
+    const frames = buffer.split('\n\n')
+    buffer = frames.pop() || ''
+    for (const frame of frames) {
+      const line = frame.split('\n').find((entry) => entry.startsWith('data: '))
+      if (!line) continue
+      const event = JSON.parse(line.slice(6))
+      context.onEvent?.(event)
+      if (event.type === 'ask_user') {
+        const answer = context.waitForUser
+          ? await context.waitForUser(event)
+          : 'cancel'
+        await postResume({ sessionId: context.sessionId || 'default', requestId: event.requestId, answer })
+      }
+    }
+  }
+}
+
 async function execute(action, context = {}) {
   const { type, payload = {} } = action
   const sessionId = context.sessionId || 'default'
   let cancelPromise = null
+  let eventController = null
+  let eventsPromise = null
 
   const onAbort = () => {
     cancelPromise = cancel({ sessionId })
@@ -54,6 +91,14 @@ async function execute(action, context = {}) {
   }
 
   try {
+    if (context.onEvent || context.waitForUser) {
+      eventController = new AbortController()
+      eventsPromise = fetch(`${endpoint()}/events/${encodeURIComponent(sessionId)}`, { signal: eventController.signal })
+        .then((resp) => readEventStream(resp, { ...context, sessionId }))
+        .catch(() => null)
+      await Promise.resolve()
+    }
+
     const resp = await fetch(`${endpoint()}/execute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -90,10 +135,12 @@ async function execute(action, context = {}) {
     }
     return { ok: false, error: { code: 'BRIDGE_UNREACHABLE', message: `Desktop-use bridge unavailable: ${err.message}` } }
   } finally {
+    eventController?.abort()
+    await eventsPromise?.catch(() => null)
     if (context.signal) {
       context.signal.removeEventListener('abort', onAbort)
     }
   }
 }
 
-module.exports = { healthCheck, execute, cancel, endpoint, PORT }
+module.exports = { healthCheck, execute, cancel, endpoint, PORT, readEventStream, postResume }

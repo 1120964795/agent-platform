@@ -41,7 +41,12 @@ async function desktopTask(args, context = {}) {
 
   const result = await execute(
     { type: 'desktop.task', payload },
-    { signal: context.signal, sessionId: context.sessionId || context.convId }
+    {
+      signal: context.signal,
+      sessionId: context.sessionId || context.convId,
+      onEvent: context.onDesktopEvent,
+      waitForUser: context.waitForDesktopUser,
+    }
   )
 
   if (!result.ok) {
