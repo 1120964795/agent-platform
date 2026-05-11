@@ -79,6 +79,55 @@ describe('bridgeSupervisor', () => {
     expect(desktopUse.env.DESKTOP_USE_GROUNDING_BACKEND).toBe('manual-coordinate')
   })
 
+  it('uses Browser-Use relay settings for Desktop-Use when no dedicated desktop key is configured', async () => {
+    store.setConfig({
+      browserUseApiKey: 'sk-browser-relay',
+      browserUseEndpoint: 'https://browser-relay.example/v1',
+      browserUseModel: 'openai/browser-relay'
+    })
+    const calls = []
+    const sup = createSupervisor({
+      spawnImpl: (cmd, args, opts) => {
+        calls.push({ cmd, args, env: opts.env })
+        return { on() {}, kill() {}, killed: false }
+      },
+      healthImpl: async () => ({ ok: true })
+    })
+
+    await sup.startOne('desktopUse', { healthTimeoutMs: 50, maxRestarts: 0 })
+
+    const desktopUse = calls.find((c) => c.cmd === 'node' && c.args.some((arg) => arg.includes('desktop-use-bridge')))
+    expect(desktopUse.env.DESKTOP_USE_MODEL_ENDPOINT).toBe('https://browser-relay.example/v1')
+    expect(desktopUse.env.DESKTOP_USE_MODEL_API_KEY).toBe('sk-browser-relay')
+    expect(desktopUse.env.DESKTOP_USE_MODEL_NAME).toBe('openai/browser-relay')
+  })
+
+  it('prefers dedicated Desktop-Use model settings over Browser-Use fallback', async () => {
+    store.setConfig({
+      browserUseApiKey: 'sk-browser-relay',
+      browserUseEndpoint: 'https://browser-relay.example/v1',
+      browserUseModel: 'openai/browser-relay',
+      desktopUseApiKey: 'sk-desktop-relay',
+      desktopUseEndpoint: 'https://desktop-relay.example/v1',
+      desktopUseModel: 'openai/desktop-relay'
+    })
+    const calls = []
+    const sup = createSupervisor({
+      spawnImpl: (cmd, args, opts) => {
+        calls.push({ cmd, args, env: opts.env })
+        return { on() {}, kill() {}, killed: false }
+      },
+      healthImpl: async () => ({ ok: true })
+    })
+
+    await sup.startOne('desktopUse', { healthTimeoutMs: 50, maxRestarts: 0 })
+
+    const desktopUse = calls.find((c) => c.cmd === 'node' && c.args.some((arg) => arg.includes('desktop-use-bridge')))
+    expect(desktopUse.env.DESKTOP_USE_MODEL_ENDPOINT).toBe('https://desktop-relay.example/v1')
+    expect(desktopUse.env.DESKTOP_USE_MODEL_API_KEY).toBe('sk-desktop-relay')
+    expect(desktopUse.env.DESKTOP_USE_MODEL_NAME).toBe('openai/desktop-relay')
+  })
+
   it('captures child stdout and stderr in bridge-specific log files', async () => {
     const seenStdio = []
     const openedFds = []
@@ -150,12 +199,26 @@ describe('bridgeSupervisor', () => {
       bridge: 'desktopUse',
       name: 'desktop-use-bridge',
       port: 8790,
-      missingConfig: ['desktopUseApiKey']
+      missingConfig: ['desktopUseApiKey or browserUseApiKey']
     }))
     expect(result.diagnostics.nextSteps).toEqual(expect.arrayContaining([
-      expect.stringContaining('desktopUseApiKey'),
+      expect.stringContaining('desktopUseApiKey or browserUseApiKey'),
       expect.stringContaining('desktop-use')
     ]))
+  })
+
+  it('does not report Desktop-Use API key missing when Browser-Use fallback key is available', async () => {
+    store.setConfig({ browserUseApiKey: 'sk-browser-relay' })
+    const sup = createSupervisor({
+      spawnImpl: () => ({ on() {}, kill() {}, killed: false }),
+      healthImpl: async () => ({ ok: false })
+    })
+
+    const result = await sup.startOne('desktopUse', { healthTimeoutMs: 50, maxRestarts: 0 })
+
+    expect(result.state).toBe('failed')
+    expect(result.diagnostics.missingConfig).not.toContain('desktopUseApiKey')
+    expect(result.diagnostics.missingConfig).not.toContain('browserUseApiKey')
   })
 
   it('kills and clears a spawned child on terminal health timeout', async () => {

@@ -39,12 +39,25 @@ test('getConfig returns defaults including new fields', () => {
   expect(config.desktopUseApiKey).toBe('')
   expect(config.desktopUseModel).toBe('openai/gpt-5.5')
   expect(config.desktopUseGroundingBackend).toBe('manual-coordinate')
-  expect(config.desktopUseAllowBrowserFallback).toBe(false)
+  expect(config.desktopUseAllowBrowserFallback).toBe(true)
 })
 
 test('config has visionLoopEnabled default true', () => {
   const config = store.getConfig()
   expect(config.visionLoopEnabled).toBe(true)
+})
+
+test('getConfig migrates legacy Desktop-Use browser fallback default to enabled', () => {
+  fs.mkdirSync(store.DATA_DIR, { recursive: true })
+  fs.writeFileSync(path.join(store.DATA_DIR, 'config.json'), JSON.stringify({
+    browserUseApiKey: 'sk-browser-relay',
+    desktopUseApiKey: '',
+    desktopUseAllowBrowserFallback: false
+  }), 'utf-8')
+
+  const config = store.getConfig()
+
+  expect(config.desktopUseAllowBrowserFallback).toBe(true)
 })
 
 test('setConfig persists patches', () => {

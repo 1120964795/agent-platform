@@ -19,8 +19,10 @@ const DATA_DIR = process.env.AGENTDEV_DATA_DIR || path.join(userData, 'agentdev-
 const GENERATED_DIR = process.env.AGENTDEV_GENERATED_DIR || path.join(path.dirname(DATA_DIR), 'generated')
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json')
 const DATA_PATH = path.join(DATA_DIR, 'data.json')
+const CONFIG_SCHEMA_VERSION = 2
 
 const DEFAULT_CONFIG = {
+  configVersion: CONFIG_SCHEMA_VERSION,
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
   model: 'deepseek-chat',
@@ -50,7 +52,7 @@ const DEFAULT_CONFIG = {
   desktopUseApiKey: '',
   desktopUseModel: 'openai/gpt-5.5',
   desktopUseGroundingBackend: 'manual-coordinate',
-  desktopUseAllowBrowserFallback: false,
+  desktopUseAllowBrowserFallback: true,
   dryRunEnabled: true,
   visionLoopEnabled: true,
   auditRetentionDays: 30,
@@ -105,6 +107,20 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, JSON.stringify(value, null, 2), 'utf-8')
 }
 
+function normalizeConfig(config, source = config) {
+  const next = { ...config }
+  const sourceVersion = Number(source.configVersion || 1)
+  if (
+    sourceVersion < 2 &&
+    source.desktopUseAllowBrowserFallback === false &&
+    !source.desktopUseApiKey
+  ) {
+    next.desktopUseAllowBrowserFallback = true
+  }
+  next.configVersion = CONFIG_SCHEMA_VERSION
+  return next
+}
+
 const conversationStore = require('./services/conversationStore')
 
 const store = {
@@ -114,11 +130,12 @@ const store = {
   GENERATED_DIR,
 
   getConfig() {
-    return { ...DEFAULT_CONFIG, ...readJson(CONFIG_PATH, DEFAULT_CONFIG) }
+    const diskConfig = readJson(CONFIG_PATH, DEFAULT_CONFIG)
+    return normalizeConfig({ ...DEFAULT_CONFIG, ...diskConfig }, diskConfig)
   },
 
   setConfig(patch) {
-    const next = { ...this.getConfig(), ...(patch || {}) }
+    const next = normalizeConfig({ ...this.getConfig(), ...(patch || {}) })
     writeJson(CONFIG_PATH, next)
     return next
   },

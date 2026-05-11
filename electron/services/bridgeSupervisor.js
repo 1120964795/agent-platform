@@ -84,6 +84,26 @@ function getLogPaths(key) {
   }
 }
 
+function shouldAllowDesktopBrowserFallback(config) {
+  return config.desktopUseAllowBrowserFallback !== false
+}
+
+function resolveDesktopUseModelConfig(config = {}) {
+  const allowBrowserFallback = shouldAllowDesktopBrowserFallback(config)
+  if (!config.desktopUseApiKey && allowBrowserFallback && config.browserUseApiKey) {
+    return {
+      endpoint: config.browserUseEndpoint || 'https://zenmux.ai/api/v1',
+      apiKey: config.browserUseApiKey,
+      model: config.browserUseModel || 'openai/gpt-5.5'
+    }
+  }
+  return {
+    endpoint: config.desktopUseEndpoint || 'https://zenmux.ai/api/v1',
+    apiKey: config.desktopUseApiKey || '',
+    model: config.desktopUseModel || 'openai/gpt-5.5'
+  }
+}
+
 function buildDiagnostics(key, lastError) {
   const cfg = DEFAULTS[key]
   const logs = getLogPaths(key)
@@ -101,9 +121,13 @@ function buildDiagnostics(key, lastError) {
     if (!config.browserUseModel) missingConfig.push('browserUseModel')
   }
   if (key === 'desktopUse') {
-    if (!config.desktopUseApiKey) missingConfig.push('desktopUseApiKey')
-    if (!config.desktopUseEndpoint) missingConfig.push('desktopUseEndpoint')
-    if (!config.desktopUseModel) missingConfig.push('desktopUseModel')
+    const allowBrowserFallback = shouldAllowDesktopBrowserFallback(config)
+    const hasFallbackKey = allowBrowserFallback && Boolean(config.browserUseApiKey)
+    if (!config.desktopUseApiKey && !hasFallbackKey) {
+      missingConfig.push(allowBrowserFallback ? 'desktopUseApiKey or browserUseApiKey' : 'desktopUseApiKey')
+    }
+    if (!config.desktopUseEndpoint && !(allowBrowserFallback && config.browserUseEndpoint)) missingConfig.push('desktopUseEndpoint')
+    if (!config.desktopUseModel && !(allowBrowserFallback && config.browserUseModel)) missingConfig.push('desktopUseModel')
   }
 
   const nextSteps = []
@@ -166,10 +190,10 @@ function createSupervisor(opts = {}) {
       env.BROWSER_USE_KEEP_ALIVE = config.browserUseHeadless === true ? 'false' : 'true'
     }
     if (key === 'desktopUse') {
-      const allowBrowserFallback = config.desktopUseAllowBrowserFallback === true
-      env.DESKTOP_USE_MODEL_ENDPOINT = config.desktopUseEndpoint || (allowBrowserFallback ? config.browserUseEndpoint : '') || 'https://zenmux.ai/api/v1'
-      env.DESKTOP_USE_MODEL_API_KEY = config.desktopUseApiKey || (allowBrowserFallback ? config.browserUseApiKey : '') || ''
-      env.DESKTOP_USE_MODEL_NAME = config.desktopUseModel || (allowBrowserFallback ? config.browserUseModel : '') || 'openai/gpt-5.5'
+      const desktopModel = resolveDesktopUseModelConfig(config)
+      env.DESKTOP_USE_MODEL_ENDPOINT = desktopModel.endpoint
+      env.DESKTOP_USE_MODEL_API_KEY = desktopModel.apiKey
+      env.DESKTOP_USE_MODEL_NAME = desktopModel.model
       env.DESKTOP_USE_GROUNDING_BACKEND = config.desktopUseGroundingBackend || 'manual-coordinate'
     }
     return env
