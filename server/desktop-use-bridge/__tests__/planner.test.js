@@ -1,0 +1,50 @@
+import { describe, expect, test, vi } from 'vitest'
+import { buildPlannerMessages, createPlanner, normalizeAction } from '../planner'
+
+const observation = {
+  screenshotBase64: 'abc123',
+  mime: 'image/png',
+  screen: { width: 2560, height: 1440, scaleFactor: 1.25, nativeWidth: 2048, nativeHeight: 1152 }
+}
+
+describe('desktop planner', () => {
+  test('builds a multimodal message with screenshot image data', () => {
+    const messages = buildPlannerMessages({ goal: 'open notepad', step: 2, maxSteps: 8, observation, steps: [] })
+
+    expect(messages[0].role).toBe('system')
+    expect(messages[1].role).toBe('user')
+    expect(messages[1].content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'text', text: expect.stringContaining('open notepad') }),
+      expect.objectContaining({ type: 'image_url', image_url: { url: 'data:image/png;base64,abc123' } })
+    ]))
+  })
+
+  test('normalizes new planner actions', () => {
+    expect(normalizeAction({ action: 'scroll', x: 10, y: 20, direction: 'down', amount: 4, confidence: 0.8 }).type).toBe('scroll')
+    expect(normalizeAction({ action: 'drag', from: { x: 1, y: 2 }, to: { x: 3, y: 4 }, confidence: 0.9 }).type).toBe('drag')
+    expect(normalizeAction({ action: 'ask_user', question: 'Please log in', confidence: 0.95 }).type).toBe('ask_user')
+  })
+
+  test('planner sends response format and parses JSON action', async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{"action":"done","summary":"finished"}' } }] })
+    }))
+    const planner = createPlanner({
+      fetchImpl,
+      env: {
+        DESKTOP_USE_MODEL_API_KEY: 'key',
+        DESKTOP_USE_MODEL_ENDPOINT: 'https://example.test',
+        DESKTOP_USE_MODEL_NAME: 'vision-model'
+      }
+    })
+
+    const action = await planner.nextAction({ goal: 'finish', step: 1, maxSteps: 3, observation, steps: [] })
+
+    expect(action).toEqual(expect.objectContaining({ type: 'done', summary: 'finished' }))
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body)
+    expect(body.model).toBe('vision-model')
+    expect(body.response_format).toEqual({ type: 'json_object' })
+    expect(body.messages[1].content[1].image_url.url).toBe('data:image/png;base64,abc123')
+  })
+})
