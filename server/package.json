@@ -1,0 +1,19 @@
+{
+  "name": "agentdev-lite-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "docx": "^8.5.0",
+    "express": "^4.19.2",
+    "mammoth": "^1.8.0",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^3.3.2",
+    "pptxgenjs": "^3.12.0"
+  }
+}

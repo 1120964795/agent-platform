@@ -1,5 +1,4 @@
 const config = require('./config')
-const auth = require('./auth')
 const conversations = require('./conversations')
 const artifacts = require('./artifacts')
 const files = require('./files')
@@ -7,28 +6,15 @@ const dialog = require('./dialog')
 const chat = require('./chat')
 const skills = require('./skills')
 const rules = require('./rules')
-const diagnostics = require('./diagnostics')
-const experiences = require('./experiences')
-const projects = require('./projects')
-const workflows = require('./workflows')
-const backup = require('./backup')
+const runtime = require('./runtime')
+const audit = require('./audit')
+const outputs = require('./outputs')
+const openExternal = require('./openExternal')
+const setupStatus = require('./setupStatus')
+const agent = require('./agent')
+const bridgeStatus = require('./bridgeStatus')
 
-const MODULES = [
-  config,
-  auth,
-  conversations,
-  artifacts,
-  files,
-  dialog,
-  chat,
-  skills,
-  rules,
-  diagnostics,
-  experiences,
-  projects,
-  workflows,
-  backup
-]
+const MODULES = [config, conversations, artifacts, files, dialog, chat, skills, rules, runtime, audit, outputs, openExternal, setupStatus, agent, bridgeStatus]
 
 function registerAll(ipcMain, deps = {}) {
   for (const mod of MODULES) {

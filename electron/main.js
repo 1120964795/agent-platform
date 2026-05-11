@@ -1,67 +1,29 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog, desktopCapturer, nativeImage, screen, shell } = require('electron')
+const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const fs = require('fs')
-const { pathToFileURL } = require('url')
 const { registerAll } = require('./ipc')
-const { installChineseMenu } = require('./menu')
-const { createCompanionService } = require('./services/diagnostics/companionService')
-const packageJson = require('../package.json')
+const { createSupervisor } = require('./services/bridgeSupervisor')
+const { setSupervisor } = require('./ipc/bridgeStatus')
+const { setBridgeContext } = require('./ipc/setupStatus')
+const { store } = require('./store')
 
 const isDev = !app.isPackaged
 let mainWindow = null
-let companionService = null
+let supervisor = null
 
 const rootDir = isDev ? path.join(__dirname, '..') : process.resourcesPath
-const devUrl = process.env.AGENTDEV_DEV_SERVER_URL || 'http://127.0.0.1:5173'
-
-function getRendererUrl() {
-  if (isDev) return devUrl
-  const indexPath = path.join(rootDir, 'client', 'dist', 'index.html')
-  return pathToFileURL(indexPath).toString()
-}
-
-function getPopupUrl() {
-  const rendererUrl = getRendererUrl()
-  return rendererUrl.includes('?') ? `${rendererUrl}&popup=1` : `${rendererUrl}?popup=1`
-}
-
-function getTargetWindow() {
-  return BrowserWindow.getFocusedWindow() || mainWindow || BrowserWindow.getAllWindows()[0] || null
-}
-
-function sendMenuAction(action) {
-  const targetWindow = getTargetWindow()
-  if (!targetWindow || targetWindow.isDestroyed()) return
-  targetWindow.webContents.send('app-menu:action', { action })
-}
-
-function showAboutDialog() {
-  const targetWindow = getTargetWindow()
-  const options = {
-    type: 'info',
-    title: 'About AgentDev Lite',
-    message: 'AgentDev Lite',
-    detail: `Version ${packageJson.version || '0.1.0'}\nLocal learning assistant with diagnostics support.`,
-    buttons: ['OK']
-  }
-
-  if (targetWindow && !targetWindow.isDestroyed()) {
-    dialog.showMessageBox(targetWindow, options)
-    return
-  }
-
-  dialog.showMessageBox(options)
-}
+const devUrl = process.env.AGENTDEV_DEV_SERVER_URL || 'http://localhost:5173'
+const shouldOpenDevTools = isDev && process.env.AIONUI_OPEN_DEVTOOLS === '1'
 
 function renderLoadFailure(reason) {
   if (!mainWindow || mainWindow.isDestroyed()) return
-  const safeReason = String(reason || 'Unknown error').replace(/[<>&]/g, '')
+  const safeReason = String(reason || '未知错误').replace(/[<>&]/g, '')
   const html = `
     <!doctype html>
     <html>
       <head>
         <meta charset="utf-8" />
-        <title>AgentDev Lite</title>
+        <title>AionUi</title>
         <style>
           body { font-family: Segoe UI, Arial, sans-serif; margin: 0; background: #f7f7f9; color: #222; }
           .wrap { max-width: 760px; margin: 64px auto; padding: 0 24px; }
@@ -72,12 +34,12 @@ function renderLoadFailure(reason) {
       </head>
       <body>
         <div class="wrap">
-          <h1>Renderer Failed To Load</h1>
+          <h1>界面加载失败</h1>
           <div class="card">
-            <p>The UI could not be loaded.</p>
-            <p><strong>Reason</strong></p>
+            <p>渲染器无法加载。</p>
+            <p><strong>原因</strong></p>
             <code>${safeReason}</code>
-            <p>In development mode, make sure the Vite dev server is running. In production mode, rebuild the client bundle.</p>
+            <p>开发环境请先启动 Vite 开发服务器；生产环境请重新构建前端包。</p>
           </div>
         </div>
       </body>
@@ -94,7 +56,7 @@ async function loadRenderer() {
 
   const indexPath = path.join(rootDir, 'client', 'dist', 'index.html')
   if (!fs.existsSync(indexPath)) {
-    throw new Error(`Renderer build artifact not found: ${indexPath}`)
+    throw new Error(`未找到渲染器包：${indexPath}`)
   }
   await mainWindow.loadFile(indexPath)
 }
@@ -103,7 +65,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    title: 'AgentDev Lite',
+    title: 'AionUi',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -111,52 +73,27 @@ function createWindow() {
     }
   })
 
-  companionService?.setMainWindow(mainWindow)
-  mainWindow.setAutoHideMenuBar(true)
-  mainWindow.setMenuBarVisibility(false)
-
   loadRenderer().catch((error) => {
-    renderLoadFailure(error?.message || 'Renderer load failed.')
+    renderLoadFailure(error?.message || '渲染器加载失败。')
   })
 
-  if (isDev) mainWindow.webContents.openDevTools()
+  if (shouldOpenDevTools) mainWindow.webContents.openDevTools()
+
+  // First-run: auto-open welcome wizard
+  const config = store.getConfig()
+  if (!config.welcomeShown) {
+    mainWindow.webContents.on('did-finish-load', () => {
+      mainWindow.webContents.send('app:show-welcome')
+    })
+  }
 }
 
-app.whenReady().then(() => {
-  companionService = createCompanionService({
-    BrowserWindow,
-    desktopCapturer,
-    nativeImage,
-    screen,
-    ipcMain,
-    popupUrl: getPopupUrl(),
-    preloadPath: path.join(__dirname, 'preload.js'),
-    appTitle: 'AgentDev Lite',
-    mainWindow,
-    getFocusedWindow: () => BrowserWindow.getFocusedWindow()
-  })
-
-  installChineseMenu(Menu, { isDev, sendAction: sendMenuAction, showAbout: showAboutDialog })
-  registerAll(ipcMain, {
-    app,
-    dialog,
-    shell,
-    mainWindowRef: () => mainWindow,
-    companionService
-  })
-
-  ipcMain.handle('app-menu:set-visible', (event, payload = {}) => {
-    const targetWindow = BrowserWindow.fromWebContents(event.sender) || mainWindow
-    const visible = Boolean(payload.visible)
-
-    if (targetWindow && !targetWindow.isDestroyed()) {
-      targetWindow.setAutoHideMenuBar(!visible)
-      targetWindow.setMenuBarVisibility(visible)
-    }
-
-    return { ok: true, visible }
-  })
-
+app.whenReady().then(async () => {
+  registerAll(ipcMain)
+  supervisor = createSupervisor()
+  setSupervisor(supervisor)
+  setBridgeContext({ pythonBootstrap: null, supervisor })
+  supervisor.start().catch((err) => console.error('[bridges] start failed', err))
   createWindow()
 
   app.on('activate', () => {
@@ -164,8 +101,8 @@ app.whenReady().then(() => {
   })
 })
 
-app.on('before-quit', async () => {
-  await companionService?.dispose?.()
+app.on('before-quit', () => {
+  if (supervisor) try { supervisor.stop() } catch {}
 })
 
 app.on('window-all-closed', () => {

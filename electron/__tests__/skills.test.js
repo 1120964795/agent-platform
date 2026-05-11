@@ -34,25 +34,21 @@ test('registry lets user skill override builtin by name', () => {
   expect(registry.listSkills()).toHaveLength(1)
 })
 
-test('registry skill index includes usage hints and tools', () => {
-  const index = registry.buildSkillIndex()
-  expect(index).toContain('shared: user desc')
-  expect(index).toContain('tools: read_file')
-})
-
-test('registry ignores invalid skill names', () => {
-  writeSkill(process.env.AGENTDEV_USER_SKILLS_DIR, 'bad', '../bad', 'bad desc')
-  registry.reload()
-  expect(registry.findSkill('../bad')).toBe(null)
-})
-
 test('load_skill returns markdown once per conversation and expands resources', () => {
   const first = loadSkill({ name: 'shared' }, { convId: 'conv-1' })
   expect(first.content).toContain('# User')
-  expect(first.content).toContain('Available Resources')
+  expect(first.content).toContain('可用资源')
   expect(first.referenced_tools).toEqual(['read_file'])
 
   const second = loadSkill({ name: 'shared' }, { convId: 'conv-1' })
   expect(second.already_loaded).toBe(true)
   expect(second.content).toBe('')
+})
+
+test('builtin Office skills are documented as compatibility examples', () => {
+  const root = process.cwd()
+  const word = fs.readFileSync(path.join(root, 'resources', 'skills', 'word-writer', 'SKILL.md'), 'utf-8')
+  const ppt = fs.readFileSync(path.join(root, 'resources', 'skills', 'ppt-builder', 'SKILL.md'), 'utf-8')
+  expect(word).toContain('兼容示例')
+  expect(ppt).toContain('兼容示例')
 })

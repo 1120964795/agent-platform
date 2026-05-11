@@ -1,303 +1,137 @@
-# AgentDev Lite
+# AionUi
 
-AgentDev Lite 是一款 Electron 桌面助手。本版本为开发终端加入了仅支持 Windows 的伴随诊断系统：在用户明确授权某个窗口或屏幕区域后，应用会观察终端输出、检测常见开发错误、生成诊断卡片、自动保存经验卡片，并在之后遇到相似错误时建议复用历史修复方案。
+AionUi is a Windows desktop control plane for agentic work. It keeps the model, local execution, screen control, confirmations, audit logs, and runtime setup in one visible Electron app.
 
-## 新增内容
+The V2 product direction is deliberately narrow:
 
-本次实现聚焦于 V1 伴随诊断范围：
+- DeepSeek-V4 owns chat, planning, intent classification, and coding reasoning.
+- Open Interpreter remains the managed local runtime for command, file, and code work.
+- AionUi owns policy, confirmations, audit logging, emergency stop, setup guidance, and run outputs.
 
-- 仅支持 Windows。
-- 仅面向开发场景。
-- 用户必须手动开始观察。
-- 只观察用户选择的窗口或区域。
-- 默认观察间隔为 `5000ms`，可选 `3000ms`、`5000ms`、`10000ms`。
-- 窗口模式：优先使用 UI Automation，失败时回退到 OCR。
-- 区域模式：仅使用 OCR。
-- 不存储原始截图。
-- 诊断优先基于规则生成。
-- 只有当用户点击 `详细解释` 时，才会请求模型解释。
-- 修复命令始终需要用户确认。
-- 高风险下载或脚本命令遵循更严格的确认策略。
-- 只有在创建诊断卡片后，才会自动保存经验卡片。
+The model proposes actions. AionUi validates and classifies them. The user approves risky work. Adapters execute only approved actions. Every meaningful event is recorded in the audit log.
 
-## 诊断流程
+Security review details live in `docs/security-policy.md`. The short version is: model output must pass through the action planner, policy engine, broker, confirmation path, adapter boundary, audit log, and run output storage.
 
-1. 打开应用并登录。
-2. 打开 `设置`，如果需要模型解释和复用方案重写，请配置 DeepSeek API key。
-3. 如果需要本地 shell 执行和诊断自动化，请切换到 `完全权限`。
-4. 点击顶部栏的 `诊断` 按钮。
-5. 在诊断面板中：
-   - 点击 `刷新窗口` 列出终端窗口，或
-   - 点击 `框选区域` 选择屏幕区域。
-6. 设置 `项目目录` 并选择观察间隔。
-7. 点击 `开始观察`。
-8. 在被观察目标中触发一个已知开发错误。
-9. 查看生成的诊断卡片。
-10. 点击 `确认执行` 执行推荐修复，或点击 `详细解释` 获取模型解释；如果存在匹配的经验卡片，也可以点击 `复用上次方案`。
+## Features
 
-## 支持的错误类型
+- Chat and Execute modes in the main conversation surface.
+- Models and Runtimes setup for DeepSeek, Browser Use, Open Interpreter, UI-TARS, and dry-run demos.
+- Control Center for pending, running, completed, failed, denied, blocked, and cancelled actions.
+- Structured confirmation UI for medium and high risk actions.
+- Sanitized append-only audit logs with filters and export.
+- Run Outputs panel for command summaries, generated files, screenshots, and demo artifacts.
+- Dry-run runtime so the full flow can be demonstrated without external installs.
+- Windows NSIS packaging through electron-builder.
 
-当前基于规则的检测覆盖：
+## Architecture
 
-- Python `ModuleNotFoundError`
-- Node `Cannot find module`
-- npm `ERR! code ...`
-- 端口占用 (`EADDRINUSE`)
-- Git 合并冲突
-- Java 命令不存在 (`java`、`javac`、`mvn`、`gradle`)
-- Java 类不存在 / 主类不存在
-- Java 类版本不兼容
-- Maven 构建失败
-- Gradle 构建失败
-- 通用 shell 命令不存在
-- `ENOENT`
+```text
+React UI
+  -> Electron IPC
+  -> Model Router -> DeepSeek-V4 (chat / plan / intent / code)
+  -> Action Planner
+  -> Action Broker
+  -> Policy + Confirmation + Audit
+  -> Runtime Adapters
+       -> Open Interpreter adapter -> 127.0.0.1:8756 -> server/oi-bridge -> external Open Interpreter
+       -> UI-TARS adapter          -> 127.0.0.1:8765 -> server/uitars-bridge
+       -> Browser Use adapter      -> 127.0.0.1:8780 -> server/browser-use-bridge
+       -> Dry Run adapter
+  -> Run Outputs
+```
 
-## 风险策略
+Hard boundaries:
 
-- 所有诊断修复命令都需要明确确认。
-- 高风险修复会使用专门的 `Yes / No` 确认，并默认选择 `No`。
-- `advancedRiskExecutionEnabled` 默认为 `false`。
-- 当高级模式关闭时：
-  - 阻止非 HTTPS 下载；
-  - 阻止 `.bat` 和 `.ps1` 下载；
-  - 阻止“下载后执行”的命令链。
-- 极高风险命令始终会被阻止。
+- Open Interpreter source is not vendored in this repository.
+- Midscene is consumed from npm; the Chrome extension is installed manually by the user.
+- UI-TARS input actions require active screen authorization.
+- Model output never executes commands directly.
+- High-risk actions always require explicit confirmation.
+- Legacy Office, diagnostics, and workflow surfaces are compatibility helpers, not the product center.
 
-## 数据文件
+## Prerequisites
 
-应用数据位于 Electron 的 `userData` 目录下：
+- Windows 10/11 x64
+- Python 3.10+ with `pip install open-interpreter`
+- Google Chrome for Browser Use automation
+- API keys for the active model endpoints:
+  - DeepSeek (https://platform.deepseek.com)
+  - Browser Use provider configured in Settings
 
-- `data/config.json`
-- `data/data.json`
-- `data/auth.json`
-- `data/experiences.json`
-- `data/diagnostics.json`
-- `skills/`
-- `user_rules.md`
-
-## 打包产物
-
-运行 `npm run electron:build` 或 `npx electron-builder --win portable` 后会生成：
-
-- 安装包：`dist-electron/AgentDev Lite Setup 0.1.0.exe`
-- 便携版 exe：`dist-electron/AgentDev Lite 0.1.0.exe`
-
-最新的便携版构建也已复制到：
-
-- `C:\Users\DELL2024\Desktop\AgentDev Lite 0.1.0.exe`
-
-## 命令
-
-安装依赖：
+## Install
 
 ```powershell
 npm run setup
 ```
 
-以开发模式运行 Electron：
+If Electron binary download fails behind a corporate proxy, retry with a reachable mirror or a local Electron cache before packaging.
+
+## Development
 
 ```powershell
 npm run electron:dev
 ```
 
-运行测试：
+## Test
 
 ```powershell
 npm test
+npm run build:client
 ```
 
-仅构建客户端：
-
-```powershell
-npm --prefix client run build
-```
-
-构建 Windows 安装包：
+## Package
 
 ```powershell
 npm run electron:build
 ```
 
-构建便携版 exe：
+The Windows installer is written to `dist-electron/`.
 
-```powershell
-npx electron-builder --win portable
-```
+## Configuration
 
-## 如何使用伴随诊断
+Open Settings inside the app:
 
-### 1. 配置设置
+- Add a DeepSeek API key and keep the default mainland endpoint unless your deployment differs.
+- Add Browser Use settings if you want browser automation.
+- Configure Open Interpreter if you want shell, file, and code actions.
+- Pick a workspace root for command/file context.
+- Keep dry-run enabled when external runtimes are not installed.
 
-- 打开 `设置`。
-- 如果需要 `详细解释` 和复用方案重写，请填写 DeepSeek API key。
-- 切换到 `完全权限`。
-- 可选：启用 `高级风险执行模式`。
+## Open Interpreter Runtime
 
-### 2. 开始观察
+AionUi launches the managed `server/oi-bridge` sidecar on `127.0.0.1:8756`. Install Open Interpreter outside this repository with Python, then let the sidecar call the external runtime for approved shell, file, and code actions.
 
-- 点击顶部栏的 `诊断` 按钮。
-- 点击 `刷新窗口` 并选择一个终端窗口，或点击 `框选区域`。
-- 填写项目目录。
-- 点击 `开始观察`。
+Open Interpreter's AGPL source is not vendored here. Setup commands are high risk and must be confirmed through AionUi before running.
 
-### 3. 触发已知错误
+## UI-TARS Runtime
 
-示例：
+UI-TARS is the desktop screen-control capability. AionUi launches `server/uitars-bridge` on `127.0.0.1:8765`. Screen authorization must be active before observe, mouse, or keyboard actions run.
 
-```powershell
-Write-Output "ModuleNotFoundError: No module named flask"
-```
+Mouse and keyboard proposals are high risk by default and appear in Control Center. Emergency stop cancels queued UI actions and notifies the adapter.
 
-```powershell
-Write-Output "Error: Cannot find module 'vite'"
-```
+## Browser Use Runtime
 
-```powershell
-Write-Output "'javac' is not recognized as an internal or external command"
-```
+Browser Use is the browser automation capability. AionUi launches `server/browser-use-bridge` on `127.0.0.1:8780`; the bridge uses the Browser Use settings configured in the app.
 
-### 4. 使用诊断卡片
+Browser actions still pass through policy, confirmation, audit logging, and run outputs.
 
-每张诊断卡片会展示：
+## Safety Model
 
-- 原始错误片段；
-- 基于规则识别出的含义；
-- 可能原因；
-- 推荐修复；
-- 匹配到的历史经验；
-- 可选的模型解释。
+Risk levels:
 
-### 5. 使用经验卡片
+- `low`: safe observation, status checks, and non-mutating reads.
+- `medium`: local command/file/code work that is bounded but may change the workspace.
+- `high`: install, delete, overwrite, GUI input, submit, or other impactful work.
+- `blocked`: credential exfiltration, formatting disks, disabling security tooling, hidden background execution, and unbounded recursive delete.
 
-打开 `经验` 标签页后可以：
+Medium and high risk actions pause in the Control Center until approved or denied. Blocked actions never reach runtime adapters.
 
-- 搜索经验；
-- 按状态筛选；
-- 编辑标题 / 原因 / 备注 / 步骤；
-- 删除卡片；
-- 将所有经验导出为 JSON。
+## Documentation
 
-## 实现地图
-
-### 已更新文件
-
-- `package.json`
-- `package-lock.json`
-- `client/package-lock.json`
-- `electron/store.js`
-- `electron/main.js`
-- `electron/confirm.js`
-- `electron/ipc/config.js`
-- `electron/ipc/dialog.js`
-- `electron/ipc/index.js`
-- `electron/tools/shell.js`
-- `client/src/App.jsx`
-- `client/src/lib/api.js`
-- `client/src/panels/SettingsPanel.jsx`
-- `client/src/components/chat/ChatArea.jsx`
-- `client/src/components/chat/MessageList.jsx`
-- `client/src/components/layout/Layout.jsx`
-- `client/src/components/layout/MainArea.jsx`
-- `client/src/components/layout/RightDrawer.jsx`
-- `client/src/components/layout/TopBar.jsx`
-
-### 新增主进程诊断文件
-
-- `electron/services/diagnostics/errorDetector.js`
-- `electron/services/diagnostics/experienceMatcher.js`
-- `electron/services/diagnostics/executionPlanService.js`
-- `electron/services/diagnostics/diagnosisService.js`
-- `electron/services/diagnostics/observerSessionManager.js`
-- `electron/services/diagnostics/windowTargetService.js`
-- `electron/services/diagnostics/regionSelectionService.js`
-- `electron/services/diagnostics/uiaCollector.js`
-- `electron/services/diagnostics/ocrCollector.js`
-- `electron/services/diagnostics/companionPopupManager.js`
-- `electron/services/diagnostics/companionService.js`
-- `electron/services/diagnostics/index.js`
-- `electron/ipc/diagnostics.js`
-- `electron/ipc/experiences.js`
-- `electron/region-selection-preload.js`
-
-### 新增渲染进程文件
-
-- `client/src/hooks/useDiagnostics.js`
-- `client/src/components/chat/DiagnosisCard.jsx`
-- `client/src/components/chat/ExperienceCard.jsx`
-- `client/src/panels/DiagnosticsPanel.jsx`
-- `client/src/panels/ExperienceLibraryPanel.jsx`
-- `client/src/popup/CompanionPopup.jsx`
-
-### 新增测试
-
-- `electron/__tests__/diagnostics-store.test.js`
-- `electron/__tests__/diagnostics-detector.test.js`
-- `electron/__tests__/diagnostics-lifecycle.test.js`
-- `electron/__tests__/diagnostics-ipc.test.js`
-- `electron/__tests__/companion-popup.test.js`
-- `electron/__tests__/diagnostics-region.test.js`
-- `electron/__tests__/diagnostics-collectors.test.js`
-
-## 文件职责
-
-### 主进程
-
-- `errorDetector.js`：基于规则将文本检测为错误。
-- `experienceMatcher.js`：基于关键词和签名相似度进行匹配。
-- `executionPlanService.js`：风险分级和执行方案规范化。
-- `diagnosisService.js`：生成诊断、自动保存经验、持久化修复结果，以及提供模型客户端辅助能力。
-- `observerSessionManager.js`：会话生命周期、去重、忽略缓存、冷却时间、重复失败暂停。
-- `windowTargetService.js`：枚举可观察窗口并提供缩略图。
-- `regionSelectionService.js`：用于区域选择的透明覆盖层。
-- `uiaCollector.js`：通过 Windows UI Automation 采集文本。
-- `ocrCollector.js`：对捕获的窗口或区域图像执行 OCR。
-- `companionPopupManager.js`：右上角队列式弹窗通知。
-- `companionService.js`：采集、检测、弹窗发送和诊断持久化的编排入口。
-
-### IPC
-
-- `diagnostics.js`：观察器生命周期、诊断获取、修复执行、解释、重写方案、弹窗操作。
-- `experiences.js`：经验的增删改查、搜索、导出。
-- `dialog.js`：扩展为支持直接保存生成的 JSON 内容。
-- `config.js`：扩展为持久化 `advancedRiskExecutionEnabled`。
-
-### 渲染进程
-
-- `useDiagnostics.js`：订阅诊断事件，并暴露诊断状态和操作。
-- `DiagnosticsPanel.jsx`：目标选择、会话控制、诊断列表。
-- `ExperienceLibraryPanel.jsx`：可搜索、可编辑、可导出的经验库。
-- `DiagnosisCard.jsx`：解释 / 执行 / 复用交互。
-- `ExperienceCard.jsx`：可编辑的经验展示。
-- `CompanionPopup.jsx`：队列通知弹窗窗口 UI。
-- `TopBar.jsx`：诊断和经验入口按钮，以及状态指示器。
-- `Layout.jsx` / `RightDrawer.jsx`：诊断标签页接入。
-- `ChatArea.jsx` / `MessageList.jsx`：向聊天流注入诊断卡片和经验卡片。
-
-## 已完成验证
-
-本次实现期间，下列命令已成功执行：
-
-```powershell
-npm test
-npm --prefix client run build
-npm run electron:build
-npx electron-builder --win portable
-```
-
-## 备注
-
-- OCR 现在在主进程中使用 `tesseract.js`。
-- 区域模式不会持久化原始截图。
-- 弹窗使用同一份渲染进程构建，并通过 `?popup=1` 加载。
-- 应用未进行代码签名，因此 Windows SmartScreen 可能会在启动前显示警告。
-
-## 手动验收清单
-
-- exe 安装后首次启动能看到 5 个内置 skill。
-- 给本地 pdf 路径说“总结这个文件”。
-- 说“帮我装 uv”。
-- 说“删掉 D:\temp”。
-- 说“写一份关于 XX 的 Word 报告”。
-- 切到 `normal` 模式。
-- 自己写 `SKILL.md` 放到用户 `skills/` 目录。
-- `user_rules.md` 新增规则。
+- Final delivery plan: `docs/superpowers/plans/2026-05-08-aionui-v2-final-delivery-plan.md`
+- Dry-run demo script: `docs/demo-script.md`
+- User manual: `docs/USER_MANUAL.md`
+- Runtime setup: `docs/runtime-setup.md`
+- Developer guide: `docs/developer-guide.md`
+- Release checklist: `docs/release-checklist.md`
+- Test report: `docs/test-report.md`

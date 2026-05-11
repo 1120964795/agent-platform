@@ -8,14 +8,14 @@ function toolError(code, message) {
 }
 
 function ensurePathExists(targetPath) {
-  if (!targetPath || typeof targetPath !== 'string') throw toolError('INVALID_ARGS', '缺少路径')
-  if (!fs.existsSync(targetPath)) throw toolError('PATH_NOT_FOUND', `路径不存在：${targetPath}`)
+  if (!targetPath || typeof targetPath !== 'string') throw toolError('INVALID_ARGS', '需要提供路径。')
+  if (!fs.existsSync(targetPath)) throw toolError('PATH_NOT_FOUND', `未找到路径：${targetPath}`)
 }
 
 function listDir(pathValue, showHidden = false) {
   ensurePathExists(pathValue)
   const stat = fs.statSync(pathValue)
-  if (!stat.isDirectory()) throw toolError('INVALID_ARGS', '路径必须是目录')
+  if (!stat.isDirectory()) throw toolError('INVALID_ARGS', '路径必须是目录。')
   const entries = fs.readdirSync(pathValue, { withFileTypes: true })
     .filter((entry) => showHidden || !entry.name.startsWith('.'))
     .map((entry) => {
@@ -33,10 +33,10 @@ function listDir(pathValue, showHidden = false) {
 }
 
 function searchFiles({ root, query, max_depth = 3 }) {
-  if (!root || !query) throw toolError('INVALID_ARGS', '缺少根目录或搜索关键词')
+  if (!root || !query) throw toolError('INVALID_ARGS', '需要提供根目录和搜索关键词。')
   ensurePathExists(root)
   const stat = fs.statSync(root)
-  if (!stat.isDirectory()) throw toolError('INVALID_ARGS', '根路径必须是目录')
+  if (!stat.isDirectory()) throw toolError('INVALID_ARGS', '根路径必须是目录。')
   const results = []
   const needle = String(query).toLowerCase()
   const limit = 50

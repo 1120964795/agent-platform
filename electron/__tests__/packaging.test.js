@@ -9,18 +9,26 @@ const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf
 test('desktop scripts no longer start the legacy server', () => {
   expect(pkg.scripts.dev).toBeUndefined()
   expect(pkg.scripts.setup).not.toContain('server')
+  expect(pkg.scripts['build:bridges']).toBe('node scripts/prepare-bridges.js')
   expect(pkg.scripts['electron:dev']).toContain('npm --prefix client run dev')
   expect(pkg.scripts['electron:dev']).not.toContain('server')
+  expect(pkg.scripts['electron:dev']).not.toContain('build:bridges')
+  expect(pkg.scripts['electron:build']).toContain('npm run build:client')
+  expect(pkg.scripts['electron:build']).toContain('npm run build:bridges')
+  expect(pkg.scripts['electron:build']).toMatch(/build:client.*build:bridges.*electron-builder --win/)
 
-  const packagedInputs = JSON.stringify({
-    files: pkg.build.files,
-    extraResources: pkg.build.extraResources
-  })
-  expect(packagedInputs).not.toContain('server')
+  expect(JSON.stringify(pkg.build.files)).not.toContain('server')
+  expect(pkg.build.extraResources).toEqual(expect.arrayContaining([
+    expect.objectContaining({ from: 'dist-bridges/browser-use-bridge', to: 'server/browser-use-bridge' }),
+    expect.objectContaining({ from: 'dist-bridges/uitars-bridge', to: 'server/uitars-bridge' })
+  ]))
+  expect(pkg.build.extraResources).not.toEqual(expect.arrayContaining([
+    expect.objectContaining({ from: 'server/oi-bridge' }),
+    expect.objectContaining({ from: 'server/uitars-bridge' })
+  ]))
 })
 
 test('desktop build bundles renderer and skills resources', () => {
-  expect(pkg.build.win.signAndEditExecutable).toBe(false)
   expect(pkg.build.files).toEqual(expect.arrayContaining([
     'electron/**/*',
     '!electron/__tests__/**/*',
@@ -28,49 +36,34 @@ test('desktop build bundles renderer and skills resources', () => {
   ]))
   expect(pkg.build.extraResources).toEqual(expect.arrayContaining([
     expect.objectContaining({ from: 'resources/skills', to: 'skills' }),
-    expect.objectContaining({ from: 'resources/workflow-templates', to: 'workflow-templates' }),
-    expect.objectContaining({ from: 'resources/demos', to: 'demos' }),
-    expect.objectContaining({ from: 'docs/final-delivery', to: 'docs/final-delivery' }),
     expect.objectContaining({ from: 'client/dist', to: 'client/dist' })
   ]))
 })
 
+test('package metadata uses AionUi product identity', () => {
+  expect(pkg.name).toBe('agentdev-lite')
+  expect(pkg.description).toContain('AionUi V2')
+  expect(pkg.build.productName).toBe('AionUi')
+})
 
 test('main-process runtime modules are production dependencies', () => {
-  for (const dependency of ['docx', 'gray-matter', 'jszip', 'mammoth', 'pptxgenjs']) {
+  for (const dependency of ['docx', 'gray-matter', 'mammoth', 'pptxgenjs']) {
     expect(pkg.dependencies[dependency]).toBeTruthy()
     expect(pkg.devDependencies[dependency]).toBeUndefined()
   }
 })
 
-test('final delivery resources exist for packaging', () => {
-  const requiredPaths = [
-    'docs/final-delivery/README-final.md',
-    'docs/final-delivery/release-checklist.md',
-    'resources/workflow-templates/manifest.json',
-    'resources/demos/flask-demo/aion-demo.json',
-    'resources/demos/vite-demo/aion-demo.json',
-    'resources/demos/java-demo/aion-demo.json'
-  ]
-
-  for (const relativePath of requiredPaths) {
-    expect(fs.existsSync(path.join(repoRoot, relativePath))).toBe(true)
-  }
-})
-test('README keeps the manual acceptance checklist', () => {
+test('README describes the V2 control plane scope', () => {
   const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf-8')
-  const checklistItems = [
-    'exe 安装后首次启动能看到 5 个内置 skill',
-    '给本地 pdf 路径说“总结这个文件”',
-    '说“帮我装 uv”',
-    '说“删掉 D:\\temp”',
-    '说“写一份关于 XX 的 Word 报告”',
-    '切到 `normal` 模式',
-    '自己写 `SKILL.md` 放到用户 `skills/` 目录',
-    '`user_rules.md` 新增规则'
+  const requiredText = [
+    'DeepSeek-V4 owns chat, planning, intent classification, and coding reasoning',
+    'Browser Use is the browser automation capability',
+    'Open Interpreter remains the managed local runtime',
+    'AionUi owns policy',
+    'High-risk actions always require explicit confirmation'
   ]
 
-  for (const item of checklistItems) {
+  for (const item of requiredText) {
     expect(readme).toContain(item)
   }
 })

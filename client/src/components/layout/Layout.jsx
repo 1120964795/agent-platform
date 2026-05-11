@@ -1,94 +1,73 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import Sidebar from './Sidebar.jsx'
 import MainArea from './MainArea.jsx'
-import RightDrawer from './RightDrawer.jsx'
-import { useDiagnostics } from '../../hooks/useDiagnostics.js'
+import BridgeStatusBar from '../BridgeStatusBar.jsx'
+import SettingsPage from '../../pages/SettingsPage.jsx'
+import { useConversations } from '../../hooks/useConversations.js'
 
-export default function Layout({
-  currentUser,
-  onLogout,
-  conversations,
-  activeConversationId,
-  activeConversation,
-  onNewConversation,
-  onSelectConversation,
-  onConversationSaved
-}) {
+const ACTIVE_CONVERSATION_KEY = 'agentdev-active-conversation-id'
+
+function createConversationId() {
+  if (window.crypto?.randomUUID) return `conv_${window.crypto.randomUUID()}`
+  return `conv_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+}
+
+function getInitialConversationId() {
+  const saved = localStorage.getItem(ACTIVE_CONVERSATION_KEY)
+  if (saved) return saved
+  const next = createConversationId()
+  localStorage.setItem(ACTIVE_CONVERSATION_KEY, next)
+  return next
+}
+
+export default function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [drawer, setDrawer] = useState(null)
-  const [diagnosticsFocus, setDiagnosticsFocus] = useState(null)
-  const diagnosticsState = useDiagnostics(currentUser)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsInitialTab, setSettingsInitialTab] = useState('models')
+  const [conversationId, setConversationId] = useState(getInitialConversationId)
+  const { conversations, refresh, remove, rename } = useConversations()
 
-  useEffect(() => {
-    const unsubscribe = window.electronAPI?.on?.('app-menu:action', (payload = {}) => {
-      switch (payload.action) {
-        case 'new-chat':
-          onNewConversation?.()
-          setDrawer(null)
-          break
-        case 'open-settings':
-          setDrawer('settings')
-          break
-        case 'open-files':
-          setDrawer('files')
-          break
-        case 'open-artifacts':
-          setDrawer('artifacts')
-          break
-        case 'toggle-sidebar':
-          setSidebarCollapsed((value) => !value)
-          break
-        case 'logout':
-          onLogout?.()
-          break
-        default:
-          break
-      }
-    })
+  const openSettings = useCallback((initialTab = 'models') => {
+    setSettingsInitialTab(initialTab)
+    setSettingsOpen(true)
+  }, [])
 
-    function handleOpenDiagnostics(event) {
-      setDiagnosticsFocus({
-        diagnosisId: event.detail?.diagnosisId || event.detail?.diagnosisIds?.[0] || '',
-        explain: Boolean(event.detail?.explain),
-        nonce: Date.now()
-      })
-      setDrawer('diagnostics')
-    }
+  const handleNewConversation = useCallback(() => {
+    const next = createConversationId()
+    localStorage.setItem(ACTIVE_CONVERSATION_KEY, next)
+    setConversationId(next)
+    setTimeout(() => refresh(), 500)
+  }, [refresh])
 
-    window.addEventListener('agentdev:open-diagnostics', handleOpenDiagnostics)
-    return () => {
-      unsubscribe?.()
-      window.removeEventListener('agentdev:open-diagnostics', handleOpenDiagnostics)
-    }
-  }, [onLogout, onNewConversation])
+  const handleSelectConversation = useCallback((id) => {
+    localStorage.setItem(ACTIVE_CONVERSATION_KEY, id)
+    setConversationId(id)
+  }, [])
+
+  const handleDelete = useCallback(async (id) => {
+    await remove(id)
+    if (id === conversationId) handleNewConversation()
+  }, [conversationId, handleNewConversation, remove])
 
   return (
-    <div className="flex h-full w-full bg-[color:var(--bg-primary)] text-[color:var(--text-primary)]">
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((value) => !value)}
-        onOpenDrawer={setDrawer}
-        conversations={conversations}
-        activeConversationId={activeConversationId}
-        onNewConversation={onNewConversation}
-        onSelectConversation={onSelectConversation}
-      />
-      <MainArea
-        onOpenDrawer={setDrawer}
-        currentUser={currentUser}
-        onLogout={onLogout}
-        conversationId={activeConversationId}
-        activeConversation={activeConversation}
-        onConversationSaved={onConversationSaved}
-        diagnosticsState={diagnosticsState}
-        diagnosticsFocus={diagnosticsFocus}
-      />
-      <RightDrawer
-        view={drawer}
-        onClose={() => setDrawer(null)}
-        currentUser={currentUser}
-        diagnosticsState={diagnosticsState}
-      />
+    <div className="flex flex-col h-full w-full bg-[color:var(--bg-primary)] text-[color:var(--text-primary)]">
+      <div className="flex flex-1 min-h-0">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(v => !v)}
+          onNewConversation={handleNewConversation}
+          onSelectConversation={handleSelectConversation}
+          activeConversationId={conversationId}
+          conversations={conversations}
+          onDelete={handleDelete}
+          onRename={rename}
+          onSearch={refresh}
+          onOpenSettings={() => openSettings('models')}
+        />
+        <MainArea conversationId={conversationId} />
+      </div>
+      <BridgeStatusBar onNavigateToSettings={(initialTab) => openSettings(initialTab)} />
+      {settingsOpen && <SettingsPage initialTab={settingsInitialTab} onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }

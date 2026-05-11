@@ -4,24 +4,19 @@ const { store } = require('../store')
 
 const HEADER = '<!-- Rules below are managed by remember_user_rule. You may edit this file manually. -->\n'
 
-function normalizeUsername(username) {
-  return String(username || 'guest').trim() || 'guest'
+function rulesPath() {
+  return path.join(path.dirname(store.DATA_DIR), 'user_rules.md')
 }
 
-function rulesPath(username) {
-  const userKey = encodeURIComponent(normalizeUsername(username))
-  return path.join(path.dirname(store.DATA_DIR), `user_rules.${userKey}.md`)
-}
-
-function ensureFile(username) {
-  const filePath = rulesPath(username)
+function ensureFile() {
+  const filePath = rulesPath()
   fs.mkdirSync(path.dirname(filePath), { recursive: true })
   if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, HEADER, 'utf-8')
   return filePath
 }
 
-function readRules(username) {
-  const filePath = ensureFile(username)
+function readRules() {
+  const filePath = ensureFile()
   const raw = fs.readFileSync(filePath, 'utf-8')
   return raw.split(/\r?\n/).map((line) => {
     const match = line.match(/^\s*- \[(r_[^\]]+)\]\s+(.+)$/)
@@ -29,19 +24,19 @@ function readRules(username) {
   }).filter(Boolean)
 }
 
-function appendRule(text, username) {
+function appendRule(text) {
   if (!text || typeof text !== 'string') {
-    const error = new Error('缺少偏好内容')
+    const error = new Error('需要提供偏好规则。')
     error.code = 'INVALID_ARGS'
     throw error
   }
   const id = `r_${new Date().toISOString()}`
-  fs.appendFileSync(ensureFile(username), `- [${id}] ${text.trim()}\n`, 'utf-8')
+  fs.appendFileSync(ensureFile(), `- [${id}] ${text.trim()}\n`, 'utf-8')
   return { id, text: text.trim() }
 }
 
-function removeRuleById(id, username) {
-  const filePath = ensureFile(username)
+function removeRuleById(id) {
+  const filePath = ensureFile()
   const lines = fs.readFileSync(filePath, 'utf-8').split(/\r?\n/)
   let removed = false
   const next = lines.filter((line) => {
@@ -55,8 +50,39 @@ function removeRuleById(id, username) {
   return { removed }
 }
 
-function removeRulesBySubstring(substring, username) {
-  const filePath = ensureFile(username)
+function updateRule(id, text) {
+  if (!id || typeof id !== 'string') {
+    const error = new Error('需要提供规则 ID。')
+    error.code = 'INVALID_ARGS'
+    throw error
+  }
+  if (!text || typeof text !== 'string') {
+    const error = new Error('需要提供规则内容。')
+    error.code = 'INVALID_ARGS'
+    throw error
+  }
+  const filePath = ensureFile()
+  const lines = fs.readFileSync(filePath, 'utf-8').split(/\r?\n/)
+  let found = false
+  const next = lines.map((line) => {
+    if (line.includes(`[${id}]`)) {
+      found = true
+      const match = line.match(/^(\s*- \[[^\]]+\])\s+.+$/)
+      return match ? `${match[1]} ${text.trim()}` : line
+    }
+    return line
+  })
+  if (!found) {
+    const error = new Error(`未找到规则 ${id}。`)
+    error.code = 'NOT_FOUND'
+    throw error
+  }
+  fs.writeFileSync(filePath, next.join('\n').replace(/\n*$/, '\n'), 'utf-8')
+  return { id, text: text.trim() }
+}
+
+function removeRulesBySubstring(substring) {
+  const filePath = ensureFile()
   const lines = fs.readFileSync(filePath, 'utf-8').split(/\r?\n/)
   let removedCount = 0
   const next = lines.filter((line) => {
@@ -70,10 +96,10 @@ function removeRulesBySubstring(substring, username) {
   return { removed_count: removedCount }
 }
 
-function buildSystemPromptSection(username) {
-  const rules = readRules(username)
+function buildSystemPromptSection() {
+  const rules = readRules()
   if (!rules.length) return ''
-  return ['## User Persistent Preferences', 'Follow these cross-session preferences explicitly stated by the user:', ...rules.map((rule) => `- ${rule.text}`)].join('\n')
+  return ['## 用户长期偏好', '请严格遵循用户明确表达的跨会话偏好：', ...rules.map((rule) => `- ${rule.text}`)].join('\n')
 }
 
-module.exports = { rulesPath, readRules, appendRule, removeRuleById, removeRulesBySubstring, buildSystemPromptSection }
+module.exports = { rulesPath, readRules, appendRule, updateRule, removeRuleById, removeRulesBySubstring, buildSystemPromptSection }

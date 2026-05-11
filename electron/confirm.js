@@ -8,42 +8,24 @@ function shellCommandKey(command = '') {
   return String(command).trim().split(/\s+/)[0].replace(/^['"]|['"]$/g, '').toLowerCase()
 }
 
-function buildDiagnosisDetail(payload = {}) {
-  return [
-    payload.title ? `Diagnosis:\n${payload.title}` : '',
-    payload.command ? `Command:\n${payload.command}` : '',
-    payload.cwd ? `CWD:\n${payload.cwd}` : '',
-    payload.downloadUrl ? `URL:\n${payload.downloadUrl}` : '',
-    payload.downloadTarget ? `Download Target:\n${payload.downloadTarget}` : '',
-    payload.downloadExtension ? `Download Type:\n${payload.downloadExtension}` : '',
-    `Executes After Download:\n${payload.executesAfterDownload ? 'Yes' : 'No'}`,
-    `Requires Admin:\n${payload.requiresAdmin ? 'Yes' : 'No'}`,
-    payload.riskLevel ? `Risk Level:\n${payload.riskLevel}` : '',
-    payload.riskExplanation ? `Risk Explanation:\n${payload.riskExplanation}` : ''
-  ].filter(Boolean).join('\n\n')
-}
-
-async function defaultDialogProvider({ kind, payload = {} }) {
+async function defaultDialogProvider({ kind, payload }) {
   const window = BrowserWindow?.getFocusedWindow?.()
-  const isDiagnosisFix = kind === 'diagnosis-fix'
   const detail = kind === 'shell-command'
-    ? `Command:\n${payload.command}\n\nCWD:\n${payload.cwd || ''}`
-    : isDiagnosisFix
-      ? buildDiagnosisDetail(payload)
-      : JSON.stringify(payload, null, 2)
-
+    ? `命令：\n${payload.command}\n\n工作目录：\n${payload.cwd || ''}`
+    : kind === 'action-proposal'
+      ? `动作：\n${payload.title || payload.type || ''}\n\n风险：${payload.risk || ''}\n\n${JSON.stringify(payload.payload || {}, null, 2)}`
+    : JSON.stringify(payload, null, 2)
   const result = await dialog.showMessageBox(window, {
     type: 'warning',
-    title: isDiagnosisFix ? 'Confirm Diagnosis Fix' : 'Confirm Local Action',
-    message: isDiagnosisFix ? 'Run this diagnosis fix command?' : `Allow ${kind}?`,
+    title: '确认本地动作',
+    message: `允许执行 ${kind}？`,
     detail,
-    buttons: isDiagnosisFix ? ['Yes', 'No'] : ['Allow', 'Cancel'],
+    buttons: ['允许', '取消'],
     defaultId: 1,
     cancelId: 1,
     noLink: true,
-    checkboxLabel: kind === 'shell-command' ? 'Do not ask again for this command in this session' : undefined
+    checkboxLabel: kind === 'shell-command' ? '本次会话中不再询问此命令' : undefined
   })
-
   return {
     allowed: result.response === 0,
     remember: Boolean(result.checkboxChecked)
@@ -59,25 +41,21 @@ function clearConfirmCache() {
   sessionAllowed.clear()
 }
 
-async function requestConfirm({ kind, payload = {}, username }) {
-  const config = username ? store.getUserConfig(username) : store.getConfig()
+async function requestConfirm({ kind, payload = {} }) {
+  const config = store.getConfig()
   const cacheEnabled = config.session_confirm_cache_enabled !== false
-  const userKey = String(username || 'guest').trim() || 'guest'
-  const key = kind === 'shell-command' ? `${userKey}:${shellCommandKey(payload.command)}` : ''
-
-  if (kind !== 'diagnosis-fix' && cacheEnabled && key && sessionAllowed.has(key)) return true
+  const key = kind === 'shell-command' ? shellCommandKey(payload.command) : ''
+  if (cacheEnabled && key && sessionAllowed.has(key)) return true
 
   const response = await dialogProvider({ kind, payload })
   const allowed = typeof response === 'boolean' ? response : Boolean(response?.allowed)
-  const remember = kind !== 'diagnosis-fix' && typeof response === 'object' && Boolean(response.remember)
+  const remember = typeof response === 'object' && Boolean(response.remember)
   if (allowed && remember && cacheEnabled && key) sessionAllowed.add(key)
   return allowed
 }
 
-module.exports = {
-  requestConfirm,
-  setDialogProvider,
-  clearConfirmCache,
-  shellCommandKey,
-  buildDiagnosisDetail
+async function requestActionConfirm(action) {
+  return requestConfirm({ kind: 'action-proposal', payload: action })
 }
+
+module.exports = { requestConfirm, requestActionConfirm, setDialogProvider, clearConfirmCache, shellCommandKey }

@@ -7,9 +7,22 @@ import path from 'path'
 const TMP = path.join(os.tmpdir(), `agentdev-ipc-test-${Date.now()}`)
 process.env.AGENTDEV_DATA_DIR = path.join(TMP, 'data')
 const require = createRequire(import.meta.url)
+
+// Mock electron for conversationStore (SQLite-backed CRUD needs app.getPath)
+const convDir = path.join(TMP, 'conversations')
+require.cache[require.resolve('electron')] = {
+  exports: {
+    app: {
+      getPath: () => {
+        fs.mkdirSync(convDir, { recursive: true })
+        return convDir
+      }
+    }
+  }
+}
+
 const { registerAll } = require('../ipc')
 const { store } = require('../store')
-const { normalizeDirectoryPath, getParentDir } = require('../ipc/files')
 
 function createIpcMain() {
   const handlers = new Map()
@@ -20,7 +33,8 @@ function createIpcMain() {
 }
 
 beforeEach(() => {
-  fs.rmSync(TMP, { recursive: true, force: true })
+  try { store.closeConversationStore() } catch {}
+  try { fs.rmSync(TMP, { recursive: true, force: true }) } catch {}
 })
 
 test('registerAll registers core IPC channels', () => {
@@ -33,66 +47,22 @@ test('registerAll registers core IPC channels', () => {
   })
 
   expect([...ipcMain.handlers.keys()]).toEqual(expect.arrayContaining([
-    'auth:getState',
-    'auth:register',
-    'auth:login',
-    'auth:logout',
-    'auth:migrateLocalStorage',
     'config:get',
     'config:set',
     'conversations:list',
     'conversations:get',
     'conversations:upsert',
+    'conversations:rename',
+    'conversations:delete',
     'artifacts:list',
-    'artifacts:delete',
-    'chat:send',
-    'chat:cancel',
     'files:list',
     'files:search',
-    'projects:list',
-    'projects:add',
-    'projects:get',
-    'projects:settings:get',
-    'projects:index:start',
-    'projects:search',
-    'projects:ask',
-    'projects:patch:preview',
-    'projects:experiences:match',
-    'projects:embedding:status',
     'dialog:selectFile',
     'dialog:selectDirectory',
-    'dialog:saveFileAs',
     'shell:openPath',
-    'app:getPaths'
+    'app:getPaths',
+    'app:open-external'
   ]))
-})
-
-test('artifacts handlers list and delete generated files', async () => {
-  const root = path.join(TMP, 'artifacts')
-  const filePath = path.join(root, 'generated.txt')
-  fs.mkdirSync(root, { recursive: true })
-  fs.writeFileSync(filePath, 'generated')
-  const artifact = store.addArtifact({
-    id: 'artifact_1',
-    username: 'alice',
-    type: 'file',
-    filename: 'generated.txt',
-    path: filePath,
-    title: 'generated.txt',
-    createdAt: new Date().toISOString()
-  })
-
-  const ipcMain = createIpcMain()
-  registerAll(ipcMain)
-
-  const listResult = await ipcMain.handlers.get('artifacts:list')({}, { username: 'alice' })
-  expect(listResult.items).toEqual([artifact])
-
-  const deleteResult = await ipcMain.handlers.get('artifacts:delete')({}, { username: 'alice', id: artifact.id })
-  expect(deleteResult.ok).toBe(true)
-  expect(deleteResult.fileDeleted).toBe(true)
-  expect(fs.existsSync(filePath)).toBe(false)
-  expect(store.listArtifacts('alice')).toHaveLength(0)
 })
 
 test('config handlers read and patch config', async () => {
@@ -108,76 +78,53 @@ test('config handlers read and patch config', async () => {
   expect(store.getConfig().apiKey).toBe('sk-test')
 })
 
-test('auth handlers register and login accounts through the main process store', async () => {
+test('config handlers persist Browser-Use settings and mask key', async () => {
   const ipcMain = createIpcMain()
   registerAll(ipcMain)
 
-  const registerResult = await ipcMain.handlers.get('auth:register')({}, {
-    username: 'alice',
-    password: '123456'
+  const setResult = await ipcMain.handlers.get('config:set')({}, {
+    browserUseApiKey: '  sk-ai-v1-browser-use  ',
+    browserUseEndpoint: '  https://zenmux.ai/api/v1  ',
+    browserUseModel: '  openai/gpt-5.5  ',
+    browserUseVisionEnabled: true
   })
-  expect(registerResult.ok).toBe(true)
 
-  const duplicateResult = await ipcMain.handlers.get('auth:register')({}, {
-    username: 'ALICE',
-    password: '123456'
-  })
-  expect(duplicateResult.ok).toBe(false)
-  expect(duplicateResult.error.code).toBe('AUTH_ACCOUNT_EXISTS')
+  expect(setResult.ok).toBe(true)
+  expect(setResult.config.browserUseApiKey).toBe('sk-ai***-use')
+  expect(store.getConfig().browserUseApiKey).toBe('sk-ai-v1-browser-use')
+  expect(store.getConfig().browserUseEndpoint).toBe('https://zenmux.ai/api/v1')
+  expect(store.getConfig().browserUseModel).toBe('openai/gpt-5.5')
+  expect(store.getConfig().browserUseVisionEnabled).toBe(true)
 
-  const loginResult = await ipcMain.handlers.get('auth:login')({}, {
-    username: 'alice',
-    password: '123456',
-    rememberPassword: true,
-    autoLogin: true
+  await ipcMain.handlers.get('config:set')({}, {
+    browserUseApiKey: '   ',
+    browserUseEndpoint: '   ',
+    browserUseModel: '   '
   })
-  expect(loginResult.ok).toBe(true)
-  expect(loginResult.user).toEqual({ username: 'alice' })
-  expect(loginResult.currentUser).toEqual({ username: 'alice' })
-  expect(loginResult.usernameOptions).toEqual(['alice'])
 
-  const auth = store.getAuth()
-  expect(auth.accounts).toHaveLength(1)
-  expect(auth.accounts[0].passwordHash).toBeTruthy()
-  expect(auth.accounts[0].password).toBeUndefined()
-  expect(auth.loginPrefs).toMatchObject({
-    username: 'alice',
-    rememberPassword: true,
-    autoLogin: true
-  })
+  expect(store.getConfig().browserUseApiKey).toBe('sk-ai-v1-browser-use')
+  expect(store.getConfig().browserUseEndpoint).toBe('https://zenmux.ai/api/v1')
+  expect(store.getConfig().browserUseModel).toBe('openai/gpt-5.5')
 })
 
-test('auth migration imports legacy localStorage accounts once', async () => {
+test('config handlers ignore removed Qwen and Doubao settings', async () => {
   const ipcMain = createIpcMain()
   registerAll(ipcMain)
 
-  const migrateResult = await ipcMain.handlers.get('auth:migrateLocalStorage')({}, {
-    accounts: [
-      { username: 'alice', password: '123456' },
-      { username: 'bob', password: 'abcdef' }
-    ],
-    loginHistory: ['bob', 'alice'],
-    loginPrefs: {
-      username: 'bob',
-      password: 'abcdef',
-      rememberPassword: true,
-      autoLogin: false
-    },
-    session: {
-      username: 'alice',
-      autoLogin: true
-    }
+  const result = await ipcMain.handlers.get('config:set')({}, {
+    qwenApiKey: 'sk-qwen-secret',
+    qwenBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    qwenPrimaryModel: 'qwen-max-latest',
+    doubaoVisionApiKey: 'sk-doubao-secret',
+    doubaoVisionEndpoint: 'https://ark.cn-beijing.volces.com/api/v3',
+    doubaoVisionModel: 'doubao-seed-1-6-vision-250815'
   })
 
-  expect(migrateResult.ok).toBe(true)
-  expect(migrateResult.currentUser).toEqual({ username: 'alice' })
-  expect(migrateResult.usernameOptions).toEqual(['alice', 'bob'])
-
-  await ipcMain.handlers.get('auth:migrateLocalStorage')({}, {
-    accounts: [{ username: 'alice', password: 'changed' }]
-  })
-
-  expect(store.getAuth().accounts).toHaveLength(2)
+  expect(result.ok).toBe(true)
+  expect(result.config).not.toHaveProperty('qwenApiKey')
+  expect(result.config).not.toHaveProperty('doubaoVisionApiKey')
+  expect(store.getConfig()).not.toHaveProperty('qwenApiKey')
+  expect(store.getConfig()).not.toHaveProperty('doubaoVisionApiKey')
 })
 
 test('conversation upsert and get handlers round trip data', async () => {
@@ -195,43 +142,129 @@ test('conversation upsert and get handlers round trip data', async () => {
   expect(result.conversation.messages).toEqual([{ role: 'user', content: 'hi' }])
 })
 
-test('conversation handlers filter by username when provided', async () => {
+test('conversation list, rename, and delete handlers manage chat history', async () => {
   const ipcMain = createIpcMain()
   registerAll(ipcMain)
 
   await ipcMain.handlers.get('conversations:upsert')({}, {
-    id: 'conv-alice',
-    title: 'Alice',
-    username: 'alice',
-    messages: [{ role: 'user', content: 'alice chat' }]
+    id: 'conv-search-1',
+    title: 'Alpha project',
+    messages: [{ role: 'user', content: 'first alpha message' }]
   })
   await ipcMain.handlers.get('conversations:upsert')({}, {
-    id: 'conv-bob',
-    title: 'Bob',
-    username: 'bob',
-    messages: [{ role: 'user', content: 'bob chat' }]
+    id: 'conv-search-2',
+    title: 'Beta notes',
+    messages: [{ role: 'user', content: 'first beta message' }]
   })
 
-  const listResult = await ipcMain.handlers.get('conversations:list')({}, { username: 'alice' })
-  expect(listResult.conversations.map((item) => item.id)).toEqual(['conv-alice'])
+  const filtered = await ipcMain.handlers.get('conversations:list')({}, { search: 'alpha' })
+  expect(filtered.ok).toBe(true)
+  expect(filtered.conversations.map(c => c.id)).toEqual(['conv-search-1'])
+  expect(filtered.conversations[0].firstMessagePreview).toBe('first alpha message')
 
-  const blockedResult = await ipcMain.handlers.get('conversations:get')({}, { id: 'conv-bob', username: 'alice' })
-  expect(blockedResult.ok).toBe(false)
-  expect(blockedResult.error.code).toBe('NOT_FOUND')
+  const renamed = await ipcMain.handlers.get('conversations:rename')({}, { id: 'conv-search-1', title: 'Gamma project' })
+  expect(renamed.ok).toBe(true)
+  expect(renamed.conversation.title).toBe('Gamma project')
+
+  const badRename = await ipcMain.handlers.get('conversations:rename')({}, { id: 'conv-search-1', title: '' })
+  expect(badRename.ok).toBe(false)
+  expect(badRename.error.code).toBe('BAD_REQUEST')
+
+  const deleted = await ipcMain.handlers.get('conversations:delete')({}, { id: 'conv-search-2' })
+  expect(deleted.ok).toBe(true)
+  const missing = await ipcMain.handlers.get('conversations:get')({}, { id: 'conv-search-2' })
+  expect(missing.ok).toBe(false)
 })
 
-test('config handlers keep user settings isolated', async () => {
+test('artifact delete handler moves generated file to system trash', async () => {
   const ipcMain = createIpcMain()
-  registerAll(ipcMain)
+  const trashItem = vi.fn(async (targetPath) => {
+    fs.unlinkSync(targetPath)
+  })
+  registerAll(ipcMain, { shell: { trashItem } })
+  const generatedDir = path.join(TMP, 'generated')
+  fs.mkdirSync(generatedDir, { recursive: true })
+  const filePath = path.join(generatedDir, 'report.docx')
+  fs.writeFileSync(filePath, 'hello')
+  store.addArtifact({
+    id: 'artifact-1',
+    type: 'word',
+    filename: 'report.docx',
+    path: filePath,
+    title: '测试报告',
+    createdAt: new Date().toISOString()
+  })
 
-  await ipcMain.handlers.get('config:set')({}, { username: 'alice', apiKey: 'sk-alice', permissionMode: 'full' })
-  const aliceResult = await ipcMain.handlers.get('config:get')({}, { username: 'alice' })
-  const bobResult = await ipcMain.handlers.get('config:get')({}, { username: 'bob' })
+  const deleted = await ipcMain.handlers.get('artifacts:delete')({}, { id: 'artifact-1' })
 
-  expect(aliceResult.config.apiKey).toBe('***')
-  expect(aliceResult.config.permissionMode).toBe('full')
-  expect(bobResult.config.apiKey).toBe('')
-  expect(bobResult.config.permissionMode).toBe('default')
+  expect(deleted.ok).toBe(true)
+  expect(trashItem).toHaveBeenCalledWith(filePath)
+  expect(fs.existsSync(filePath)).toBe(false)
+  expect(store.listArtifacts()).toEqual([])
+})
+
+test('artifact list restores metadata when a trashed file is restored', async () => {
+  const ipcMain = createIpcMain()
+  const trashItem = vi.fn(async (targetPath) => {
+    fs.unlinkSync(targetPath)
+  })
+  registerAll(ipcMain, { shell: { trashItem } })
+  const generatedDir = path.join(TMP, 'generated')
+  fs.mkdirSync(generatedDir, { recursive: true })
+  const filePath = path.join(generatedDir, 'restore-me.docx')
+  fs.writeFileSync(filePath, 'hello')
+  store.addArtifact({
+    id: 'artifact-restore',
+    type: 'word',
+    filename: 'restore-me.docx',
+    path: filePath,
+    title: 'Restore report',
+    createdAt: new Date().toISOString()
+  })
+
+  const deleted = await ipcMain.handlers.get('artifacts:delete')({}, { id: 'artifact-restore' })
+  expect(deleted.ok).toBe(true)
+  expect(store.listArtifacts()).toEqual([])
+
+  fs.writeFileSync(filePath, 'hello')
+  const listed = await ipcMain.handlers.get('artifacts:list')()
+
+  expect(listed.ok).toBe(true)
+  expect(listed.items).toEqual([expect.objectContaining({
+    id: 'artifact-restore',
+    title: 'Restore report',
+    path: filePath
+  })])
+})
+
+test('artifact delete handler falls back when system trash fails', async () => {
+  const ipcMain = createIpcMain()
+  const trashItem = vi.fn(async () => {
+    throw new Error('trash unavailable')
+  })
+  registerAll(ipcMain, { shell: { trashItem } })
+  const generatedDir = path.join(TMP, 'generated')
+  fs.mkdirSync(generatedDir, { recursive: true })
+  const filePath = path.join(generatedDir, 'locked-report.docx')
+  fs.writeFileSync(filePath, 'hello')
+  store.addArtifact({
+    id: 'artifact-fallback',
+    type: 'word',
+    filename: 'locked-report.docx',
+    path: filePath,
+    title: 'Fallback report',
+    createdAt: new Date().toISOString()
+  })
+
+  const deleted = await ipcMain.handlers.get('artifacts:delete')({}, { id: 'artifact-fallback' })
+
+  expect(deleted.ok).toBe(true)
+  expect(deleted.file.status).toBe('app-trash')
+  expect(deleted.warning).toContain('系统回收站')
+  expect(fs.existsSync(filePath)).toBe(false)
+  expect(fs.existsSync(deleted.file.trashedPath)).toBe(true)
+  expect(fs.readFileSync(deleted.file.trashedPath, 'utf8')).toBe('hello')
+  expect(store.listArtifacts()).toEqual([])
 })
 
 test('files:list returns directory entries in full permission mode', async () => {
@@ -245,39 +278,5 @@ test('files:list returns directory entries in full permission mode', async () =>
   const result = await ipcMain.handlers.get('files:list')({}, { dir: root })
 
   expect(result.ok).toBe(true)
-  expect(result.dir).toBe(path.normalize(root))
-  expect(result.parentDir).toBe(path.dirname(root))
-  expect(result.breadcrumbs.at(-1)).toMatchObject({ label: 'files', path: path.normalize(root) })
   expect(result.items.map((item) => item.name)).toContain('a.txt')
-})
-
-test('file path helpers normalize Windows drive roots and parents', () => {
-  expect(normalizeDirectoryPath('C:')).toBe('C:\\')
-  expect(normalizeDirectoryPath('C:Users')).toBe('C:\\Users')
-  expect(getParentDir('C:\\Users')).toBe('C:\\')
-  expect(getParentDir('C:\\')).toBeNull()
-})
-
-test('dialog:saveFileAs copies generated files through a save dialog', async () => {
-  const root = path.join(TMP, 'save-as')
-  const source = path.join(root, 'source.txt')
-  const dest = path.join(root, 'out', 'exported.txt')
-  fs.mkdirSync(root, { recursive: true })
-  fs.writeFileSync(source, 'generated content')
-
-  const ipcMain = createIpcMain()
-  registerAll(ipcMain, {
-    dialog: {
-      showSaveDialog: vi.fn(async () => ({ canceled: false, filePath: dest }))
-    },
-    mainWindow: null
-  })
-
-  const result = await ipcMain.handlers.get('dialog:saveFileAs')({}, {
-    sourcePath: source,
-    defaultPath: 'source.txt'
-  })
-
-  expect(result).toEqual({ ok: true, path: dest })
-  expect(fs.readFileSync(dest, 'utf-8')).toBe('generated content')
 })

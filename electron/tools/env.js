@@ -4,7 +4,7 @@ const { register } = require('./index')
 
 function whichCommand({ command }) {
   if (!command) {
-    const error = new Error('缺少命令')
+    const error = new Error('需要提供命令。')
     error.code = 'INVALID_ARGS'
     throw error
   }
@@ -26,7 +26,7 @@ function getOsInfo() {
   return { platform: process.platform, arch: process.arch, shell: process.env.SHELL || process.env.ComSpec || '', package_managers: packageManagers, user_home: os.homedir(), cwd: process.cwd() }
 }
 
-register({ name: 'get_os_info', description: 'Get operating system and package manager availability.', parameters: { type: 'object', properties: {} } }, getOsInfo)
-register({ name: 'which', description: 'Find an executable on PATH.', parameters: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] } }, whichCommand)
+register({ name: 'get_os_info', description: '获取操作系统信息和包管理器可用性。', parameters: { type: 'object', properties: {} } }, getOsInfo)
+register({ name: 'which', description: '在 PATH 中查找可执行文件。', parameters: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] } }, whichCommand)
 
 module.exports = { getOsInfo, whichCommand }

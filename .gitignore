@@ -2,21 +2,21 @@ node_modules/
 dist/
 dist-electron/
 out/
-coverage/
 data/
 generated/
-.agentdev-logs/
-.agentdev-data/
-.codex-runtime/
-.codex-prompts/
-.idea/
-.npm-cache/
-user_rules.md
 *.log
-*.sqlite
-*.sqlite3
 .DS_Store
 .env
 .env.local
-eng.traineddata
-gen_mybatis_ppt.py
+__pycache__/
+
+# Staging dir for self-contained sidecar packaging (Task 5.5f)
+dist-bridges/
+# Midscene.js dump files
+midscene_run/dump
+midscene_run/report
+midscene_run/tmp
+midscene_run/log
+
+# Worktree isolation
+.worktrees/

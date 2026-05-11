@@ -1,66 +1,50 @@
 import { beforeEach, expect, test, vi } from 'vitest'
-import { api } from './api.js'
-
-function mockElectronAPI() {
-  const off = vi.fn()
-  const electronAPI = {
-    invoke: vi.fn(async () => ({ ok: true })),
-    on: vi.fn(() => off)
-  }
-  globalThis.window = { electronAPI }
-  return { electronAPI, off }
-}
+import { api, approveAction, bootstrapRuntime, deleteArtifact, deleteConversation, getRuntimeStatus, listActions, listArtifacts, listAuditEvents, listConversations, listRunOutputs, renameConversation } from './api.js'
 
 beforeEach(() => {
-  vi.restoreAllMocks()
-  delete globalThis.window
-})
-
-test('stream unsubscribe removes listeners without cancelling the remote chat', () => {
-  const { electronAPI, off } = mockElectronAPI()
-  const streamHandle = api.stream({
-    channel: 'chat:send',
-    payload: { convId: 'conv-1', messages: [] }
-  })
-
-  streamHandle.unsubscribe()
-
-  expect(off).toHaveBeenCalledTimes(8)
-  expect(electronAPI.invoke).toHaveBeenCalledTimes(1)
-  expect(electronAPI.invoke).toHaveBeenCalledWith('chat:send', { convId: 'conv-1', messages: [] })
-})
-
-test('stream cancel removes listeners and cancels the remote chat', () => {
-  const { electronAPI, off } = mockElectronAPI()
-  const streamHandle = api.stream({
-    channel: 'chat:send',
-    payload: { convId: 'conv-1', messages: [] }
-  })
-
-  streamHandle.cancel()
-
-  expect(off).toHaveBeenCalledTimes(8)
-  expect(electronAPI.invoke).toHaveBeenCalledWith('chat:send', { convId: 'conv-1', messages: [] })
-  expect(electronAPI.invoke).toHaveBeenCalledWith('chat:cancel', { convId: 'conv-1' })
-})
-
-test('stream unsubscribe ignores later invoke failures', async () => {
-  const off = vi.fn()
-  const error = new Error('boom')
-  const electronAPI = {
-    invoke: vi.fn(() => Promise.reject(error)),
-    on: vi.fn(() => off)
+  global.window = {
+    electronAPI: {
+      invoke: vi.fn(async (channel, payload) => ({ ok: true, channel, payload }))
+    }
   }
-  globalThis.window = { electronAPI }
-  const onError = vi.fn()
+})
 
-  const streamHandle = api.stream({
-    channel: 'chat:send',
-    payload: { convId: 'conv-1', messages: [] },
-    onError
-  })
-  streamHandle.unsubscribe()
-  await Promise.resolve()
+test('maps runtime helpers to IPC channels', async () => {
+  await getRuntimeStatus()
+  await bootstrapRuntime('open-interpreter')
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('runtime:status', undefined)
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('runtime:bootstrap', { runtime: 'open-interpreter' })
+})
 
-  expect(onError).not.toHaveBeenCalled()
+test('maps action, audit, and output helpers', async () => {
+  await listActions({ status: 'pending' })
+  await approveAction('act1')
+  await listAuditEvents({ risk: 'high' })
+  await listRunOutputs({ sessionId: 'sess1' })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('actions:list', { status: 'pending' })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('actions:approve', { id: 'act1' })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('audit:list', { filters: { risk: 'high' } })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('outputs:list', { filters: { sessionId: 'sess1' } })
+})
+
+test('maps artifact helpers to IPC channels', async () => {
+  await listArtifacts()
+  await deleteArtifact('artifact-1')
+  await api.get('/api/artifacts')
+
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('artifacts:list', undefined)
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('artifacts:delete', { id: 'artifact-1' })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('artifacts:list', undefined)
+})
+
+test('maps conversation helpers to IPC channels', async () => {
+  await listConversations('alpha')
+  await renameConversation('conv-1', 'Renamed')
+  await deleteConversation('conv-2')
+  await api.get('/api/conversations')
+
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('conversations:list', { search: 'alpha' })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('conversations:rename', { id: 'conv-1', title: 'Renamed' })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('conversations:delete', { id: 'conv-2' })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('conversations:list', undefined)
 })

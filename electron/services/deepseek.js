@@ -8,33 +8,16 @@ class DeepSeekError extends Error {
   }
 }
 
-function mapErrorCode(status, provider = 'deepseek') {
-  const prefix = provider === 'qwen' ? 'QWEN' : 'DEEPSEEK'
-  if (status === 401 || status === 403) return `${prefix}_AUTH`
-  if (status === 429) return `${prefix}_RATE_LIMIT`
-  if (status >= 500) return `${prefix}_SERVER`
-  return `${prefix}_UNKNOWN`
+function mapErrorCode(status) {
+  if (status === 401 || status === 403) return 'DEEPSEEK_AUTH'
+  if (status === 429) return 'DEEPSEEK_RATE_LIMIT'
+  if (status >= 500) return 'DEEPSEEK_SERVER'
+  return 'DEEPSEEK_UNKNOWN'
 }
 
 function getFetch() {
   if (typeof fetch === 'function') return fetch
-  throw new DeepSeekError('DEEPSEEK_RUNTIME', 'Global fetch is not available in this runtime.')
-}
-
-function createRequestSignal(timeout, externalSignal) {
-  const timeoutSignal = AbortSignal.timeout(timeout)
-  if (!externalSignal) return timeoutSignal
-  if (typeof AbortSignal.any === 'function') return AbortSignal.any([externalSignal, timeoutSignal])
-
-  const controller = new AbortController()
-  const abort = () => controller.abort()
-  externalSignal.addEventListener('abort', abort, { once: true })
-  timeoutSignal.addEventListener('abort', abort, { once: true })
-  controller.signal.addEventListener('abort', () => {
-    externalSignal.removeEventListener('abort', abort)
-    timeoutSignal.removeEventListener('abort', abort)
-  }, { once: true })
-  return controller.signal
+  throw new DeepSeekError('DEEPSEEK_RUNTIME', '当前运行时无法使用全局 fetch。')
 }
 
 function normalizeTools(tools = []) {
@@ -51,46 +34,12 @@ function normalizeTools(tools = []) {
   })
 }
 
-function resolveProviderConfig(config = store.getConfig()) {
-  const provider = config.modelProvider === 'qwen' ? 'qwen' : 'deepseek'
-  if (provider === 'qwen') {
-    return {
-      provider,
-      label: 'Qwen',
-      apiKey: config.qwenApiKey || '',
-      baseUrl: config.qwenBaseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-      model: config.qwenModel || 'qwen-plus',
-      temperature: typeof config.temperature === 'number' ? config.temperature : 0.7
-    }
-  }
-
+function buildBody({ messages, model: modelOverride, json = false, temperature = 0.7, stream = false, tools }) {
+  const config = store.getConfig()
   return {
-    provider,
-    label: 'DeepSeek',
-    apiKey: config.apiKey || '',
-    baseUrl: config.baseUrl || 'https://api.deepseek.com',
-    model: config.model || 'deepseek-v4-flash',
-    temperature: typeof config.temperature === 'number' ? config.temperature : 0.7
-  }
-}
-
-function chatCompletionsUrl(baseUrl, provider = 'deepseek') {
-  const normalized = String(baseUrl || '').replace(/\/+$/, '')
-  if (normalized.endsWith('/chat/completions')) return normalized
-  if (normalized.endsWith('/v1')) return `${normalized}/chat/completions`
-  if (provider === 'qwen') return `${normalized}/chat/completions`
-  return `${normalized}/chat/completions`
-}
-
-function buildBody({ messages, json = false, temperature, stream = false, tools, config }) {
-  const providerConfig = resolveProviderConfig(config || store.getConfig())
-  const resolvedTemperature = typeof temperature === 'number'
-    ? temperature
-    : providerConfig.temperature
-  return {
-    model: providerConfig.model,
+    model: modelOverride || config.fallbackModel || config.model || 'deepseek-chat',
     messages,
-    temperature: resolvedTemperature,
+    temperature,
     stream,
     ...(json && { response_format: { type: 'json_object' } }),
     ...(tools && tools.length ? { tools: normalizeTools(tools) } : {})
@@ -126,46 +75,49 @@ function messageToChatResult(message = {}) {
   }
 }
 
-async function postChat(body, timeout = 60000, config, signal) {
-  const providerConfig = resolveProviderConfig(config || store.getConfig())
-  if (!providerConfig.apiKey) {
-    throw new DeepSeekError(mapErrorCode(401, providerConfig.provider), `${providerConfig.label} API key is not configured.`)
-  }
+async function postChat(body, timeout = 60000, signal) {
+  const config = store.getConfig()
+  const apiKey = config.deepseekApiKey || config.apiKey
+  const baseUrl = (config.deepseekBaseUrl || config.baseUrl || 'https://api.deepseek.com').replace(/\/+$/, '')
+  if (!apiKey) throw new DeepSeekError('DEEPSEEK_AUTH', '尚未配置 API Key。')
+  const timeoutSignal = AbortSignal.timeout(timeout)
+  const effectiveSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal
   let resp
   try {
-    const requestSignal = createRequestSignal(timeout, signal)
-    resp = await getFetch()(chatCompletionsUrl(providerConfig.baseUrl, providerConfig.provider), {
+    resp = await getFetch()(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${providerConfig.apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body),
-      signal: requestSignal
+      signal: effectiveSignal
     })
   } catch (error) {
-    if (signal?.aborted) throw new DeepSeekError('CHAT_CANCELLED', '生成已停止。')
-    if (error.name === 'AbortError' || error.name === 'TimeoutError') throw new DeepSeekError('DEEPSEEK_TIMEOUT', 'Model response timed out.')
-    throw new DeepSeekError('DEEPSEEK_NETWORK', `Network error: ${error.message}`)
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+      if (signal?.aborted) throw error
+      throw new DeepSeekError('DEEPSEEK_TIMEOUT', '模型响应超时。')
+    }
+    throw new DeepSeekError('DEEPSEEK_NETWORK', `网络错误：${error.message}`)
   }
   if (!resp.ok) {
     const text = await resp.text().catch(() => '')
-    throw new DeepSeekError(mapErrorCode(resp.status, providerConfig.provider), `${providerConfig.label} ${resp.status}: ${text.slice(0, 200)}`, resp.status)
+    throw new DeepSeekError(mapErrorCode(resp.status), `DeepSeek ${resp.status}: ${text.slice(0, 200)}`, resp.status)
   }
   return resp
 }
 
-async function chat({ messages, json = false, temperature, tools, stream = false, onDelta, config, signal }) {
-  if (stream) return chatStreamingResult({ messages, temperature, tools, onDelta, config, signal })
-  const resp = await postChat(buildBody({ messages, json, temperature, stream: false, tools, config }), 60000, config, signal)
+async function chat({ messages, model: modelOverride, json = false, temperature = 0.7, tools, stream = false, onDelta, signal }) {
+  if (stream) return chatStreamingResult({ messages, model: modelOverride, temperature, tools, onDelta, signal })
+  const resp = await postChat(buildBody({ messages, model: modelOverride, json, temperature, stream: false, tools }), 60000, signal)
   const data = await resp.json()
   const message = data.choices?.[0]?.message || {}
   if (tools?.length) return messageToChatResult(message)
   return message.content ?? ''
 }
 
-async function chatStreamingResult({ messages, temperature, tools, onDelta, config, signal }) {
-  const resp = await postChat(buildBody({ messages, temperature, stream: true, tools, config }), 120000, config, signal)
+async function chatStreamingResult({ messages, model: modelOverride, temperature = 0.7, tools, onDelta, signal }) {
+  const resp = await postChat(buildBody({ messages, model: modelOverride, temperature, stream: true, tools }), 120000, signal)
   const decoder = new TextDecoder()
   let buffer = ''
   let content = ''
@@ -181,43 +133,37 @@ async function chatStreamingResult({ messages, temperature, tools, onDelta, conf
     toolCallMap.set(index, current)
   }
 
-  try {
-    for await (const chunk of resp.body) {
-      if (signal?.aborted) throw new DeepSeekError('CHAT_CANCELLED', '生成已停止。')
-      buffer += decoder.decode(chunk, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed || !trimmed.startsWith('data:')) continue
-        const payload = trimmed.slice(5).trim()
-        if (payload === '[DONE]') {
-          const toolCalls = [...toolCallMap.keys()].sort((a, b) => a - b).map((key) => toolCallMap.get(key))
-          return { content, assistant_message: { role: 'assistant', content: content || null, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) }, tool_calls: normalizeToolCalls(toolCalls) }
+  for await (const chunk of resp.body) {
+    buffer += decoder.decode(chunk, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed || !trimmed.startsWith('data:')) continue
+      const payload = trimmed.slice(5).trim()
+      if (payload === '[DONE]') {
+        const toolCalls = [...toolCallMap.keys()].sort((a, b) => a - b).map((key) => toolCallMap.get(key))
+        return { content, assistant_message: { role: 'assistant', content: content || null, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) }, tool_calls: normalizeToolCalls(toolCalls) }
+      }
+      try {
+        const json = JSON.parse(payload)
+        const delta = json.choices?.[0]?.delta || {}
+        if (delta.content) {
+          content += delta.content
+          onDelta?.(delta.content)
         }
-        try {
-          const json = JSON.parse(payload)
-          const delta = json.choices?.[0]?.delta || {}
-          if (delta.content) {
-            content += delta.content
-            onDelta?.(delta.content)
-          }
-          if (Array.isArray(delta.tool_calls)) delta.tool_calls.forEach(mergeToolCall)
-        } catch {
-          // Ignore malformed stream fragments.
-        }
+        if (Array.isArray(delta.tool_calls)) delta.tool_calls.forEach(mergeToolCall)
+      } catch {
+        // Ignore malformed stream fragments.
       }
     }
-  } catch (error) {
-    if (signal?.aborted) throw new DeepSeekError('CHAT_CANCELLED', '生成已停止。')
-    throw error
   }
   const toolCalls = [...toolCallMap.keys()].sort((a, b) => a - b).map((key) => toolCallMap.get(key))
   return { content, assistant_message: { role: 'assistant', content: content || null, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) }, tool_calls: normalizeToolCalls(toolCalls) }
 }
 
-async function* chatStream({ messages, temperature, tools, config, signal }) {
-  const result = await chatStreamingResult({ messages, temperature, tools, onDelta: null, config, signal })
+async function* chatStream({ messages, temperature = 0.7, tools }) {
+  const result = await chatStreamingResult({ messages, temperature, tools, onDelta: null })
   if (result.content) yield result.content
 }
 
@@ -225,7 +171,7 @@ function parseJsonStrict(raw) {
   const cleaned = String(raw || '').replace(/```json\s*/gi, '').replace(/```\s*$/g, '').trim()
   const start = cleaned.indexOf('{')
   const end = cleaned.lastIndexOf('}')
-  if (start === -1 || end === -1) throw new Error('No JSON object found in response')
+  if (start === -1 || end === -1) throw new Error('响应中没有找到 JSON 对象')
   return JSON.parse(cleaned.slice(start, end + 1))
 }
 
@@ -240,15 +186,4 @@ async function chatJson(messages, opts = {}) {
   }
 }
 
-module.exports = {
-  DeepSeekError,
-  chat,
-  chatStream,
-  chatJson,
-  parseJsonStrict,
-  normalizeTools,
-  normalizeToolCalls,
-  resolveProviderConfig,
-  chatCompletionsUrl,
-  buildBody
-}
+module.exports = { DeepSeekError, chat, chatStream, chatJson, parseJsonStrict, normalizeTools, normalizeToolCalls }

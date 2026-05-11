@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { Download, ExternalLink, FileCode, FileText, Presentation } from 'lucide-react'
-import { openFile, saveFileAs } from '../../lib/api.js'
+import { openFile } from '../../lib/api.js'
 
 const ICONS = {
   word: FileText,
@@ -17,10 +16,12 @@ function formatSize(size) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-export default function FileCard({ artifact, onError }) {
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
+function downloadUrl(artifact) {
+  if (artifact.url) return artifact.url
+  return artifact.filename ? `/files/${encodeURIComponent(artifact.filename)}` : '#'
+}
 
+export default function FileCard({ artifact, onError }) {
   if (!artifact) return null
 
   const Icon = ICONS[artifact.type] || FileText
@@ -31,25 +32,6 @@ export default function FileCard({ artifact, onError }) {
       await openFile(artifact.path)
     } catch (error) {
       onError?.(error)
-    }
-  }
-
-  async function handleSaveAs() {
-    if (!artifact.path || saving) return
-    setSaving(true)
-    setMessage('')
-    try {
-      const result = await saveFileAs({
-        sourcePath: artifact.path,
-        defaultPath: artifact.filename || artifact.title || undefined
-      })
-      if (result.canceled) return
-      setMessage('已保存')
-    } catch (error) {
-      setMessage('保存失败')
-      onError?.(error)
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -64,31 +46,16 @@ export default function FileCard({ artifact, onError }) {
           {formatSize(artifact.size)}
           {artifact.title ? ` · ${artifact.title}` : ''}
         </div>
-        {message && (
-          <div className={`mt-1 text-xs ${message === '已保存' ? 'text-[color:var(--success)]' : 'text-[color:var(--error)]'}`}>
-            {message}
-          </div>
-        )}
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={handleOpen}
-          disabled={!artifact.path}
-          className="h-8 rounded-md border border-[color:var(--border)] px-3 text-xs flex items-center gap-1 hover:bg-[color:var(--bg-tertiary)] disabled:opacity-50"
-        >
+        <button type="button" onClick={handleOpen} disabled={!artifact.path} className="h-8 rounded-md border border-[color:var(--border)] px-3 text-xs flex items-center gap-1 hover:bg-[color:var(--bg-tertiary)] disabled:opacity-50">
           <ExternalLink size={13} />
           打开
         </button>
-        <button
-          type="button"
-          onClick={handleSaveAs}
-          disabled={!artifact.path || saving}
-          className="h-8 rounded-md bg-[color:var(--accent)] px-3 text-xs text-white flex items-center gap-1 disabled:opacity-50"
-        >
+        <a href={downloadUrl(artifact)} download={artifact.filename} className="h-8 rounded-md bg-[color:var(--accent)] px-3 text-xs text-white flex items-center gap-1">
           <Download size={13} />
-          {saving ? '保存中' : '另存为'}
-        </button>
+          下载
+        </a>
       </div>
     </div>
   )

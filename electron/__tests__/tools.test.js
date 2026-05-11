@@ -8,8 +8,8 @@ const TMP = path.join(os.tmpdir(), `agentdev-tools-test-${Date.now()}`)
 process.env.AGENTDEV_DATA_DIR = path.join(TMP, 'data')
 process.env.AGENTDEV_GENERATED_DIR = path.join(TMP, 'generated')
 const require = createRequire(import.meta.url)
-const { execute, TOOL_SCHEMAS, TOOLS } = require('../tools')
-const { requestConfirm, setDialogProvider, clearConfirmCache } = require('../confirm')
+const { execute, TOOL_SCHEMAS, TOOLS, getExecutionToolSchemas, getAgentLoopToolSchemas } = require('../tools')
+const { setDialogProvider, clearConfirmCache } = require('../confirm')
 const { store } = require('../store')
 
 beforeEach(() => {
@@ -27,13 +27,22 @@ test('tool registry loads expected stage B tools', () => {
   expect(typeof TOOLS.read_file).toBe('function')
 })
 
+test('legacy tools are hidden from AionUi Execute mode', () => {
+  expect(getExecutionToolSchemas()).toEqual([])
+})
+
+test('agent loop tool schemas include all builtin tools', () => {
+  const names = getAgentLoopToolSchemas().map(s => s.function.name)
+  for (const t of ['read_file', 'write_file', 'run_shell_command', 'load_skill']) {
+    expect(names).toContain(t)
+  }
+})
+
 test('fs tools read, write, edit, list and search files', async () => {
   const filePath = path.join(TMP, 'notes', 'a.txt')
   expect(await execute('create_dir', { path: path.dirname(filePath) })).toEqual({ path: path.dirname(filePath) })
   const write = await execute('write_file', { path: filePath, content: 'hello world' })
   expect(write.bytes_written).toBe(11)
-  expect(write.artifact).toMatchObject({ type: 'file', filename: 'a.txt', path: filePath })
-  expect(store.listArtifacts()[0].path).toBe(filePath)
   expect((await execute('read_file', { path: filePath })).content).toBe('hello world')
   expect((await execute('edit_file', { path: filePath, old_string: 'world', new_string: 'agent' })).replacements).toBe(1)
   expect((await execute('list_dir', { path: path.dirname(filePath) })).entries[0].name).toBe('a.txt')
@@ -61,20 +70,6 @@ test('shell policy blocks blacklisted commands and confirms gray commands', asyn
   const gray = await execute('run_shell_command', { command: 'unknowncmd --version' })
   expect(gray.error.code).toBe('USER_CANCELLED')
   expect(confirmCount).toBe(1)
-})
-
-test('confirmation cache is scoped by user', async () => {
-  let confirmCount = 0
-  setDialogProvider(async () => {
-    confirmCount += 1
-    return { allowed: true, remember: true }
-  })
-
-  await requestConfirm({ kind: 'shell-command', username: 'alice', payload: { command: 'unknowncmd --version' } })
-  await requestConfirm({ kind: 'shell-command', username: 'alice', payload: { command: 'unknowncmd --version' } })
-  await requestConfirm({ kind: 'shell-command', username: 'bob', payload: { command: 'unknowncmd --version' } })
-
-  expect(confirmCount).toBe(2)
 })
 
 test('remember tools persist and remove user rules', async () => {

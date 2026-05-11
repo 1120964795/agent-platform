@@ -1,5 +1,5 @@
-import { useReducer, useCallback, useRef, useEffect, useMemo } from 'react'
-import { api } from '../lib/api.js'
+import { useReducer, useCallback, useRef, useEffect, useState } from 'react'
+import { abortChat, api, cancelAction } from '../lib/api.js'
 
 function uid() {
   return Math.random().toString(36).slice(2, 10)
@@ -11,30 +11,14 @@ function reducer(state, action) {
   switch (action.type) {
     case 'ADD':
       return { ...state, messages: [...state.messages, action.msg] }
-    case 'APPEND_DELTA': {
-      let matched = false
-      const messages = state.messages.map((message) => {
-        if (message.id !== action.id) return message
-        matched = true
-        return { ...message, content: (message.content || '') + action.delta, streaming: true }
-      })
-      return matched ? { ...state, streaming: true, messages } : state
-    }
+    case 'APPEND_DELTA':
+      return { ...state, streaming: true, messages: state.messages.map((message) => message.id === action.id ? { ...message, content: (message.content || '') + action.delta, streaming: true, startedAt: message.startedAt || action.now || Date.now() } : message) }
     case 'FINISH':
-      return { ...state, streaming: false, messages: state.messages.map((message) => message.id === action.id ? { ...message, streaming: false } : message) }
+      return { ...state, streaming: false, messages: state.messages.map((message) => message.id === action.id ? { ...message, streaming: false, finishedAt: action.finishedAt || Date.now() } : message) }
+    case 'INCREMENT_COMMAND_COUNT':
+      return { ...state, messages: state.messages.map((message) => message.id === action.id ? { ...message, commandCount: (message.commandCount || 0) + 1 } : message) }
     case 'UPDATE_CARD':
       return { ...state, messages: state.messages.map((message) => message.id === action.id ? { ...message, cardState: action.cardState, cardData: action.cardData ?? message.cardData } : message) }
-    case 'UPDATE_TOOL':
-      return {
-        ...state,
-        messages: state.messages.map((message) => {
-          if (message.id !== action.id) return message
-          const logs = action.log ? [...(message.logs || []), action.log] : message.logs
-          return { ...message, ...action.patch, logs }
-        })
-      }
-    case 'LOAD':
-      return { ...initialState, messages: action.messages }
     case 'CLEAR':
       return initialState
     default:
@@ -42,193 +26,243 @@ function reducer(state, action) {
   }
 }
 
-const DEFAULT_ASSISTANT = 'general'
-
 function makeTitle(messages) {
   const firstUser = messages.find((message) => message.role === 'user' && message.content)
-  return firstUser?.content.slice(0, 24) || '新对话'
+  return firstUser?.content.slice(0, 30) || '新聊天'
 }
 
-function makeConversationId(username, assistant = DEFAULT_ASSISTANT) {
-  const userKey = encodeURIComponent(username || 'guest')
-  const assistantKey = encodeURIComponent(assistant || DEFAULT_ASSISTANT)
-  return `${assistantKey}:user:${userKey}:default`
+function schedulePendingActionTimeout(action) {
+  const risk = action.risk || action.riskLevel
+  if (risk === 'high' && action.status === 'pending' && action.id) {
+    setTimeout(() => {
+      cancelAction(action.id, '超时自动取消').catch(() => {})
+      window.dispatchEvent(new CustomEvent('aionui:actions-changed'))
+    }, 5 * 60 * 1000)
+  }
 }
 
-function toDisplayMessages(messages) {
-  return messages
-    .filter((message) => message.role === 'user' || message.role === 'assistant')
-    .map((message) => ({
-      id: uid(),
-      role: message.role,
-      content: message.content
-    }))
+function appendActionSummary(actions = []) {
+  if (!actions.length) return '收到动作更新。'
+  const statusLabels = {
+    pending: '待处理',
+    approved: '已批准',
+    denied: '已拒绝',
+    running: '执行中',
+    completed: '已完成',
+    failed: '失败',
+    blocked: '已阻止',
+    cancelled: '已取消'
+  }
+  return actions.map((action) => {
+    const title = action.title || action.name || action.id
+    const status = action.status || 'pending'
+    return `- ${title}：${statusLabels[status] || status}`
+  }).join('\n')
 }
 
-function chatErrorMessage(error) {
-  if (error?.code === 'DEEPSEEK_AUTH') {
-    if (/not configured/i.test(error.message || '')) {
-      return '请先在设置中配置 DeepSeek API Key，然后再发送消息。'
-    }
-    return 'DeepSeek API Key 验证失败，请在设置中检查 Key 是否正确。'
-  }
-
-  if (error?.code === 'DEEPSEEK_RATE_LIMIT') {
-    return 'DeepSeek 请求过于频繁，请稍后再试。'
-  }
-
-  if (error?.code === 'DEEPSEEK_TIMEOUT') {
-    return '模型响应超时，请稍后重试。'
-  }
-
-  if (error?.code === 'DEEPSEEK_NETWORK') {
-    return '网络连接失败，请检查网络或接口地址设置后重试。'
-  }
-
-  return `请求失败：${error?.message || '未知错误'}`
+function isInternalChatStreamEvent(event) {
+  return event?.type === 'reasoning_summary' || event?.type?.startsWith('tool_')
 }
 
-export function useChat({ username, assistant = DEFAULT_ASSISTANT, conversationId, onConversationSaved } = {}) {
-  const activeConversationId = useMemo(
-    () => conversationId || makeConversationId(username, assistant),
-    [conversationId, username, assistant]
-  )
+export function useChat(conversationId) {
   const [state, dispatch] = useReducer(reducer, initialState)
-  const activeStreamRef = useRef(null)
-  const conversationIdRef = useRef(activeConversationId)
-  const toolMessageIdsRef = useRef(new Map())
-
-  const closeActiveStream = useCallback(({ notify = false, cancel = true } = {}) => {
-    const active = activeStreamRef.current
-    if (!active) return
-
-    activeStreamRef.current = null
-    if (cancel) active.cancel?.()
-    else if (active.unsubscribe) active.unsubscribe()
-    else active.cancel?.()
-
-    if (notify) {
-      active.cancelWithNotice?.()
-    }
-  }, [])
+  const abortRef = useRef(null)
+  const conversationIdRef = useRef(conversationId)
+  const activeAssistantIdRef = useRef(null)
+  const [agentRunning, setAgentRunning] = useState(false)
+  const [pendingConfirmation, setPendingConfirmation] = useState(null)
 
   useEffect(() => {
+    if (!conversationId) return undefined
+
     let ignored = false
-    conversationIdRef.current = activeConversationId
-    toolMessageIdsRef.current = new Map()
-    closeActiveStream({ cancel: false })
+    const previousConvId = conversationIdRef.current
+    if (previousConvId && previousConvId !== conversationId) {
+      abortChat(previousConvId).catch(() => {})
+    }
+    conversationIdRef.current = conversationId
+    abortRef.current?.()
+    abortRef.current = null
+    activeAssistantIdRef.current = null
+    setAgentRunning(false)
+    setPendingConfirmation(null)
     dispatch({ type: 'CLEAR' })
 
     async function loadConversation() {
       try {
-        const response = await api.invoke('conversations:get', { id: activeConversationId, username: username || 'guest' })
+        const response = await api.get(`/api/conversations/${conversationId}`)
         if (ignored || !response.conversation?.messages) return
-        dispatch({ type: 'LOAD', messages: toDisplayMessages(response.conversation.messages) })
+        response.conversation.messages
+          .filter((message) => message.role === 'user' || message.role === 'assistant')
+          .forEach((message) => dispatch({ type: 'ADD', msg: { id: uid(), role: message.role, content: message.content } }))
       } catch (error) {
-        if (error.code !== 'NOT_FOUND') console.error('[chat] load conversation failed:', error)
+        if (!ignored && error.code !== 'NOT_FOUND') console.error('[chat] 加载对话失败:', error)
       }
     }
+
     loadConversation()
-    return () => { ignored = true; closeActiveStream({ cancel: false }) }
-  }, [activeConversationId, closeActiveStream])
-
-  const saveConversation = useCallback(async (messages, options = {}) => {
-    const id = options.conversationId || conversationIdRef.current
-    try {
-      const response = await api.post('/api/conversations', {
-        id,
-        title: makeTitle(messages),
-        assistant,
-        username: username || 'guest',
-        messages
-      })
-      if (response.conversation) onConversationSaved?.(response.conversation, { select: options.select === true })
-    } catch (error) {
-      console.error('[chat] save conversation failed:', error)
+    return () => {
+      ignored = true
+      abortRef.current?.()
+      abortRef.current = null
+      activeAssistantIdRef.current = null
+      setPendingConfirmation(null)
     }
-  }, [assistant, username, onConversationSaved])
+  }, [conversationId])
 
-  const sendUserMessage = useCallback((text) => {
-    closeActiveStream({ cancel: true })
-    toolMessageIdsRef.current = new Map()
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onChatStream?.((payload) => {
+      if (!payload?.event || payload.convId !== conversationIdRef.current) return
+      if (isInternalChatStreamEvent(payload.event)) return
+      dispatch({
+        type: 'ADD',
+        msg: {
+          id: payload.event.id || uid(),
+          role: 'assistant',
+          type: payload.event.type,
+          stream: true,
+          content: payload.event.text || payload.event.summary || '',
+          tool: payload.event.tool || null,
+        }
+      })
+    })
+    return () => unsubscribe?.()
+  }, [])
+
+  const saveConversation = useCallback(async (convId, messages) => {
+    try {
+      await api.post('/api/conversations', { id: convId, title: makeTitle(messages), assistant: 'general', messages })
+      window.dispatchEvent(new CustomEvent('agentdev:conversations-changed'))
+    } catch (error) {
+      console.error('[chat] 保存对话失败:', error)
+    }
+  }, [])
+
+  const sendUserMessage = useCallback((text, model, options = {}) => {
     const convId = conversationIdRef.current
+    if (!convId) return
+
+    if (pendingConfirmation) {
+      const userMessage = { id: uid(), role: 'user', content: text }
+      dispatch({ type: 'ADD', msg: userMessage })
+
+      api.invoke('chat:send', { convId, message: text, confirmationReply: true }).then((result) => {
+        if (result.status === 'confirmed' || result.status === 'rejected' || result.status === 'missing') {
+          setPendingConfirmation(null)
+        }
+        if (result.assistantText) {
+          const assistantMessage = { id: uid(), role: 'assistant', content: result.assistantText }
+          dispatch({ type: 'ADD', msg: assistantMessage })
+          const history = [...state.messages, userMessage, assistantMessage]
+            .filter((message) => message.role === 'user' || message.role === 'assistant')
+            .map((message) => ({ role: message.role, content: message.content }))
+          saveConversation(convId, history)
+        }
+      }).catch((error) => {
+        dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', content: `[确认失败] ${error.message}` } })
+      })
+      return
+    }
+
+    abortRef.current?.()
+    setAgentRunning(true)
 
     const userMessage = { id: uid(), role: 'user', content: text }
     dispatch({ type: 'ADD', msg: userMessage })
 
     const assistantId = uid()
-    dispatch({ type: 'ADD', msg: { id: assistantId, role: 'assistant', content: '', streaming: true } })
+    const startedAt = Date.now()
+    activeAssistantIdRef.current = assistantId
+    dispatch({ type: 'ADD', msg: { id: assistantId, role: 'assistant', content: '', streaming: true, startedAt, commandCount: 0 } })
 
     const history = [...state.messages, userMessage]
-      .filter((message) => message.role === 'user' || message.role === 'assistant')
+      .filter((message) => (message.role === 'user' || message.role === 'assistant') && !message.stream)
       .map((message) => ({ role: message.role, content: message.content }))
-    saveConversation(history, { conversationId: convId, select: false })
 
     let assistantContent = ''
     let finished = false
+    const countedToolCalls = new Set()
     const finish = () => {
       if (finished) return
       finished = true
-      if (activeStreamRef.current?.assistantId === assistantId) {
-        activeStreamRef.current = null
-      }
-      dispatch({ type: 'FINISH', id: assistantId })
-      saveConversation([...history, { role: 'assistant', content: assistantContent }], { conversationId: convId, select: false })
+      dispatch({ type: 'FINISH', id: assistantId, finishedAt: Date.now() })
+      if (activeAssistantIdRef.current === assistantId) activeAssistantIdRef.current = null
+      setAgentRunning(false)
+      saveConversation(convId, [...history, { role: 'assistant', content: assistantContent }])
     }
 
-    const streamHandle = api.stream({
+    const countCommand = (event = {}) => {
+      if (event.callId) {
+        if (countedToolCalls.has(event.callId)) return
+        countedToolCalls.add(event.callId)
+      }
+      dispatch({ type: 'INCREMENT_COMMAND_COUNT', id: assistantId })
+    }
+
+    abortRef.current = api.stream({
       channel: 'chat:send',
-      payload: { convId, username: username || 'guest', assistant, messages: history },
+      payload: {
+        convId,
+        messages: history,
+        message: text,
+        model,
+        pluginMode: options.pluginMode || null,
+        forcedSkill: options.forcedSkill || null
+      },
       onDelta: (delta) => {
         assistantContent += delta
         dispatch({ type: 'APPEND_DELTA', id: assistantId, delta })
       },
-      onToolStart: (event) => {
-        const id = uid()
-        toolMessageIdsRef.current.set(event.callId, id)
-        dispatch({ type: 'ADD', msg: { id, role: 'tool', toolCallId: event.callId, toolName: event.name, args: event.args, toolStatus: 'running', logs: [] } })
+      onToolStart: countCommand,
+      onActionPlan: (event) => {
+        for (const action of event.actions || []) schedulePendingActionTimeout(action)
+        dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', type: 'action_plan', stream: true, content: appendActionSummary(event.actions || []) } })
       },
-      onToolLog: (event) => {
-        const id = toolMessageIdsRef.current.get(event.callId)
-        if (id) dispatch({ type: 'UPDATE_TOOL', id, log: { stream: event.stream, chunk: event.chunk } })
+      onActionUpdate: (event) => {
+        window.dispatchEvent(new CustomEvent('aionui:actions-changed'))
+        dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', type: 'action_update', stream: true, content: appendActionSummary(event.actions || []) } })
       },
-      onToolResult: (event) => {
-        const id = toolMessageIdsRef.current.get(event.callId)
-        if (event.result?.artifact) {
-          const artifact = { ...event.result.artifact, username: event.result.artifact.username || username || 'guest' }
-          window.dispatchEvent(new CustomEvent('agentdev:artifact-created', { detail: artifact }))
-        }
-        if (id) dispatch({ type: 'UPDATE_TOOL', id, patch: { toolStatus: 'ok', result: event.result } })
+      onConfirmationRequest: (event) => {
+        setPendingConfirmation(event.pending)
       },
-      onToolError: (event) => {
-        const id = toolMessageIdsRef.current.get(event.callId)
-        if (id) dispatch({ type: 'UPDATE_TOOL', id, patch: { toolStatus: 'error', error: event.error } })
-      },
-      onSkillLoaded: (event) => {
-        dispatch({ type: 'ADD', msg: { id: uid(), role: 'skill', skillName: event.name } })
+      onConfirmationCleared: () => {
+        setPendingConfirmation(null)
       },
       onDone: finish,
       onError: (error) => {
-        const errorText = `\n\n${chatErrorMessage(error)}`
+        const errorText = `\n\n[错误] ${error.message}`
         assistantContent += errorText
         dispatch({ type: 'APPEND_DELTA', id: assistantId, delta: errorText })
+        setAgentRunning(false)
         finish()
       }
     })
+  }, [pendingConfirmation, state.messages, saveConversation])
 
-    activeStreamRef.current = {
-      assistantId,
-      cancel: streamHandle.cancel || streamHandle,
-      unsubscribe: streamHandle.unsubscribe,
-      cancelWithNotice: () => {
-        if (finished) return
-        const notice = assistantContent ? '\n\n已停止生成。' : '已停止生成。'
-        assistantContent += notice
-        dispatch({ type: 'APPEND_DELTA', id: assistantId, delta: notice })
-        finish()
-      }
+  const handleAbort = useCallback(() => {
+    const convId = conversationIdRef.current
+    abortRef.current?.()
+    if (convId) abortChat(convId).catch((error) => console.error('[chat] 取消请求失败:', error))
+    if (activeAssistantIdRef.current) {
+      dispatch({ type: 'FINISH', id: activeAssistantIdRef.current, finishedAt: Date.now() })
+      activeAssistantIdRef.current = null
     }
-  }, [assistant, closeActiveStream, state.messages, saveConversation])
+    setPendingConfirmation(null)
+    setAgentRunning(false)
+  }, [])
+
+  const sendCommand = useCallback(({ command, prompt, referencePath }) => {
+    const convId = conversationIdRef.current
+    if (!convId) return
+
+    const displayText = referencePath ? `/${command} “${referencePath}” ${prompt}` : `/${command} ${prompt}`
+    const userMessage = { id: uid(), role: 'user', content: displayText }
+    const assistantContent = '请直接用自然语言描述你的任务，我会自动判断是否需要执行操作。'
+    dispatch({ type: 'ADD', msg: userMessage })
+    dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', content: assistantContent } })
+    const history = [...state.messages, userMessage].filter((message) => message.role === 'user' || message.role === 'assistant').map((message) => ({ role: message.role, content: message.content }))
+    saveConversation(convId, [...history, { role: 'assistant', content: assistantContent }])
+  }, [state.messages, saveConversation])
 
   const addCard = useCallback((cardType, initialData = {}) => {
     const id = uid()
@@ -238,19 +272,10 @@ export function useChat({ username, assistant = DEFAULT_ASSISTANT, conversationI
 
   const updateCard = useCallback((id, cardState, cardData) => dispatch({ type: 'UPDATE_CARD', id, cardState, cardData }), [])
   const addFileCard = useCallback((artifact) => {
-    const scopedArtifact = artifact ? { ...artifact, username: artifact.username || username || 'guest' } : artifact
-    if (scopedArtifact) window.dispatchEvent(new CustomEvent('agentdev:artifact-created', { detail: scopedArtifact }))
-    dispatch({ type: 'ADD', msg: { id: uid(), role: 'card', cardType: 'file', cardData: scopedArtifact, cardState: 'done' } })
-  }, [username])
+    if (artifact) window.dispatchEvent(new CustomEvent('agentdev:artifact-created', { detail: artifact }))
+    dispatch({ type: 'ADD', msg: { id: uid(), role: 'card', cardType: 'file', cardData: artifact, cardState: 'done' } })
+  }, [])
   const clear = useCallback(() => dispatch({ type: 'CLEAR' }), [])
 
-  return {
-    ...state,
-    sendUserMessage,
-    cancelStream: () => closeActiveStream({ notify: true, cancel: true }),
-    addCard,
-    updateCard,
-    addFileCard,
-    clear
-  }
+  return { ...state, agentRunning, pendingConfirmation, sendUserMessage, handleAbort, sendCommand, addCard, updateCard, addFileCard, clear }
 }

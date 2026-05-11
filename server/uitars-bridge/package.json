@@ -1,0 +1,16 @@
+{
+  "name": "@aionui/uitars-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": { "start": "node index.js" },
+  "dependencies": {
+    "express": "4.22.1",
+    "@ui-tars/sdk": "1.2.3",
+    "screenshot-desktop": "1.15.4",
+    "@nut-tree-fork/nut-js": "4.2.6"
+  },
+  "devDependencies": {
+    "supertest": "7.2.2"
+  }
+}

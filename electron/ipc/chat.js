@@ -3,60 +3,102 @@ const deepseek = require('../services/deepseek')
 const tools = require('../tools')
 const skillRegistry = require('../skills/registry')
 const userRules = require('../services/userRules')
+const { runTurn } = require('../services/agentLoop')
+const { requestConfirm } = require('../confirm')
+const {
+  CONFIRMATION_TIMEOUT_MS,
+  classifyConfirmationReply,
+  buildConfirmationPrompt,
+  buildPendingExplanation,
+  buildNoPendingMessage,
+  buildMissingSkillMessage
+} = require('./chatConfirmation')
 
-const BASE_PROMPT = 'You are AgentDev Lite, a student learning assistant. Answer concisely and professionally. Provide runnable examples when discussing code. In default permission mode, you cannot access local files, run commands, or create documents. Never claim that a local file was generated, saved, opened, moved, or deleted unless a tool result explicitly confirms the path.'
-const FULL_PROMPT = `${BASE_PROMPT}\n\nYou are in full permission mode. You may call local file, shell, skill, and document tools to actively complete the user task. Prefer load_skill() when a suitable skill exists. For generated files, report success only when the tool result includes a real path and bytes_written greater than zero; if a tool returns an error, clearly say the file was not generated. When generating Word documents, provide a complete outline with meaningful Chinese headings and paragraph-style Chinese content. Never call generate_docx with placeholder headings like Section 1 or empty content. When generating PowerPoint files, call generate_pptx with complete slide content: slides[0] is the cover, and every later slide must include a meaningful title plus 2-5 substantive bullets. Never call generate_pptx with title-only slides or empty bullets. When the user specifies an output path for a Word document or PowerPoint, pass that requested path to the document tool so it can attempt the direct output first. If the OS blocks that location, the tool may return a fallback path under the same drive folder such as D:\\AgentDevLiteGenerated\\ with a warning; report that actual path instead of claiming the original path was used.`
-const REMEMBER_GUIDANCE = 'When the user expresses a durable future preference using wording like after this, always, next time, or from now on, call remember_user_rule. Do not remember one-off task details.'
+const BASE_PROMPT = '你是 AionUi，一个桌面控制平面助手。请默认使用简体中文，回答要简洁、专业。所有用户输入都在同一个 Agent Loop 中处理：普通问题直接回答，需要本地、浏览器或桌面操作时再调用工具。除非 AionUi 已报告审批通过的执行结果，否则不要暗示本地动作已经运行。'
+const FULL_PROMPT = `${BASE_PROMPT}\n\n当前配置允许兼容工具进入候选集，但所有执行仍必须经过 AionUi 策略、确认、适配器和审计日志。`
+const REMEMBER_GUIDANCE = '当用户表达长期偏好，例如”以后””始终””下次”或”从现在开始”时，调用 remember_user_rule。不要记住一次性任务细节。'
+const TOOL_CALL_RULES = `
+## 工具调用规则（必须遵守）
 
-function isCancelled(error, signal) {
-  return signal?.aborted || error?.code === 'CHAT_CANCELLED' || error?.name === 'AbortError'
+当用户请求涉及以下操作时，你**必须调用对应的工具函数**，
+**绝对不要用文字描述来代替工具调用**：
+
+| 用户意图 | 必须调用的工具 |
+|---------|-------------|
+| 打开网页/浏览网站/点击页面 | \`browser_task\` |
+| 截屏/观察屏幕 | \`desktop_observe\` |
+| 点击桌面/鼠标操作 | \`desktop_click\` |
+| 输入文字/键盘操作 | \`desktop_type\` |
+| 执行命令/运行脚本 | \`run_shell_command\` |
+| 读写文件 | \`file_read\` / \`file_write\` |
+| 生成文档/PPT | \`generate_document\` |
+
+如果用户说”帮我打开X”或”点击X”，你不能回复”好的我来做”然后什么都不做。
+你必须调用对应工具。工具执行结果会返回给你，你再据此回复用户。`
+const pendingConfirmations = new Map()
+const activeControllers = new Map()
+
+function clearPendingConfirmation(convId, reason = 'cleared') {
+  const pending = pendingConfirmations.get(convId)
+  if (!pending) return false
+  clearTimeout(pending.timer)
+  pendingConfirmations.delete(convId)
+  pending.send?.('chat:confirmation-cleared', { reason })
+  pending.resolve(false)
+  return true
 }
 
-function throwIfCancelled(signal) {
-  if (!signal?.aborted) return
-  const error = new Error('生成已停止。')
-  error.code = 'CHAT_CANCELLED'
-  throw error
+function settlePendingConfirmation(convId, approved, reason) {
+  const pending = pendingConfirmations.get(convId)
+  if (!pending) return false
+  clearTimeout(pending.timer)
+  pendingConfirmations.delete(convId)
+  pending.send?.('chat:confirmation-cleared', { reason })
+  pending.resolve(Boolean(approved))
+  return true
 }
 
-function makeTitle(messages) {
-  const firstUser = messages.find((message) => message.role === 'user' && message.content)
-  return firstUser?.content.slice(0, 24) || '新对话'
+function sendPendingClarification(send, pending) {
+  const assistantText = buildPendingExplanation(pending)
+  send('chat:delta', { text: assistantText })
+  send('chat:done', {})
+  return { ok: true, status: 'clarification', assistantText }
 }
 
-function normalizeMessages(messages) {
-  if (!Array.isArray(messages)) return []
-  return messages
-    .filter((message) => message && (message.role === 'user' || message.role === 'assistant') && typeof message.content === 'string')
-    .map((message) => ({ role: message.role, content: message.content }))
+function hasUsefulSkillLoadResult(result) {
+  if (!result || result.error) return false
+  if (typeof result === 'string') return Boolean(result.trim())
+  if (typeof result !== 'object') return true
+
+  const content = String(result.content || '').trim()
+  if (result.already_loaded) return Boolean(content)
+  if (Object.prototype.hasOwnProperty.call(result, 'content')) return Boolean(content)
+  return true
 }
 
-function persistConversation(deps, { convId, username, assistant = 'general', messages }) {
-  if (!convId || typeof deps.storeRef?.upsertConversation !== 'function') return null
+async function handleConfirmationReply(evt, payload = {}) {
+  const { convId, message = '' } = payload
+  const pending = pendingConfirmations.get(convId)
+  if (!pending) return { ok: true, status: 'missing', assistantText: buildNoPendingMessage() }
 
-  const normalizedMessages = normalizeMessages(messages)
-  const existing = typeof deps.storeRef.getConversation === 'function'
-    ? deps.storeRef.getConversation(convId)
-    : null
-  const now = new Date().toISOString()
-  const conversation = {
-    id: convId,
-    title: makeTitle(normalizedMessages) || existing?.title || '新对话',
-    assistant: assistant || existing?.assistant || 'general',
-    username: username || existing?.username || 'guest',
-    createdAt: existing?.createdAt || now,
-    updatedAt: now,
-    messages: normalizedMessages
+  const classification = classifyConfirmationReply(message)
+  if (classification === 'confirm') {
+    settlePendingConfirmation(convId, true, 'confirmed')
+    return { ok: true, status: 'confirmed' }
   }
-
-  return deps.storeRef.upsertConversation(conversation)
+  if (classification === 'reject') {
+    settlePendingConfirmation(convId, false, 'rejected')
+    return { ok: true, status: 'rejected' }
+  }
+  return { ok: true, status: 'clarification', assistantText: buildPendingExplanation(pending) }
 }
 
-function buildSystemPrompt(config, deps, username) {
+function buildSystemPrompt(config, deps) {
   const parts = []
   const isFull = config.permissionMode === 'full'
   parts.push(isFull ? FULL_PROMPT : BASE_PROMPT)
-  const rules = deps.userRules.buildSystemPromptSection(username)
+  parts.push(TOOL_CALL_RULES)
+  const rules = deps.userRules.buildSystemPromptSection()
   if (rules) parts.push(rules)
   if (isFull) {
     const skillIndex = deps.skillRegistry.buildSkillIndex(deps.skillRegistry.listSkills())
@@ -67,103 +109,121 @@ function buildSystemPrompt(config, deps, username) {
 }
 
 async function handleChatSend(evt, payload = {}, deps) {
-  const { convId, messages = [], username, assistant = 'general' } = payload
+  const { convId, messages = [], model, pluginMode, forcedSkill } = payload
   const send = (event, data = {}) => evt.sender.send(event, { convId, ...data })
-  const controller = new AbortController()
-  const previous = deps.activeChats.get(convId)
-  if (previous) previous.abort()
-  deps.activeChats.set(convId, controller)
-  const { signal } = controller
-  const config = username ? deps.storeRef.getUserConfig(username) : deps.storeRef.getConfig()
-  const isFull = config.permissionMode === 'full'
-  const fullMessages = [{ role: 'system', content: buildSystemPrompt(config, deps, username) }, ...messages]
-  let assistantContent = ''
+  if (payload.confirmationReply) {
+    return handleConfirmationReply(evt, payload)
+  }
+  const pendingConfirmation = pendingConfirmations.get(convId)
+  if (pendingConfirmation) {
+    return sendPendingClarification(send, pendingConfirmation)
+  }
+  const config = deps.storeRef.getConfig()
+  const ctl = new AbortController()
+  activeControllers.set(convId, ctl)
+  const forceTool = pluginMode === 'browser' ? 'browser_task' : undefined
+  const agentMessages = [
+    { role: 'system', content: buildSystemPrompt(config, deps) },
+    ...messages.filter(m => m.role === 'user' || m.role === 'assistant' || m.role === 'tool')
+  ]
+  let sentText = ''
+
   const sendDelta = (text) => {
-    assistantContent += text
+    if (!text) return
+    sentText += text
     send('chat:delta', { text })
   }
-  const persistCurrentMessages = () => persistConversation(deps, {
-    convId,
-    username,
-    assistant,
-    messages: assistantContent
-      ? [...messages, { role: 'assistant', content: assistantContent }]
-      : messages
-  })
 
-  persistCurrentMessages()
+  if (forcedSkill && typeof deps.skillRegistry.findSkill === 'function' && !deps.skillRegistry.findSkill(forcedSkill)) {
+    sendDelta(buildMissingSkillMessage(forcedSkill, deps.skillRegistry.listSkills()))
+    send('chat:done', {})
+    activeControllers.delete(convId)
+    return { ok: true }
+  }
 
   try {
-    if (!isFull) {
-      const result = await deps.deepseek.chat({ messages: fullMessages, config, stream: true, signal, onDelta: sendDelta })
-      if (!assistantContent && result.content && !result._streamed) assistantContent = result.content
-      throwIfCancelled(signal)
-      persistCurrentMessages()
-      send('chat:done', {})
-      return { ok: true }
-    }
+    const result = await deps.runTurn({
+      messages: agentMessages,
+      model,
+      forceTool,
+      forcedSkill,
+      convId,
+      signal: ctl.signal,
+      onStreamEvent: streamEvent => {
+        send('chat:stream', { event: streamEvent })
+      },
+      onEvent: (type, data) => {
+        if (type === 'assistant_message') {
+          sendDelta(data.content)
+          if (data.toolCalls?.length) {
+            for (const call of data.toolCalls) {
+              send('chat:tool-start', { callId: call.id, name: call.name, args: call.args })
+            }
+          }
+        } else if (type === 'tool_result') {
+          send('chat:tool-result', { callId: data.call.id, result: data.result })
+          if (data.call.name === 'load_skill' && hasUsefulSkillLoadResult(data.result)) {
+            send('chat:skill-loaded', { name: data.call.args.name })
+          }
+        } else if (type === 'tool_error') {
+          send('chat:tool-error', { callId: data.call.id, error: data.error })
+        } else if (type === 'tool_blocked') {
+          send('chat:tool-error', { callId: data.call.id, error: { code: 'POLICY_BLOCKED', message: data.reason } })
+        } else if (type === 'approval_request') {
+          send('chat:tool-start', { callId: data.call.id, name: data.call.name, args: data.call.args, needsApproval: true, decision: data.decision, ...(data.retry ? { retry: data.retry } : {}) })
+        }
+      },
+      requestApproval: async ({ call, decision, retry }) => {
+        clearPendingConfirmation(convId, 'replaced')
+        const prompt = buildConfirmationPrompt({ call, decision, retry })
+        sendDelta(prompt)
 
-    for (let iter = 0; iter < 10; iter += 1) {
-      throwIfCancelled(signal)
-      const response = await deps.deepseek.chat({
-        messages: fullMessages,
-        config,
-        tools: deps.toolSchemas,
-        stream: true,
-        signal,
-        onDelta: sendDelta
-      })
-      if (!assistantContent && response.content && !response._streamed) assistantContent = response.content
-      throwIfCancelled(signal)
-      fullMessages.push(response.assistant_message || { role: 'assistant', content: response.content || '' })
-      const calls = response.tool_calls || []
-      if (!calls.length) {
-        persistCurrentMessages()
-        send('chat:done', {})
-        return { ok: true }
-      }
+        const approved = await new Promise((resolve) => {
+          const timer = setTimeout(() => {
+            if (pendingConfirmations.get(convId)?.call.id === call.id) {
+              pendingConfirmations.delete(convId)
+              send('chat:confirmation-cleared', { reason: 'timeout' })
+              sendDelta('\n确认等待超时，已取消该高风险操作。\n')
+              resolve(false)
+            }
+          }, CONFIRMATION_TIMEOUT_MS)
 
-      for (const call of calls) {
-        throwIfCancelled(signal)
-        send('chat:tool-start', { callId: call.id, name: call.name, args: call.args })
-        const result = await deps.execute(call.name, call.args, {
-          convId,
-          username,
-          signal,
-          onLog: (stream, chunk) => send('chat:tool-log', { callId: call.id, stream, chunk })
+          const pending = { call, decision, retry, resolve, timer, send }
+          pendingConfirmations.set(convId, pending)
+          send('chat:confirmation-request', {
+            pending: {
+              callId: call.id,
+              toolName: call.name,
+              args: call.args,
+              risk: decision.risk,
+              reason: decision.reason,
+              retry
+            }
+          })
         })
-        throwIfCancelled(signal)
-        if (result?.error) send('chat:tool-error', { callId: call.id, error: result.error })
-        else send('chat:tool-result', { callId: call.id, result })
-        if (call.name === 'load_skill' && !result?.error) send('chat:skill-loaded', { name: call.args.name })
-        fullMessages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result), name: call.name })
-      }
-    }
 
-    fullMessages.push({ role: 'system', content: 'Tool call limit reached. Summarize based on existing tool results.' })
-    const result = await deps.deepseek.chat({ messages: fullMessages, config, stream: true, signal, onDelta: sendDelta })
-    if (!assistantContent && result.content && !result._streamed) assistantContent = result.content
-    throwIfCancelled(signal)
-    persistCurrentMessages()
+        if (!approved) {
+          send('chat:tool-error', { callId: call.id, error: { code: 'USER_DENIED', message: '用户拒绝执行工具。' } })
+        }
+        return approved
+      }
+    })
+
+    const finalText = result.finalText || ''
+    if (finalText && !sentText.trimEnd().endsWith(finalText.trim())) sendDelta(finalText)
     send('chat:done', {})
     return { ok: true }
   } catch (error) {
-    if (isCancelled(error, signal)) {
-      send('chat:cancelled', {})
-      return { ok: true, cancelled: true }
-    }
     const code = error instanceof deps.DeepSeekError ? error.code : 'INTERNAL'
     send('chat:error', { error: { code, message: error.message || '未知错误' } })
     return { ok: true }
   } finally {
-    if (deps.activeChats.get(convId) === controller) {
-      deps.activeChats.delete(convId)
-    }
+    activeControllers.delete(convId)
+    clearPendingConfirmation(convId, 'run-ended')
   }
 }
 
 function createRegister(overrides = {}) {
-  const activeChats = overrides.activeChats || new Map()
   const deps = {
     storeRef: store,
     deepseek,
@@ -172,21 +232,22 @@ function createRegister(overrides = {}) {
     toolSchemas: tools.TOOL_SCHEMAS,
     skillRegistry,
     userRules,
-    activeChats,
+    runTurn,
+    requestConfirm,
     ...overrides
   }
   return function register(ipcMain) {
     ipcMain.handle('chat:send', (evt, payload) => handleChatSend(evt, payload, deps))
-    ipcMain.handle('chat:cancel', async (_evt, payload = {}) => {
-      const controller = deps.activeChats.get(payload.convId)
-      if (!controller) return { ok: true, cancelled: false }
-      controller.abort()
-      deps.activeChats.delete(payload.convId)
-      return { ok: true, cancelled: true }
+    ipcMain.handle('chat:approve-tool', async () => ({ ok: false, error: { code: 'DEPRECATED', message: '请通过对话回复进行确认。' } }))
+    ipcMain.handle('chat:abort', async (_evt, payload = {}) => {
+      const ctl = activeControllers.get(payload.convId)
+      if (ctl) ctl.abort()
+      clearPendingConfirmation(payload.convId, 'aborted')
+      return { ok: true }
     })
   }
 }
 
 const register = createRegister()
 
-module.exports = { BASE_PROMPT, FULL_PROMPT, REMEMBER_GUIDANCE, buildSystemPrompt, handleChatSend, createRegister, register, isCancelled }
+module.exports = { BASE_PROMPT, FULL_PROMPT, REMEMBER_GUIDANCE, TOOL_CALL_RULES, buildSystemPrompt, handleChatSend, createRegister, register }

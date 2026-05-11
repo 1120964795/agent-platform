@@ -3,20 +3,6 @@ const fs = require('fs')
 const path = require('path')
 const { store } = require('../store')
 
-function headingLevelFor(level) {
-  const normalized = Math.max(1, Math.min(3, Number(level) || 1))
-  if (normalized === 2) return HeadingLevel.HEADING_2
-  if (normalized === 3) return HeadingLevel.HEADING_3
-  return HeadingLevel.HEADING_1
-}
-
-function headingSizeFor(level) {
-  const normalized = Math.max(1, Math.min(3, Number(level) || 1))
-  if (normalized === 2) return 24
-  if (normalized === 3) return 22
-  return 28
-}
-
 function sanitizeFilename(name) {
   return (name || 'untitled').replace(/[\\/:*?"<>|]/g, '').slice(0, 20)
 }
@@ -39,10 +25,10 @@ async function generateDocx({ title, sections }) {
 
   for (const section of sections || []) {
     children.push(new Paragraph({
-      heading: headingLevelFor(section.level),
-      children: [new TextRun({ text: section.heading, font: 'Arial', size: headingSizeFor(section.level), bold: true })]
+      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: section.heading, font: 'Arial', size: 28, bold: true })]
     }))
-    const paragraphs = String(section.content || '').split(/\n\n+/).map(item => item.trim()).filter(Boolean)
+    const paragraphs = String(section.content || '').split(/\n\n+/)
     for (const paragraph of paragraphs) {
       children.push(new Paragraph({
         alignment: AlignmentType.JUSTIFIED,
@@ -53,7 +39,7 @@ async function generateDocx({ title, sections }) {
   }
 
   const doc = new Document({
-    creator: 'AgentDev Lite',
+    creator: 'AionUi',
     title,
     sections: [{ properties: {}, children }]
   })
