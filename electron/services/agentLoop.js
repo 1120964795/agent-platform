@@ -174,6 +174,12 @@ function summarizeToolResult(result, failure) {
   return '工具已返回结果。'
 }
 
+function forcedToolReasoningText(toolName) {
+  if (toolName === 'desktop_task') return '准备交给 Computer Use 执行桌面任务。'
+  if (toolName === 'browser_task') return '准备交给 Browser Use 执行浏览器任务。'
+  return '准备调用工具执行任务。'
+}
+
 async function runTurn({ messages, model, signal, onEvent, onStreamEvent, requestApproval, forceTool, forcedSkill, convId }, deps = {}) {
   const { model: selectedModel, chat } = getProvider(model, deps)
   const tools = deps.tools || require('../tools')
@@ -289,7 +295,7 @@ async function runTurn({ messages, model, signal, onEvent, onStreamEvent, reques
   const forcedCall = createForcedToolCall(forceTool, history)
   if (forcedCall) {
     emitStream('reasoning_summary', {
-      text: '我正在判断用户意图，并将这条消息交给浏览器任务执行。',
+      text: forcedToolReasoningText(forcedCall.name),
     })
     history.push({ role: 'assistant', content: null, tool_calls: [forcedCall.raw] })
     onEvent?.('assistant_message', { content: '', toolCalls: [forcedCall] })

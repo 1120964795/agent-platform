@@ -499,6 +499,28 @@ test('desktop plugin mode finishes from the desktop task result without another 
   expect(tools.getAgentLoopToolSchemas).not.toHaveBeenCalled()
 })
 
+test('desktop forced tool reasoning names Computer Use instead of browser', async () => {
+  const events = []
+  const deepseek = {
+    chat: vi.fn(async () => ({ content: 'unused', assistant_message: { role: 'assistant', content: 'unused' }, tool_calls: [] }))
+  }
+  const tools = {
+    execute: vi.fn(async () => ({ ok: true, metadata: { summary: 'done' } })),
+    getAgentLoopToolSchemas: vi.fn(() => [])
+  }
+  const policy = mockPolicy({ desktop_task: { risk: 'medium', reason: 'desktop', allowed: true, requiresApproval: false } })
+
+  await runTurn({
+    messages: [{ role: 'user', content: 'open qq' }],
+    forceTool: 'desktop_task',
+    onStreamEvent: event => events.push(event)
+  }, { deepseek, tools, policy })
+
+  const text = events.find(event => event.type === 'reasoning_summary')?.text || ''
+  expect(text).toContain('Computer Use')
+  expect(text).not.toContain('浏览器')
+})
+
 test('forcedSkill loads the skill before the normal model turn', async () => {
   const calls = []
   let chatMessages = null
