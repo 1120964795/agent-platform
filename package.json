@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "server/uitars-bridge"
+    "server/uitars-bridge",
+    "server/desktop-use-bridge"
   ],
   "description": "AionUi V2 control-plane agent desktop app",
   "main": "electron/main.js",
