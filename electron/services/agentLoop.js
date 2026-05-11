@@ -180,7 +180,18 @@ function forcedToolReasoningText(toolName) {
   return '准备调用工具执行任务。'
 }
 
-async function runTurn({ messages, model, signal, onEvent, onStreamEvent, requestApproval, forceTool, forcedSkill, convId }, deps = {}) {
+function summarizeDesktopEvent(event = {}) {
+  if (event.summary) return String(event.summary)
+  if (event.type === 'cursor_move') return 'Moving the Computer Use cursor.'
+  if (event.type === 'action_start') return `Starting desktop ${event.action || 'action'}.`
+  if (event.type === 'action_result') return `Finished desktop ${event.action || 'action'}.`
+  if (event.type === 'ask_user') return event.question || 'Computer Use needs your input.'
+  if (event.type === 'done') return event.summary || 'Computer Use finished.'
+  if (event.type === 'fail') return event.summary || event.message || 'Computer Use failed.'
+  return `Computer Use: ${event.type || 'event'}`
+}
+
+async function runTurn({ messages, model, signal, onEvent, onStreamEvent, requestApproval, forceTool, forcedSkill, convId, waitForDesktopUser }, deps = {}) {
   const { model: selectedModel, chat } = getProvider(model, deps)
   const tools = deps.tools || require('../tools')
   const policy = deps.policy || require('../security/toolPolicy')
@@ -244,7 +255,20 @@ async function runTurn({ messages, model, signal, onEvent, onStreamEvent, reques
         summary: `${call.name} 正在执行。`,
       })
 
-      const result = await tools.execute(call.name, call.args, { signal: ctl.signal, skipInternalConfirm: true, convId })
+      const result = await tools.execute(call.name, call.args, {
+        signal: ctl.signal,
+        skipInternalConfirm: true,
+        convId,
+        onDesktopEvent: event => {
+          emitStream('desktop_event', {
+            tool: call.name,
+            summary: summarizeDesktopEvent(event),
+            desktopEvent: event,
+          })
+          onEvent?.('desktop_event', { call, event })
+        },
+        waitForDesktopUser,
+      })
       const failure = normalizeToolFailure(result)
       const content = formatToolContent(result, failure)
       history.push({ role: 'tool', tool_call_id: call.id, content })

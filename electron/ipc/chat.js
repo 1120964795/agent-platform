@@ -38,6 +38,7 @@ const TOOL_CALL_RULES = `
 你必须调用对应工具。工具执行结果会返回给你，你再据此回复用户。`
 const pendingConfirmations = new Map()
 const activeControllers = new Map()
+const pendingDesktopQuestions = new Map()
 
 function clearPendingConfirmation(convId, reason = 'cleared') {
   const pending = pendingConfirmations.get(convId)
@@ -56,6 +57,24 @@ function settlePendingConfirmation(convId, approved, reason) {
   pendingConfirmations.delete(convId)
   pending.send?.('chat:confirmation-cleared', { reason })
   pending.resolve(Boolean(approved))
+  return true
+}
+
+function clearPendingDesktopQuestion(convId, reason = 'cleared') {
+  const pending = pendingDesktopQuestions.get(convId)
+  if (!pending) return false
+  pendingDesktopQuestions.delete(convId)
+  pending.send?.('chat:desktop-ask-cleared', { reason })
+  pending.resolve('')
+  return true
+}
+
+function settlePendingDesktopQuestion(convId, answer) {
+  const pending = pendingDesktopQuestions.get(convId)
+  if (!pending) return false
+  pendingDesktopQuestions.delete(convId)
+  pending.send?.('chat:desktop-ask-cleared', { reason: 'answered' })
+  pending.resolve(String(answer || ''))
   return true
 }
 
@@ -134,6 +153,12 @@ async function handleChatSend(evt, payload = {}, deps) {
     const timer = setTimeout(() => overlay?.hide?.(), 1200)
     timer.unref?.()
   }
+  if (payload.desktopAskReply) {
+    const ok = settlePendingDesktopQuestion(convId, payload.message || '')
+    return ok
+      ? { ok: true, status: 'desktop-ask-replied' }
+      : { ok: true, status: 'missing-desktop-ask' }
+  }
   if (payload.confirmationReply) {
     return handleConfirmationReply(evt, payload)
   }
@@ -191,6 +216,14 @@ async function handleChatSend(evt, payload = {}, deps) {
           if (data.call.name === 'load_skill' && hasUsefulSkillLoadResult(data.result)) {
             send('chat:skill-loaded', { name: data.call.args.name })
           }
+        } else if (type === 'desktop_event') {
+          send('chat:desktop-event', { event: data.event })
+          const overlay = getOverlay()
+          if (overlay) {
+            usedDesktopOverlay = true
+            overlay.show?.()
+            overlay.handleEvent?.(data.event)
+          }
         } else if (type === 'tool_error') {
           send('chat:tool-error', { callId: data.call.id, error: data.error })
         } else if (type === 'tool_blocked') {
@@ -198,6 +231,13 @@ async function handleChatSend(evt, payload = {}, deps) {
         } else if (type === 'approval_request') {
           send('chat:tool-start', { callId: data.call.id, name: data.call.name, args: data.call.args, needsApproval: true, decision: data.decision, ...(data.retry ? { retry: data.retry } : {}) })
         }
+      },
+      waitForDesktopUser: async (request) => {
+        send('chat:desktop-ask', { request })
+        sendDelta(`\n${request.question || 'Computer Use needs your input.'}\n`)
+        return await new Promise((resolve) => {
+          pendingDesktopQuestions.set(convId, { request, resolve, send })
+        })
       },
       requestApproval: async ({ call, decision, retry }) => {
         clearPendingConfirmation(convId, 'replaced')
@@ -244,10 +284,12 @@ async function handleChatSend(evt, payload = {}, deps) {
     const code = error instanceof deps.DeepSeekError ? error.code : 'INTERNAL'
     send('chat:error', { error: { code, message: error.message || '未知错误' } })
     getOverlay()?.hide?.()
+    clearPendingDesktopQuestion(convId, 'error')
     return { ok: true }
   } finally {
     activeControllers.delete(convId)
     clearPendingConfirmation(convId, 'run-ended')
+    clearPendingDesktopQuestion(convId, 'run-ended')
   }
 }
 
@@ -271,6 +313,7 @@ function createRegister(overrides = {}) {
       const ctl = activeControllers.get(payload.convId)
       if (ctl) ctl.abort()
       clearPendingConfirmation(payload.convId, 'aborted')
+      clearPendingDesktopQuestion(payload.convId, 'aborted')
       deps.desktopCursorOverlay?.getDesktopCursorOverlay?.()?.hide?.()
       return { ok: true }
     })

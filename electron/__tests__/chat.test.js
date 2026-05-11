@@ -594,3 +594,32 @@ test('chat:send forwards stream events from the agent loop', async () => {
 
   expect(send).toHaveBeenCalledWith('chat:stream', { convId: 'conv-stream', event: streamEvent })
 })
+
+test('chat:send resolves pending desktop ask reply without starting a new run', async () => {
+  const ipcMain = createIpcMain()
+  const send = vi.fn()
+  let desktopAnswer
+  const runTurn = vi.fn(async ({ waitForDesktopUser }) => {
+    desktopAnswer = await waitForDesktopUser({ requestId: 'ask-1', question: 'Please log in' })
+    return { finalText: `answer:${desktopAnswer}`, history: [] }
+  })
+  const register = createRegister({
+    storeRef: { getConfig: () => ({ permissionMode: 'default' }) },
+    runTurn,
+    userRules: { buildSystemPromptSection: () => '' },
+    skillRegistry: { listSkills: () => [], buildSkillIndex: () => '', findSkill: () => null },
+    desktopCursorOverlay: { getDesktopCursorOverlay: () => ({ handleEvent: vi.fn(), hide: vi.fn(), show: vi.fn() }) }
+  })
+  register(ipcMain)
+
+  const pending = ipcMain.handlers.get('chat:send')({ sender: { send } }, { convId: 'conv-ask', messages: [{ role: 'user', content: 'send qq' }], pluginMode: 'desktop' })
+  await Promise.resolve()
+  expect(send).toHaveBeenCalledWith('chat:desktop-ask', { convId: 'conv-ask', request: expect.objectContaining({ requestId: 'ask-1', question: 'Please log in' }) })
+
+  const reply = await ipcMain.handlers.get('chat:send')({ sender: { send } }, { convId: 'conv-ask', desktopAskReply: true, message: 'logged in' })
+
+  expect(reply).toEqual({ ok: true, status: 'desktop-ask-replied' })
+  await pending
+  expect(desktopAnswer).toBe('logged in')
+  expect(runTurn).toHaveBeenCalledTimes(1)
+})

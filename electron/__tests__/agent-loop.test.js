@@ -392,6 +392,33 @@ test('passes skipInternalConfirm to tools.execute', async () => {
   expect(tools.execute).toHaveBeenCalledWith('write_file', { path: 'foo.txt', content: 'hi' }, expect.objectContaining({ skipInternalConfirm: true }))
 })
 
+test('desktop_task streams desktop events while tool is running', async () => {
+  const streamEvents = []
+  const desktopEvent = { type: 'observe', summary: 'Looking at desktop' }
+  const tools = {
+    getAgentLoopToolSchemas: () => [],
+    execute: vi.fn(async (_name, _args, context) => {
+      context.onDesktopEvent(desktopEvent)
+      return { goal: 'open', metadata: { summary: 'done' } }
+    })
+  }
+  const policy = mockPolicy({ desktop_task: { risk: 'low', reason: 'desktop', allowed: true, requiresApproval: false } })
+
+  await runTurn({
+    messages: [{ role: 'user', content: 'open notepad' }],
+    forceTool: 'desktop_task',
+    convId: 'conv-desktop',
+    onStreamEvent: event => streamEvents.push(event),
+    requestApproval: async () => true
+  }, { tools, policy })
+
+  expect(streamEvents).toContainEqual(expect.objectContaining({
+    type: 'desktop_event',
+    summary: 'Looking at desktop',
+    desktopEvent
+  }))
+})
+
 test('returns history on abort for audit trail', async () => {
   const controller = new AbortController()
   const deepseek = mockDeepseek([
