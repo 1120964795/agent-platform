@@ -2,6 +2,7 @@ const express = require('express')
 const { classify } = require('./translator')
 const { createDriver } = require('./driver')
 const { createAgentRunner } = require('./agentRunner')
+const { createEventHub } = require('./eventHub')
 
 function normalize(raw = {}) {
   const ok = raw.ok !== false
@@ -20,11 +21,26 @@ function normalize(raw = {}) {
 function createApp(deps = {}) {
   const driver = deps.driver || createDriver()
   const agentRunner = deps.agentRunner || createAgentRunner({ driver })
+  const eventHub = deps.eventHub || createEventHub()
   const app = express()
   app.use(express.json({ limit: '20mb' }))
+  app.locals.eventHub = eventHub
 
   app.get('/health', (_req, res) => {
     res.json({ ok: true, runtime: 'desktop-use', version: '0.1.0', ready: agentRunner.ready?.() !== false })
+  })
+
+  app.get('/events/:sessionId', (req, res) => {
+    eventHub.subscribe(String(req.params.sessionId || 'default'), res)
+  })
+
+  app.post('/resume', (req, res) => {
+    const ok = eventHub.resume({
+      sessionId: String(req.body?.sessionId || 'default'),
+      requestId: String(req.body?.requestId || ''),
+      answer: req.body?.answer
+    })
+    res.json({ ok })
   })
 
   app.post('/execute', async (req, res) => {
@@ -71,8 +87,22 @@ function createApp(deps = {}) {
         return res.json(normalize({ ok: result.ok, metadata: result }))
       }
       if (plan.backend === 'task') {
+        const sessionId = String(action.sessionId || 'default')
         const events = []
-        const result = await agentRunner.runTask({ goal: plan.goal, maxSteps: plan.maxSteps, onEvent: event => events.push(event) })
+        const result = await agentRunner.runTask({
+          goal: plan.goal,
+          maxSteps: plan.maxSteps,
+          onEvent: event => {
+            events.push(event)
+            eventHub.publish(sessionId, event)
+          },
+          waitForUser: request => eventHub.waitForUser({
+            sessionId,
+            requestId: request.requestId,
+            question: request.question,
+            publishInitial: false
+          })
+        })
         return res.json(normalize({ ok: result.ok, metadata: { ...result, events }, error: result.error }))
       }
       return res.json(normalize({ ok: false, stderr: `Unsupported backend ${plan.backend}` }))

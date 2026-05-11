@@ -81,4 +81,53 @@ describe('desktop-use bridge endpoints', () => {
 
     expect(driver.drag).toHaveBeenCalledWith({ from: { x: 1, y: 2 }, to: { x: 3, y: 4 }, durationMs: 300 })
   })
+
+  test('desktop task publishes live events to session event stream', async () => {
+    const agentRunner = {
+      ready: () => true,
+      runTask: vi.fn(async ({ onEvent }) => {
+        onEvent({ type: 'task_started', summary: 'started' })
+        onEvent({ type: 'done', summary: 'finished' })
+        return { ok: true, summary: 'finished', steps: [] }
+      }),
+      cancel: vi.fn(async () => ({ ok: true })),
+    }
+    const app = createApp({ driver: createDriver(), agentRunner })
+    const server = app.listen(0)
+    const baseUrl = `http://127.0.0.1:${server.address().port}`
+    let reader
+    try {
+      const events = []
+      const eventResponse = await fetch(`${baseUrl}/events/session-live`)
+      reader = eventResponse.body.getReader()
+      const executePromise = fetch(`${baseUrl}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'desktop.task', approved: true, sessionId: 'session-live', payload: { goal: 'Open Notepad' } })
+      })
+      const decoder = new TextDecoder()
+      while (events.length < 2) {
+        const chunk = await reader.read()
+        events.push(...decoder.decode(chunk.value).split('\n\n').filter(Boolean))
+      }
+      const executeResponse = await executePromise
+      expect((await executeResponse.json()).ok).toBe(true)
+      expect(events.join('\n')).toContain('task_started')
+      expect(events.join('\n')).toContain('done')
+    } finally {
+      await reader?.cancel().catch(() => null)
+      server.close()
+    }
+  })
+
+  test('resume endpoint answers pending ask_user request', async () => {
+    const app = createApp({ driver: createDriver() })
+    const hub = app.locals.eventHub
+    const pending = hub.waitForUser({ sessionId: 'session-resume', requestId: 'ask-1', question: 'Continue?' })
+
+    const response = await request(app).post('/resume').send({ sessionId: 'session-resume', requestId: 'ask-1', answer: 'continue' })
+
+    await expect(pending).resolves.toBe('continue')
+    expect(response.body.ok).toBe(true)
+  })
 })
