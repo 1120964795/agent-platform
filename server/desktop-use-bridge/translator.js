@@ -7,6 +7,10 @@ function nonEmpty(value) {
   return String(value ?? '').trim()
 }
 
+function pointPayload(value = {}) {
+  return { x: num(value.x), y: num(value.y) }
+}
+
 function classify(action = {}) {
   const type = action.type
   const payload = action.payload || {}
@@ -45,6 +49,15 @@ function classify(action = {}) {
       y: num(payload.y),
       direction: payload.direction || 'down',
       amount: num(payload.amount, 3)
+    }
+  }
+
+  if (type === 'desktop.drag') {
+    return {
+      backend: 'drag',
+      from: pointPayload(payload.from),
+      to: pointPayload(payload.to),
+      durationMs: Math.max(0, num(payload.durationMs, 300))
     }
   }
 

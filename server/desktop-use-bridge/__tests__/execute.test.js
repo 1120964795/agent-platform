@@ -71,4 +71,14 @@ describe('desktop-use bridge endpoints', () => {
     expect(cancel.body.ok).toBe(true)
     expect(agentRunner.cancel).toHaveBeenCalled()
   })
+
+  test('desktop drag dispatches to driver', async () => {
+    const driver = createDriver()
+    driver.drag = vi.fn(async (args) => ({ ok: true, action: { type: 'drag', ...args } }))
+    const app = createApp({ driver })
+
+    await request(app).post('/execute').send({ type: 'desktop.drag', approved: true, payload: { from: { x: 1, y: 2 }, to: { x: 3, y: 4 } } })
+
+    expect(driver.drag).toHaveBeenCalledWith({ from: { x: 1, y: 2 }, to: { x: 3, y: 4 }, durationMs: 300 })
+  })
 })

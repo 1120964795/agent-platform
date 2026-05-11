@@ -25,6 +25,14 @@ describe('desktop-use translator', () => {
     expect(result.reason).toContain('goal')
   })
 
+  test('classifies desktop drag actions', () => {
+    expect(classify({ type: 'desktop.drag', payload: { from: { x: 1, y: 2 }, to: { x: 3, y: 4 } } })).toMatchObject({
+      backend: 'drag',
+      from: { x: 1, y: 2 },
+      to: { x: 3, y: 4 }
+    })
+  })
+
   test('rejects unknown desktop action', () => {
     const result = classify({ type: 'desktop.fly', payload: {} })
     expect(result.backend).toBe('invalid')

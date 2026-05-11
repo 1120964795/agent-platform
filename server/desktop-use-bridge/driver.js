@@ -158,6 +158,12 @@ function createDriver(deps = {}) {
     return new nutjs.Point(toNative(x, 'x'), toNative(y, 'y'))
   }
 
+  async function moveToPoint(value) {
+    const native = point(value.x, value.y)
+    await nutjs.mouse.move(nutjs.straightTo(native))
+    return native
+  }
+
   return {
     async observe() {
       const buf = await screenshotImpl()
@@ -195,6 +201,29 @@ function createDriver(deps = {}) {
       const delta = direction === 'up' ? Math.abs(amount) : -Math.abs(amount)
       await nutjs.mouse.scroll(delta)
       return { ok: true, action: { type: 'scroll', x, y, nativeX: toNative(x, 'x'), nativeY: toNative(y, 'y'), direction, amount } }
+    },
+
+    async drag({ from, to, durationMs = 300 }) {
+      const nativeFrom = await moveToPoint(from)
+      const nativeTo = point(to.x, to.y)
+      if (typeof nutjs.mouse.drag === 'function') {
+        await nutjs.mouse.drag(nutjs.straightTo(nativeTo))
+      } else {
+        await nutjs.mouse.pressButton?.(nutjs.Button?.LEFT || 0)
+        await nutjs.mouse.move(nutjs.straightTo(nativeTo))
+        await nutjs.mouse.releaseButton?.(nutjs.Button?.LEFT || 0)
+      }
+      return {
+        ok: true,
+        action: {
+          type: 'drag',
+          from,
+          to,
+          nativeFrom: { x: nativeFrom.x, y: nativeFrom.y },
+          nativeTo: { x: nativeTo.x, y: nativeTo.y },
+          durationMs
+        }
+      }
     },
 
     async wait({ ms = 500 }) {

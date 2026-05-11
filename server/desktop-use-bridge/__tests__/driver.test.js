@@ -127,4 +127,16 @@ describe('desktop-use driver coordinate scaling', () => {
     expect(nutjs.pressed).toEqual(['Key.LeftControl', 'Key.A', 'Key.Backspace'])
     expect(nutjs.released).toEqual(['Key.A', 'Key.LeftControl', 'Key.Backspace'])
   })
+
+  test('drag maps screenshot coordinates to native coordinates', async () => {
+    const nutjs = createNutjs()
+    nutjs.mouse.drag = vi.fn(async () => undefined)
+    const driver = createDriver({ nutjs, screenshotImpl: async () => pngWithSize(2560, 1440) })
+
+    await driver.observe()
+    const result = await driver.drag({ from: { x: 1000, y: 1200 }, to: { x: 1200, y: 1300 }, durationMs: 250 })
+
+    expect(nutjs.moved[0]).toMatchObject({ x: 800, y: 960 })
+    expect(result.action).toMatchObject({ type: 'drag', nativeFrom: { x: 800, y: 960 }, nativeTo: { x: 960, y: 1040 } })
+  })
 })

@@ -62,6 +62,10 @@ function createApp(deps = {}) {
         const result = await driver.scroll({ x: plan.x, y: plan.y, direction: plan.direction, amount: plan.amount })
         return res.json(normalize({ ok: result.ok, metadata: result }))
       }
+      if (plan.backend === 'drag') {
+        const result = await driver.drag({ from: plan.from, to: plan.to, durationMs: plan.durationMs })
+        return res.json(normalize({ ok: result.ok, metadata: result }))
+      }
       if (plan.backend === 'wait') {
         const result = await driver.wait({ ms: plan.ms })
         return res.json(normalize({ ok: result.ok, metadata: result }))
