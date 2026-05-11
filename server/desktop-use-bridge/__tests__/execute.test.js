@@ -66,7 +66,8 @@ describe('desktop-use bridge endpoints', () => {
 
     expect(execute.body.ok).toBe(true)
     expect(execute.body.metadata.summary).toBe('done Open Notepad')
-    expect(agentRunner.runTask).toHaveBeenCalledWith({ goal: 'Open Notepad', maxSteps: 12 })
+    expect(execute.body.metadata.events).toEqual([])
+    expect(agentRunner.runTask).toHaveBeenCalledWith(expect.objectContaining({ goal: 'Open Notepad', maxSteps: 12 }))
     expect(cancel.body.ok).toBe(true)
     expect(agentRunner.cancel).toHaveBeenCalled()
   })

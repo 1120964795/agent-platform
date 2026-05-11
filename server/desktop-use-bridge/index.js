@@ -67,8 +67,9 @@ function createApp(deps = {}) {
         return res.json(normalize({ ok: result.ok, metadata: result }))
       }
       if (plan.backend === 'task') {
-        const result = await agentRunner.runTask({ goal: plan.goal, maxSteps: plan.maxSteps })
-        return res.json(normalize({ ok: result.ok, metadata: result }))
+        const events = []
+        const result = await agentRunner.runTask({ goal: plan.goal, maxSteps: plan.maxSteps, onEvent: event => events.push(event) })
+        return res.json(normalize({ ok: result.ok, metadata: { ...result, events }, error: result.error }))
       }
       return res.json(normalize({ ok: false, stderr: `Unsupported backend ${plan.backend}` }))
     } catch (error) {
