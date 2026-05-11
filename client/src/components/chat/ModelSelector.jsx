@@ -14,6 +14,13 @@ const BROWSER_USE_OPTION = {
   model: 'openai/gpt-5.5',
 }
 
+const DESKTOP_USE_OPTION = {
+  id: 'desktop-use',
+  label: 'Desktop Use',
+  provider: 'desktop-use',
+  model: 'openai/gpt-5.5',
+}
+
 const STORAGE_KEY = 'agentdev-selected-model'
 const LEGACY_MODEL_ALIASES = {
   'doubao-seed-1-6-vision': 'doubao-vision'
@@ -34,7 +41,10 @@ export default function ModelSelector({ value, onChange, pluginMode }) {
 
   const selected = pluginMode === 'browser'
     ? BROWSER_USE_OPTION
+    : pluginMode === 'desktop'
+      ? DESKTOP_USE_OPTION
     : MODEL_OPTIONS.find(o => o.id === value) || MODEL_OPTIONS[0]
+  const pluginActive = pluginMode === 'browser' || pluginMode === 'desktop'
 
   useEffect(() => {
     function handleClick(e) {
@@ -49,10 +59,10 @@ export default function ModelSelector({ value, onChange, pluginMode }) {
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className={`h-7 flex items-center gap-1 rounded-md border px-2 text-xs text-[color:var(--text-primary)] hover:bg-[color:var(--bg-tertiary)] whitespace-nowrap ${pluginMode === 'browser' ? 'border-blue-200 bg-blue-50' : 'border-[color:var(--border)] bg-[color:var(--bg-secondary)]'}`}
+        className={`h-7 flex items-center gap-1 rounded-md border px-2 text-xs text-[color:var(--text-primary)] hover:bg-[color:var(--bg-tertiary)] whitespace-nowrap ${pluginActive ? 'border-blue-200 bg-blue-50' : 'border-[color:var(--border)] bg-[color:var(--bg-secondary)]'}`}
       >
         <span className="max-w-[100px] truncate">{selected.label}</span>
-        {pluginMode === 'browser' && (
+        {pluginActive && (
           <span className="max-w-[110px] truncate text-[color:var(--accent)]">{selected.model}</span>
         )}
         <ChevronDown size={12} className="text-[color:var(--text-muted)]" />

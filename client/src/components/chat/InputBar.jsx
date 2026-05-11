@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, ChevronRight, Grid2X2, Globe2, Paperclip, Plus, Send, Sparkles, Square } from 'lucide-react'
+import { Check, ChevronRight, Grid2X2, Globe2, Monitor, Paperclip, Plus, Send, Sparkles, Square } from 'lucide-react'
 import { useCommand } from '../../hooks/useCommand.js'
 import { listSkills } from '../../lib/api.js'
 import CommandPalette from './CommandPalette.jsx'
@@ -15,6 +15,7 @@ const PLUGIN_ITEMS = [
   { name: 'Spreadsheets' },
   { name: 'Presentations' },
   { name: '浏览器', description: 'Browser Use · openai/gpt-5.5', mode: 'browser' },
+  { name: 'Computer Use', description: 'Desktop Use · openai/gpt-5.5', mode: 'desktop' },
   { name: 'superpowers' },
   { name: 'Superpowers' },
   { name: 'GitHub' },
@@ -150,7 +151,7 @@ export default function InputBar({ onSend, disabled, agentRunning, pendingConfir
           )}
           {menuOpen && pluginsOpen && (
             <div className="absolute bottom-full left-64 mb-2 ml-2 w-72 rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] shadow-lg z-50 p-2">
-              <div className="px-3 py-2 text-xs text-[color:var(--text-muted)]">7 个已安装插件</div>
+              <div className="px-3 py-2 text-xs text-[color:var(--text-muted)]">{PLUGIN_ITEMS.length} 个已安装插件</div>
               {PLUGIN_ITEMS.map((plugin) => {
                 const selected = plugin.mode && pluginMode === plugin.mode
                 return (
@@ -162,7 +163,9 @@ export default function InputBar({ onSend, disabled, agentRunning, pendingConfir
                   >
                     {plugin.mode === 'browser'
                       ? <Globe2 size={16} className="text-[color:var(--accent)]" />
-                      : <Sparkles size={16} className="text-[color:var(--text-muted)]" />}
+                      : (plugin.mode === 'desktop'
+                        ? <Monitor size={16} className="text-[color:var(--accent)]" />
+                        : <Sparkles size={16} className="text-[color:var(--text-muted)]" />)}
                     <span className="flex min-w-0 flex-col">
                       <span>{plugin.name}</span>
                       {plugin.description && <span className="truncate text-xs text-[color:var(--text-muted)]">{plugin.description}</span>}

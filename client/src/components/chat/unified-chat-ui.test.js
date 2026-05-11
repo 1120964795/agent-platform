@@ -198,15 +198,19 @@ describe('unified chat UI wiring', () => {
     expect(source).toContain('插件')
     expect(source).toContain('浏览器')
     expect(source).toContain('Browser Use')
+    expect(source).toContain('Desktop Use')
+    expect(source).toContain("mode: 'desktop'")
     expect(source).toContain('onPluginModeChange')
   })
 
-  test('ModelSelector can display Browser Use model chip for plugin mode', () => {
+  test('ModelSelector can display Browser Use and Desktop Use model chips for plugin modes', () => {
     const source = readProjectFile('client/src/components/chat/ModelSelector.jsx')
 
     expect(source).toContain('browser-use')
+    expect(source).toContain('desktop-use')
     expect(source).toContain('openai/gpt-5.5')
     expect(source).toContain('pluginMode')
+    expect(source).toContain("pluginMode === 'desktop'")
   })
 
   test('ApprovalCard is limited to confirmation controls', () => {
