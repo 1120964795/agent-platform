@@ -42,17 +42,42 @@ function overlayHtml() {
         from { transform: scale(0.7); opacity: 1; }
         to { transform: scale(1.8); opacity: 0; }
       }
+      #label {
+        position: absolute;
+        left: 0;
+        top: 0;
+        transform: translate(14px, 14px);
+        padding: 4px 8px;
+        border-radius: 6px;
+        background: rgba(12, 18, 28, 0.86);
+        color: white;
+        font: 12px/1.3 system-ui, sans-serif;
+        opacity: 0;
+        transition: opacity 120ms ease, left 160ms ease, top 160ms ease;
+      }
+      #label.visible { opacity: 1; }
+      #cursor.dragging { border-color: #f59e0b; }
+      #cursor.scrolling { border-color: #38bdf8; }
+      #cursor.typing { border-color: #a855f7; }
+      #cursor.paused { border-color: #eab308; }
+      #cursor.failed { border-color: #ef4444; }
+      #cursor.done { border-color: #22c55e; }
     </style>
   </head>
   <body>
     <div id="cursor"></div>
+    <div id="label"></div>
     <script>
       const { ipcRenderer } = require('electron')
       const cursor = document.getElementById('cursor')
+      const label = document.getElementById('label')
       function move(_, point) {
         cursor.classList.add('visible')
+        if (point.state) cursor.classList.add(point.state)
         cursor.style.left = Number(point.x || 0) + 'px'
         cursor.style.top = Number(point.y || 0) + 'px'
+        label.style.left = cursor.style.left
+        label.style.top = cursor.style.top
       }
       function click(_, point) {
         move(_, point)
@@ -60,8 +85,19 @@ function overlayHtml() {
         void cursor.offsetWidth
         cursor.classList.add('pulse')
       }
+      function state(_, payload = {}) {
+        cursor.className = 'visible'
+        if (payload.state) cursor.classList.add(payload.state)
+        if (payload.label) {
+          label.textContent = String(payload.label)
+          label.classList.add('visible')
+        } else {
+          label.classList.remove('visible')
+        }
+      }
       ipcRenderer.on('desktop-cursor:move', move)
       ipcRenderer.on('desktop-cursor:click', click)
+      ipcRenderer.on('desktop-cursor:state', state)
       ipcRenderer.on('desktop-cursor:hide', () => cursor.classList.remove('visible'))
     </script>
   </body>
@@ -121,15 +157,30 @@ function createCursorOverlayController({ BrowserWindow, screen, createWindow } =
     },
     move(point) {
       this.show()
-      send('desktop-cursor:move', { x: Number(point.x) || 0, y: Number(point.y) || 0 })
+      const payload = { x: Number(point.x) || 0, y: Number(point.y) || 0 }
+      if (point.state) payload.state = point.state
+      send('desktop-cursor:move', payload)
     },
     click(point) {
       this.show()
-      send('desktop-cursor:click', { x: Number(point.x) || 0, y: Number(point.y) || 0 })
+      const payload = { x: Number(point.x) || 0, y: Number(point.y) || 0 }
+      if (point.state) payload.state = point.state
+      send('desktop-cursor:click', payload)
+    },
+    state(payload) {
+      this.show()
+      send('desktop-cursor:state', { state: payload.state || 'moving', label: payload.label || '' })
     },
     handleEvent(event) {
-      if (event?.type === 'cursor.move') this.move(event)
+      if (event?.type === 'cursor.move' || event?.type === 'cursor_move') this.move(event)
       if (event?.type === 'cursor.click') this.click(event)
+      if (event?.type === 'action_start' && event.action === 'click') this.click({ x: event.target?.x, y: event.target?.y, state: 'clicking' })
+      if (event?.type === 'action_start' && event.action === 'drag') this.move({ x: event.target?.from?.x, y: event.target?.from?.y, state: 'dragging' })
+      if (event?.type === 'action_start' && event.action === 'scroll') this.move({ x: event.target?.x, y: event.target?.y, state: 'scrolling' })
+      if (event?.type === 'action_start' && event.action === 'type') this.state({ state: 'typing', label: 'Typing' })
+      if (event?.type === 'ask_user' || event?.type === 'paused') this.state({ state: 'paused', label: event.question || event.summary || 'Paused' })
+      if (event?.type === 'fail') this.state({ state: 'failed', label: event.summary || event.message || 'Failed' })
+      if (event?.type === 'done') this.state({ state: 'done', label: event.summary || 'Done' })
     }
   }
 }

@@ -68,7 +68,10 @@ function stream(arg, legacyBody, legacyOnDelta, legacyOnDone, legacyOnError) {
     onActionPlan,
     onActionUpdate,
     onConfirmationRequest,
-    onConfirmationCleared
+    onConfirmationCleared,
+    onDesktopAsk,
+    onDesktopAskCleared,
+    onDesktopEvent
   } = options
   let electron
   try {
@@ -101,6 +104,9 @@ function stream(arg, legacyBody, legacyOnDelta, legacyOnDone, legacyOnError) {
   listen('chat:action-update', (data) => onActionUpdate?.(data))
   listen('chat:confirmation-request', (data) => onConfirmationRequest?.(data))
   listen('chat:confirmation-cleared', (data) => onConfirmationCleared?.(data))
+  listen('chat:desktop-ask', (data) => onDesktopAsk?.(data))
+  listen('chat:desktop-ask-cleared', (data) => onDesktopAskCleared?.(data))
+  listen('chat:desktop-event', (data) => onDesktopEvent?.(data.event))
   listen('chat:done', () => { cleanup(); onDone?.() })
   listen('chat:error', (data) => {
     cleanup()

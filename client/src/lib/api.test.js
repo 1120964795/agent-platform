@@ -52,3 +52,30 @@ test('reports missing Electron IPC through onError instead of throwing', () => {
   expect(onError).toHaveBeenCalledTimes(1)
   expect(onError.mock.calls[0][0].code).toBe('NOT_SUPPORTED')
 })
+
+test('stream listens for desktop ask and desktop event channels', () => {
+  const listeners = {}
+  global.window = {
+    electronAPI: {
+      invoke: vi.fn(async () => ({ ok: true })),
+      on: vi.fn((event, handler) => {
+        listeners[event] = handler
+        return () => {}
+      })
+    }
+  }
+  const onDesktopAsk = vi.fn()
+  const onDesktopEvent = vi.fn()
+
+  api.stream({
+    channel: 'chat:send',
+    payload: { convId: 'conv-desktop' },
+    onDesktopAsk,
+    onDesktopEvent,
+  })
+  listeners['chat:desktop-ask']({ convId: 'conv-desktop', request: { requestId: 'ask-1', question: 'Continue?' } })
+  listeners['chat:desktop-event']({ convId: 'conv-desktop', event: { type: 'observe', summary: 'Looking' } })
+
+  expect(onDesktopAsk).toHaveBeenCalledWith({ convId: 'conv-desktop', request: { requestId: 'ask-1', question: 'Continue?' } })
+  expect(onDesktopEvent).toHaveBeenCalledWith({ type: 'observe', summary: 'Looking' })
+})

@@ -78,12 +78,26 @@ function formatConfirmationContent(pending) {
   ].join('\n')
 }
 
+function formatDesktopEvent(event = {}) {
+  if (event.summary) return event.summary
+  if (event.type === 'observe') return 'Looking at the desktop...'
+  if (event.type === 'plan') return event.action?.userVisibleSummary || event.action?.reason || 'Planning the next desktop action.'
+  if (event.type === 'cursor_move') return 'Moving the Computer Use cursor.'
+  if (event.type === 'action_start') return `Starting desktop ${event.action || 'action'}.`
+  if (event.type === 'action_result') return `Finished desktop ${event.action || 'action'}.`
+  if (event.type === 'ask_user') return event.question || 'Computer Use needs your input.'
+  if (event.type === 'done') return event.summary || 'Computer Use finished.'
+  if (event.type === 'fail') return event.summary || event.message || 'Computer Use failed.'
+  return ''
+}
+
 export function useChat(conversationId) {
   const [state, dispatch] = useReducer(reducer, initialState)
   const abortRef = useRef(null)
   const conversationIdRef = useRef(conversationId)
   const [agentRunning, setAgentRunning] = useState(false)
   const [pendingConfirmation, setPendingConfirmation] = useState(null)
+  const [pendingDesktopAsk, setPendingDesktopAsk] = useState(null)
 
   useEffect(() => {
     if (!conversationId) return undefined
@@ -98,6 +112,7 @@ export function useChat(conversationId) {
     abortRef.current = null
     setAgentRunning(false)
     setPendingConfirmation(null)
+    setPendingDesktopAsk(null)
     dispatch({ type: 'CLEAR' })
 
     async function loadConversation() {
@@ -118,6 +133,7 @@ export function useChat(conversationId) {
       abortRef.current?.()
       abortRef.current = null
       setPendingConfirmation(null)
+      setPendingDesktopAsk(null)
     }
   }, [conversationId])
 
@@ -151,6 +167,17 @@ export function useChat(conversationId) {
   const sendUserMessage = useCallback((text, model, options = {}) => {
     const convId = conversationIdRef.current
     if (!convId) return
+
+    if (pendingDesktopAsk) {
+      const userMessage = { id: uid(), role: 'user', content: text }
+      dispatch({ type: 'ADD', msg: userMessage })
+      api.invoke('chat:send', { convId, desktopAskReply: true, message: text }).then((result) => {
+        if (result.status === 'desktop-ask-replied' || result.status === 'missing-desktop-ask') setPendingDesktopAsk(null)
+      }).catch((error) => {
+        dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', content: `[Desktop ask error] ${error.message}` } })
+      })
+      return
+    }
 
     if (pendingConfirmation) {
       const userMessage = { id: uid(), role: 'user', content: text }
@@ -242,6 +269,15 @@ export function useChat(conversationId) {
           dispatch({ type: 'CLEAR_CONFIRMATIONS', status: event.reason === 'timeout' ? 'timeout' : 'rejected' })
         }
       },
+      onDesktopAsk: (event) => {
+        setPendingDesktopAsk(event.request)
+        dispatch({ type: 'ADD', msg: { id: `desktop-ask-${event.request.requestId}`, role: 'assistant', type: 'desktop_ask', content: event.request.question } })
+      },
+      onDesktopAskCleared: () => setPendingDesktopAsk(null),
+      onDesktopEvent: (event) => {
+        const content = formatDesktopEvent(event)
+        if (content) dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', type: 'desktop_event', stream: true, content } })
+      },
       onDone: finish,
       onError: (error) => {
         const errorText = `\n\n[错误] ${error.message}`
@@ -251,7 +287,7 @@ export function useChat(conversationId) {
         finish()
       }
     })
-  }, [pendingConfirmation, state.messages, saveConversation])
+  }, [pendingConfirmation, pendingDesktopAsk, state.messages, saveConversation])
 
   const respondToConfirmation = useCallback((approved) => {
     const convId = conversationIdRef.current
@@ -276,6 +312,7 @@ export function useChat(conversationId) {
     abortRef.current?.()
     if (convId) abortChat(convId).catch((error) => console.error('[chat] 取消请求失败:', error))
     setPendingConfirmation(null)
+    setPendingDesktopAsk(null)
     setAgentRunning(false)
   }, [])
 
@@ -305,5 +342,5 @@ export function useChat(conversationId) {
   }, [])
   const clear = useCallback(() => dispatch({ type: 'CLEAR' }), [])
 
-  return { ...state, agentRunning, pendingConfirmation, sendUserMessage, respondToConfirmation, handleAbort, sendCommand, addCard, updateCard, addFileCard, clear }
+  return { ...state, agentRunning, pendingConfirmation, pendingDesktopAsk, sendUserMessage, respondToConfirmation, handleAbort, sendCommand, addCard, updateCard, addFileCard, clear }
 }
