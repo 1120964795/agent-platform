@@ -40,11 +40,21 @@ function schedulePendingActionTimeout(action) {
 }
 
 function appendActionSummary(actions = []) {
-  if (!actions.length) return 'Action update received.'
+  if (!actions.length) return '收到动作更新。'
+  const statusLabels = {
+    pending: '待处理',
+    approved: '已批准',
+    denied: '已拒绝',
+    running: '执行中',
+    completed: '已完成',
+    failed: '失败',
+    blocked: '已阻止',
+    cancelled: '已取消'
+  }
   return actions.map((action) => {
     const title = action.title || action.name || action.id
     const status = action.status || 'pending'
-    return `- ${title}: ${status}`
+    return `- ${title}：${statusLabels[status] || status}`
   }).join('\n')
 }
 

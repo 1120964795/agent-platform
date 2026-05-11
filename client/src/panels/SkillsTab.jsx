@@ -71,7 +71,7 @@ export default function SkillsTab() {
       <div className="flex items-center justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold">技能</h2>
-          <p className="text-xs text-[color:var(--text-muted)]">技能是兼容模式的可选辅助能力。执行模式使用托管动作，不直接暴露旧工具 schema。</p>
+          <p className="text-xs text-[color:var(--text-muted)]">技能是兼容模式的可选辅助能力。执行模式使用托管动作，不直接暴露旧工具结构定义。</p>
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={openSkillsFolder} className="h-8 rounded-md border border-[color:var(--border)] px-2 text-xs hover:bg-[color:var(--bg-tertiary)] flex items-center gap-1"><FolderOpen size={13} /> 文件夹</button>

@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest'
-import { api, approveAction, bootstrapRuntime, deleteConversation, getRuntimeStatus, listActions, listAuditEvents, listConversations, listRunOutputs, renameConversation } from './api.js'
+import { api, approveAction, bootstrapRuntime, deleteArtifact, deleteConversation, getRuntimeStatus, listActions, listArtifacts, listAuditEvents, listConversations, listRunOutputs, renameConversation } from './api.js'
 
 beforeEach(() => {
   global.window = {
@@ -25,6 +25,16 @@ test('maps action, audit, and output helpers', async () => {
   expect(window.electronAPI.invoke).toHaveBeenCalledWith('actions:approve', { id: 'act1' })
   expect(window.electronAPI.invoke).toHaveBeenCalledWith('audit:list', { filters: { risk: 'high' } })
   expect(window.electronAPI.invoke).toHaveBeenCalledWith('outputs:list', { filters: { sessionId: 'sess1' } })
+})
+
+test('maps artifact helpers to IPC channels', async () => {
+  await listArtifacts()
+  await deleteArtifact('artifact-1')
+  await api.get('/api/artifacts')
+
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('artifacts:list', undefined)
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('artifacts:delete', { id: 'artifact-1' })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('artifacts:list', undefined)
 })
 
 test('maps conversation helpers to IPC channels', async () => {

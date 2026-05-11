@@ -21,7 +21,7 @@ function open() {
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL DEFAULT '',
       messages TEXT NOT NULL DEFAULT '[]',
-      assistant TEXT NOT NULL DEFAULT 'qwen',
+      assistant TEXT NOT NULL DEFAULT 'deepseek',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
@@ -94,7 +94,7 @@ function upsertConversation(id, data) {
       id,
       title: data.title || '',
       messages: JSON.stringify(data.messages || []),
-      assistant: data.assistant || 'qwen'
+      assistant: data.assistant || 'deepseek'
     })
   }
   return getConversation(id)

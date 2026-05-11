@@ -95,6 +95,6 @@ async function runShellCommand({ command, cwd, timeout_ms = 120000 }, context = 
   })
 }
 
-register({ name: 'run_shell_command', description: 'Run a local shell command using the configured three-tier shell policy.', parameters: { type: 'object', properties: { command: { type: 'string' }, cwd: { type: 'string' }, timeout_ms: { type: 'number' } }, required: ['command'] } }, runShellCommand)
+register({ name: 'run_shell_command', description: '按已配置的三级 Shell 策略运行本地命令。', parameters: { type: 'object', properties: { command: { type: 'string' }, cwd: { type: 'string' }, timeout_ms: { type: 'number' } }, required: ['command'] } }, runShellCommand)
 
 module.exports = { runShellCommand, firstToken, DEFAULT_WHITELIST, DEFAULT_BLACKLIST }

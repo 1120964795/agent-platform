@@ -11,10 +11,10 @@ function insertPath(current, filePath) {
 }
 
 const PLUGIN_ITEMS = [
-  { name: 'Documents' },
-  { name: 'Spreadsheets' },
-  { name: 'Presentations' },
-  { name: '浏览器', description: 'Browser Use · openai/gpt-5.5', mode: 'browser' },
+  { name: '文档' },
+  { name: '表格' },
+  { name: '演示文稿' },
+  { name: '浏览器', description: '浏览器自动化 · openai/gpt-5.5', mode: 'browser' },
   { name: 'superpowers' },
   { name: 'Superpowers' },
   { name: 'GitHub' },
@@ -106,7 +106,7 @@ export default function InputBar({ onSend, disabled, agentRunning, pendingConfir
     <form onSubmit={handleSubmit} className="border-t border-[color:var(--border)] bg-[color:var(--bg-secondary)] px-6 py-4">
       {pendingConfirmation && (
         <div className="mb-2 flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          <span className="min-w-0 truncate">Waiting for confirmation: {pendingConfirmation.toolName}</span>
+          <span className="min-w-0 truncate">等待确认：{pendingConfirmation.toolName}</span>
           <span className="shrink-0 text-amber-700">确认 / 可以 / 同意 / 继续</span>
         </div>
       )}
@@ -194,7 +194,7 @@ export default function InputBar({ onSend, disabled, agentRunning, pendingConfir
             }}
             onKeyDown={handleKey}
             placeholder="输入消息或任务，Enter 发送，Shift+Enter 换行"
-            aria-label="Type a message or /skill-name"
+            aria-label="输入消息或 /技能名称"
             rows={1}
             className="w-full resize-none bg-transparent outline-none text-sm max-h-40 py-1"
           />

@@ -24,10 +24,6 @@ const DEFAULT_CONFIG = {
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
   model: 'deepseek-chat',
-  qwenApiKey: '',
-  qwenBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  qwenPrimaryModel: 'qwen-max-latest',
-  qwenCodingModel: 'qwen3-coder-plus',
   fallbackProvider: '',
   fallbackModel: 'deepseek-chat',
   deepseekApiKey: '',
@@ -35,12 +31,6 @@ const DEFAULT_CONFIG = {
   deepseekChatEndpoint: 'https://api.deepseek.com',
   deepseekPlannerModel: 'deepseek-chat',
   deepseekCodingModel: 'deepseek-coder',
-  qwenVisionEndpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  qwenVisionApiKey: '',
-  qwenVisionModel: 'qwen3-vl-plus',
-  doubaoVisionEndpoint: 'https://ark.cn-beijing.volces.com/api/v3',
-  doubaoVisionApiKey: '',
-  doubaoVisionModel: 'doubao-seed-1-6-vision-250815',
   browserUseEndpoint: 'https://zenmux.ai/api/v1',
   browserUseApiKey: '',
   browserUseModel: 'openai/gpt-5.5',
@@ -59,15 +49,35 @@ const DEFAULT_CONFIG = {
   welcomeShown: false
 }
 
+const DEPRECATED_CONFIG_KEYS = new Set([
+  'qwenApiKey',
+  'qwenBaseUrl',
+  'qwenPrimaryModel',
+  'qwenCodingModel',
+  'qwenVisionEndpoint',
+  'qwenVisionApiKey',
+  'qwenVisionModel',
+  'doubaoVisionEndpoint',
+  'doubaoVisionApiKey',
+  'doubaoVisionModel'
+])
+
 const DEFAULT_DATA = {
   version: 1,
   conversations: [],
   artifacts: [],
+  deletedArtifacts: [],
   scheduledTasks: []
 }
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value))
+}
+
+function stripDeprecatedConfigKeys(config = {}) {
+  const next = { ...config }
+  for (const key of DEPRECATED_CONFIG_KEYS) delete next[key]
+  return next
 }
 
 function ensureDirs() {
@@ -100,6 +110,28 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, JSON.stringify(value, null, 2), 'utf-8')
 }
 
+function ensureDataShape(data) {
+  const next = data && typeof data === 'object' ? data : clone(DEFAULT_DATA)
+  if (!Array.isArray(next.artifacts)) next.artifacts = []
+  if (!Array.isArray(next.deletedArtifacts)) next.deletedArtifacts = []
+  if (!Array.isArray(next.scheduledTasks)) next.scheduledTasks = []
+  return next
+}
+
+function artifactFileExists(artifact) {
+  if (!artifact?.path) return false
+  try {
+    const filePath = path.resolve(String(artifact.path))
+    return fs.existsSync(filePath) && fs.statSync(filePath).isFile()
+  } catch {
+    return false
+  }
+}
+
+function canRestoreDeletedArtifact(artifact) {
+  return artifact?.deleteInfo?.status === 'system-trash'
+}
+
 const conversationStore = require('./services/conversationStore')
 
 const store = {
@@ -109,11 +141,11 @@ const store = {
   GENERATED_DIR,
 
   getConfig() {
-    return { ...DEFAULT_CONFIG, ...readJson(CONFIG_PATH, DEFAULT_CONFIG) }
+    return stripDeprecatedConfigKeys({ ...DEFAULT_CONFIG, ...readJson(CONFIG_PATH, DEFAULT_CONFIG) })
   },
 
   setConfig(patch) {
-    const next = { ...this.getConfig(), ...(patch || {}) }
+    const next = stripDeprecatedConfigKeys({ ...this.getConfig(), ...(patch || {}) })
     writeJson(CONFIG_PATH, next)
     return next
   },
@@ -129,19 +161,17 @@ const store = {
     return {
       ...config,
       apiKey: mask(config.apiKey || ''),
-      qwenApiKey: mask(config.qwenApiKey || ''),
       deepseekApiKey: mask(config.deepseekApiKey || ''),
-      doubaoVisionApiKey: mask(config.doubaoVisionApiKey || ''),
       browserUseApiKey: maskBrowserUse(config.browserUseApiKey || '')
     }
   },
 
   getData() {
-    return readJson(DATA_PATH, DEFAULT_DATA)
+    return ensureDataShape(readJson(DATA_PATH, DEFAULT_DATA))
   },
 
   saveData(data) {
-    writeJson(DATA_PATH, data)
+    writeJson(DATA_PATH, ensureDataShape(data))
   },
 
   upsertConversation(conversation) {
@@ -170,13 +200,46 @@ const store = {
 
   addArtifact(artifact) {
     const data = this.getData()
+    data.deletedArtifacts = data.deletedArtifacts.filter((item) => item.id !== artifact.id)
     data.artifacts.unshift(artifact)
     this.saveData(data)
     return artifact
   },
 
   listArtifacts() {
-    return this.getData().artifacts
+    const data = this.getData()
+    const activeIds = new Set(data.artifacts.map((item) => item.id))
+    const stillDeleted = []
+    const restored = []
+
+    for (const deleted of data.deletedArtifacts) {
+      if (!deleted?.id || activeIds.has(deleted.id)) continue
+      if (canRestoreDeletedArtifact(deleted) && artifactFileExists(deleted)) {
+        const { deletedAt, deleteInfo, ...artifact } = deleted
+        data.artifacts.unshift(artifact)
+        activeIds.add(artifact.id)
+        restored.push(artifact)
+      } else {
+        stillDeleted.push(deleted)
+      }
+    }
+
+    if (restored.length || stillDeleted.length !== data.deletedArtifacts.length) {
+      data.deletedArtifacts = stillDeleted
+      this.saveData(data)
+    }
+    return data.artifacts
+  },
+
+  deleteArtifact(id, deleteInfo = {}) {
+    const data = this.getData()
+    const index = data.artifacts.findIndex((item) => item.id === id)
+    if (index === -1) return null
+    const [artifact] = data.artifacts.splice(index, 1)
+    data.deletedArtifacts = data.deletedArtifacts.filter((item) => item.id !== id)
+    data.deletedArtifacts.unshift({ ...artifact, deletedAt: new Date().toISOString(), deleteInfo })
+    this.saveData(data)
+    return artifact
   },
 
   listScheduledTasks() {

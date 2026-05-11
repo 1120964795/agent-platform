@@ -34,6 +34,6 @@ function loadSkill({ name }, context = {}) {
   }
 }
 
-register({ name: 'load_skill', description: 'Load the full markdown workflow for a named skill when it is relevant to the task.', parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } }, loadSkill)
+register({ name: 'load_skill', description: '当某个技能与当前任务相关时，加载该技能的完整 Markdown 工作流。', parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] } }, loadSkill)
 
 module.exports = { loadSkill, clearSession }

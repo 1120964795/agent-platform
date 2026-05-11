@@ -38,8 +38,8 @@ function createDir({ path: dirPath, recursive = true }) {
   return { path: dirPath }
 }
 
-register({ name: 'write_file', description: 'Write a local file. Existing files require overwrite=true and confirmation.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' }, encoding: { type: 'string', enum: ['utf8', 'base64'] }, overwrite: { type: 'boolean' } }, required: ['path', 'content'] } }, writeFile)
-register({ name: 'edit_file', description: 'Edit a file by replacing an exact string.', parameters: { type: 'object', properties: { path: { type: 'string' }, old_string: { type: 'string' }, new_string: { type: 'string' }, replace_all: { type: 'boolean' } }, required: ['path', 'old_string', 'new_string'] } }, editFile)
-register({ name: 'create_dir', description: 'Create a directory.', parameters: { type: 'object', properties: { path: { type: 'string' }, recursive: { type: 'boolean' } }, required: ['path'] } }, createDir)
+register({ name: 'write_file', description: '写入本地文件。覆盖已有文件时需要 overwrite=true 并经过确认。', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' }, encoding: { type: 'string', enum: ['utf8', 'base64'] }, overwrite: { type: 'boolean' } }, required: ['path', 'content'] } }, writeFile)
+register({ name: 'edit_file', description: '通过精确替换字符串来编辑文件。', parameters: { type: 'object', properties: { path: { type: 'string' }, old_string: { type: 'string' }, new_string: { type: 'string' }, replace_all: { type: 'boolean' } }, required: ['path', 'old_string', 'new_string'] } }, editFile)
+register({ name: 'create_dir', description: '创建目录。', parameters: { type: 'object', properties: { path: { type: 'string' }, recursive: { type: 'boolean' } }, required: ['path'] } }, createDir)
 
 module.exports = { writeFile, editFile, createDir }

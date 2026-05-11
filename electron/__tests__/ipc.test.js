@@ -107,6 +107,26 @@ test('config handlers persist Browser-Use settings and mask key', async () => {
   expect(store.getConfig().browserUseModel).toBe('openai/gpt-5.5')
 })
 
+test('config handlers ignore removed Qwen and Doubao settings', async () => {
+  const ipcMain = createIpcMain()
+  registerAll(ipcMain)
+
+  const result = await ipcMain.handlers.get('config:set')({}, {
+    qwenApiKey: 'sk-qwen-secret',
+    qwenBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    qwenPrimaryModel: 'qwen-max-latest',
+    doubaoVisionApiKey: 'sk-doubao-secret',
+    doubaoVisionEndpoint: 'https://ark.cn-beijing.volces.com/api/v3',
+    doubaoVisionModel: 'doubao-seed-1-6-vision-250815'
+  })
+
+  expect(result.ok).toBe(true)
+  expect(result.config).not.toHaveProperty('qwenApiKey')
+  expect(result.config).not.toHaveProperty('doubaoVisionApiKey')
+  expect(store.getConfig()).not.toHaveProperty('qwenApiKey')
+  expect(store.getConfig()).not.toHaveProperty('doubaoVisionApiKey')
+})
+
 test('conversation upsert and get handlers round trip data', async () => {
   const ipcMain = createIpcMain()
   registerAll(ipcMain)
@@ -154,6 +174,97 @@ test('conversation list, rename, and delete handlers manage chat history', async
   expect(deleted.ok).toBe(true)
   const missing = await ipcMain.handlers.get('conversations:get')({}, { id: 'conv-search-2' })
   expect(missing.ok).toBe(false)
+})
+
+test('artifact delete handler moves generated file to system trash', async () => {
+  const ipcMain = createIpcMain()
+  const trashItem = vi.fn(async (targetPath) => {
+    fs.unlinkSync(targetPath)
+  })
+  registerAll(ipcMain, { shell: { trashItem } })
+  const generatedDir = path.join(TMP, 'generated')
+  fs.mkdirSync(generatedDir, { recursive: true })
+  const filePath = path.join(generatedDir, 'report.docx')
+  fs.writeFileSync(filePath, 'hello')
+  store.addArtifact({
+    id: 'artifact-1',
+    type: 'word',
+    filename: 'report.docx',
+    path: filePath,
+    title: '测试报告',
+    createdAt: new Date().toISOString()
+  })
+
+  const deleted = await ipcMain.handlers.get('artifacts:delete')({}, { id: 'artifact-1' })
+
+  expect(deleted.ok).toBe(true)
+  expect(trashItem).toHaveBeenCalledWith(filePath)
+  expect(fs.existsSync(filePath)).toBe(false)
+  expect(store.listArtifacts()).toEqual([])
+})
+
+test('artifact list restores metadata when a trashed file is restored', async () => {
+  const ipcMain = createIpcMain()
+  const trashItem = vi.fn(async (targetPath) => {
+    fs.unlinkSync(targetPath)
+  })
+  registerAll(ipcMain, { shell: { trashItem } })
+  const generatedDir = path.join(TMP, 'generated')
+  fs.mkdirSync(generatedDir, { recursive: true })
+  const filePath = path.join(generatedDir, 'restore-me.docx')
+  fs.writeFileSync(filePath, 'hello')
+  store.addArtifact({
+    id: 'artifact-restore',
+    type: 'word',
+    filename: 'restore-me.docx',
+    path: filePath,
+    title: 'Restore report',
+    createdAt: new Date().toISOString()
+  })
+
+  const deleted = await ipcMain.handlers.get('artifacts:delete')({}, { id: 'artifact-restore' })
+  expect(deleted.ok).toBe(true)
+  expect(store.listArtifacts()).toEqual([])
+
+  fs.writeFileSync(filePath, 'hello')
+  const listed = await ipcMain.handlers.get('artifacts:list')()
+
+  expect(listed.ok).toBe(true)
+  expect(listed.items).toEqual([expect.objectContaining({
+    id: 'artifact-restore',
+    title: 'Restore report',
+    path: filePath
+  })])
+})
+
+test('artifact delete handler falls back when system trash fails', async () => {
+  const ipcMain = createIpcMain()
+  const trashItem = vi.fn(async () => {
+    throw new Error('trash unavailable')
+  })
+  registerAll(ipcMain, { shell: { trashItem } })
+  const generatedDir = path.join(TMP, 'generated')
+  fs.mkdirSync(generatedDir, { recursive: true })
+  const filePath = path.join(generatedDir, 'locked-report.docx')
+  fs.writeFileSync(filePath, 'hello')
+  store.addArtifact({
+    id: 'artifact-fallback',
+    type: 'word',
+    filename: 'locked-report.docx',
+    path: filePath,
+    title: 'Fallback report',
+    createdAt: new Date().toISOString()
+  })
+
+  const deleted = await ipcMain.handlers.get('artifacts:delete')({}, { id: 'artifact-fallback' })
+
+  expect(deleted.ok).toBe(true)
+  expect(deleted.file.status).toBe('app-trash')
+  expect(deleted.warning).toContain('系统回收站')
+  expect(fs.existsSync(filePath)).toBe(false)
+  expect(fs.existsSync(deleted.file.trashedPath)).toBe(true)
+  expect(fs.readFileSync(deleted.file.trashedPath, 'utf8')).toBe('hello')
+  expect(store.listArtifacts()).toEqual([])
 })
 
 test('files:list returns directory entries in full permission mode', async () => {

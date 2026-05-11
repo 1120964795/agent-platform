@@ -31,7 +31,7 @@ async function movePath({ src, dest, overwrite = false }, context = {}) {
   return { src, dest }
 }
 
-register({ name: 'delete_path', description: 'Delete a local file or directory after confirmation.', parameters: { type: 'object', properties: { path: { type: 'string' }, recursive: { type: 'boolean' } }, required: ['path'] } }, deletePath)
-register({ name: 'move_path', description: 'Move or rename a local path after confirmation.', parameters: { type: 'object', properties: { src: { type: 'string' }, dest: { type: 'string' }, overwrite: { type: 'boolean' } }, required: ['src', 'dest'] } }, movePath)
+register({ name: 'delete_path', description: '确认后删除本地文件或目录。', parameters: { type: 'object', properties: { path: { type: 'string' }, recursive: { type: 'boolean' } }, required: ['path'] } }, deletePath)
+register({ name: 'move_path', description: '确认后移动或重命名本地路径。', parameters: { type: 'object', properties: { src: { type: 'string' }, dest: { type: 'string' }, overwrite: { type: 'boolean' } }, required: ['src', 'dest'] } }, movePath)
 
 module.exports = { deletePath, movePath }

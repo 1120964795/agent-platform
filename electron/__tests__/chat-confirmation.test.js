@@ -61,7 +61,7 @@ describe('chat confirmation helpers', () => {
     expect(text).toContain('npm install react')
     expect(text).toContain('确认 / 可以 / 同意 / 继续')
     expect(text).toContain('取消 / 拒绝 / 不行 / 不要')
-    expect(text).toContain('previous attempt failed')
+    expect(text).toContain('上一次尝试失败')
   })
 
   test('builds a clarification reply without resolving the pending operation', () => {

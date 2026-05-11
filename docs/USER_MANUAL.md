@@ -9,7 +9,7 @@ AionUi is the visible control plane for agentic desktop work. DeepSeek-V4 plans 
 Default runtimes:
 
 - DeepSeek-V4: required for chat, planning, intent classification, and coding reasoning.
-- UI-TARS + Doubao vision: desktop screen observation, mouse, and keyboard actions.
+- UI-TARS: desktop screen observation, mouse, and keyboard actions.
 - Browser-Use: Python-based browser automation (navigate, snapshot, click, type, task).
 - Open Interpreter: managed sidecar for command, file, and code execution.
 - AionUi dry-run: deterministic demo runtime when external runtimes are missing.
@@ -38,14 +38,13 @@ pip install open-interpreter
 
 4. Open Settings and fill in the API keys:
    - DeepSeek API Key. Default endpoint: `https://api.platform.deepseek.com`.
-   - Doubao on Volcengine Ark: set `doubaoVisionApiKey` for desktop control.
-   - Vision model API key for browser-use (LiteLLM compatible).
+   - Browser Use API key, endpoint, and model for browser automation.
 5. Open Models/Runtimes and wait until Open Interpreter, UI-TARS, and Browser-Use show ready or show actionable setup guidance.
 6. Run one dry-run task before real automation.
 
 ### Troubleshooting
 
-- UI-TARS is not ready: confirm the Doubao Volcengine Ark API key is set and screen authorization is enabled only when the visible desktop is safe.
+- UI-TARS is not ready: confirm screen authorization is enabled only when the visible desktop is safe.
 - Browser-Use is not ready: check Python 3.11+ is installed and `pip install browser-use` succeeded. Run `python -c "import browser_use"` to verify.
 - Open Interpreter is not ready: confirm Python can run `interpreter` from a terminal and then restart AionUi.
 - If a managed runtime will not start, check `%TEMP%\aionui-logs\<bridge>-stderr.log`, for example `%TEMP%\aionui-logs\browser-use-stderr.log`.
@@ -53,7 +52,7 @@ pip install open-interpreter
 ## First Run
 
 1. Open Settings.
-2. Configure DeepSeek and Doubao API keys.
+2. Configure DeepSeek and Browser Use settings.
 3. Verify Python 3.11+ is installed for browser-use.
 4. Open Models/Runtimes and check Open Interpreter, UI-TARS, and Browser-Use status.
 5. Keep dry-run enabled if the external runtimes are not installed yet.
@@ -86,7 +85,7 @@ Emergency stop cancels queued tool calls and asks active runtimes to stop where 
 
 ## Models And Runtimes
 
-The Models/Runtimes panel shows readiness for DeepSeek, Doubao vision, Open Interpreter, UI-TARS, Browser-Use, and dry-run runtime.
+The Models/Runtimes panel shows readiness for DeepSeek, Open Interpreter, UI-TARS, Browser-Use, and dry-run runtime.
 
 Each runtime card can show ready, not installed, needs configuration, disabled, or error states. Setup and repair buttons provide guidance instead of crashing the app.
 
@@ -120,7 +119,7 @@ Every proposed command, file write, or code execution appears in Control Center 
 
 ## UI-TARS (Desktop Control)
 
-UI-TARS is the desktop screen-control capability. AionUi launches the managed `uitars-bridge` automatically and injects the Doubao Volcengine Ark endpoint from Settings.
+UI-TARS is the desktop screen-control capability. AionUi launches the managed `uitars-bridge` automatically.
 
 Supported tools include `desktop_observe`, `desktop_click`, and `desktop_type`.
 
@@ -128,12 +127,9 @@ Mouse and keyboard actions require active screen authorization and normally requ
 
 ### Setup
 
-1. Create or reuse a Volcengine Ark endpoint for `doubao-1-5-thinking-vision-pro-250428`.
-2. Set `doubaoVisionApiKey` in Settings.
-3. Keep the default endpoint `https://ark.cn-beijing.volces.com/api/v3` unless your Ark deployment differs.
-4. Turn on `Screen authorization active` only when the visible screen is safe for automation.
-5. Test `desktop_observe`, then a click proposal, then a keyboard type proposal.
-6. Use emergency stop before further UI action when testing interruption behavior.
+1. Turn on screen authorization only when the visible screen is safe for automation.
+2. Test `desktop_observe`, then a click proposal, then a keyboard type proposal.
+3. Use emergency stop before further UI action when testing interruption behavior.
 
 All UI-TARS actions appear in Control Center and Audit Logs. Mouse and keyboard actions are denied or blocked unless screen authorization is active.
 
@@ -148,7 +144,7 @@ Supported tools include `browser_navigate`, `browser_snapshot`, `browser_screens
 1. Install Python 3.11+ from https://python.org/downloads/.
 2. Run `pip install browser-use`.
 3. Run `playwright install chromium`.
-4. Configure vision model API key for LiteLLM in Settings.
+4. Configure Browser Use API key, endpoint, and model in Settings.
 5. Test `browser_navigate` or `browser_snapshot` before `browser_click` or `browser_type`.
 
 All Browser-Use actions appear in Control Center and Audit Logs. AionUi auto-detects Python and browser-use readiness.

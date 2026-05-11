@@ -22,7 +22,7 @@ export default function BridgeStatusBar({ onNavigateToSettings }) {
   }, [])
 
   const entries = [
-    { key: 'browserUse', label: 'Browser-Use' },
+    { key: 'browserUse', label: '浏览器自动化' },
     { key: 'uitars', label: 'UI-TARS' },
   ]
 
@@ -35,7 +35,7 @@ export default function BridgeStatusBar({ onNavigateToSettings }) {
         const lastError = b.lastError || b.diagnostics?.lastError || ''
         const dotColor = running ? 'bg-[color:var(--success)]' : failed ? 'bg-red-500' : 'bg-amber-500'
         const textColor = running ? 'text-[color:var(--success)]' : failed ? 'text-red-500' : 'text-amber-500'
-        const label2 = running ? 'Running' : failed ? 'Failed — click for details' : '...'
+        const label2 = running ? '运行中' : failed ? '失败，点击查看详情' : '...'
 
         return (
           <button
@@ -43,7 +43,7 @@ export default function BridgeStatusBar({ onNavigateToSettings }) {
             type="button"
             onClick={() => failed && onNavigateToSettings?.('runtime')}
             className={`flex items-center gap-1 hover:opacity-80 ${failed ? 'cursor-pointer' : 'cursor-default'}`}
-            title={failed ? `${label}: ${lastError || 'Failed'}` : `${label}: ${label2}`}
+            title={failed ? `${label}：${lastError || '失败'}` : `${label}：${label2}`}
           >
             <span className={`inline-block w-2 h-2 rounded-full ${dotColor}`} />
             <span>{label}:</span>

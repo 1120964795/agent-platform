@@ -9,8 +9,8 @@ function register(ipcMain, deps = {}) {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile'],
       filters: options.filters || [
-        { name: 'Documents', extensions: ['docx', 'pptx', 'pdf', 'txt', 'md'] },
-        { name: 'All Files', extensions: ['*'] }
+        { name: '文档', extensions: ['docx', 'pptx', 'pdf', 'txt', 'md'] },
+        { name: '所有文件', extensions: ['*'] }
       ]
     })
     return result.canceled ? null : result.filePaths[0]

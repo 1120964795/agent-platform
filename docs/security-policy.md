@@ -15,7 +15,6 @@ Any tool handler that is not registered through the tool registry and evaluated 
 ## Model Roles
 
 - DeepSeek-V4 is required for chat, planning, intent classification, and coding reasoning.
-- Doubao 1.5 vision is restricted to desktop screen control through UI-TARS on Volcengine Ark.
 - Browser automation uses Python browser-use (port 8780) with vision model configurable at runtime.
 - Dry-run mode can simulate tool execution for demos when external runtimes are unavailable.
 
@@ -50,7 +49,6 @@ Open Interpreter:
 UI-TARS:
 
 - Managed `server/uitars-bridge` sidecar on `127.0.0.1:8765`.
-- Uses Doubao vision on Volcengine Ark.
 - Mouse and keyboard actions require active screen authorization.
 - Visual/input requests stay behind the desktop adapter.
 

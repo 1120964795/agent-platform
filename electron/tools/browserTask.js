@@ -6,22 +6,20 @@ async function browserTask(args, context = {}) {
   const { goal, max_steps = 15, start_url } = args
 
   if (!goal || typeof goal !== 'string') {
-    return { error: { code: 'INVALID_ARGS', message: '需要提供 goal 参数（浏览器任务描述）。' } }
+    return { error: { code: 'INVALID_ARGS', message: '需要提供浏览器任务目标。' } }
   }
 
-  // Check sidecar health
   const health = await healthCheck()
   if (!health.available) {
     return {
       error: {
         code: 'RUNTIME_UNAVAILABLE',
-        message: 'browser-use 运行时不可用。请确认 Python 3.11+ 和 browser-use 已安装，并在设置中配置 Doubao vision 模型。',
+        message: '浏览器自动化运行时不可用。请确认 Python、browser-use、Playwright 和浏览器自动化设置已配置。',
         detail: health.detail,
       },
     }
   }
 
-  // Confirm with user (medium risk)
   if (!context.skipInternalConfirm) {
     const allowed = await requestConfirm({
       kind: 'browser-task',
@@ -42,13 +40,13 @@ async function browserTask(args, context = {}) {
 
 register({
   name: 'browser_task',
-  description: 'Run a self-contained web browser sub-task using AI. The agent will navigate, click, type, and extract information from real web pages. Use this for: logging into websites, scraping information, filling forms, navigating to URLs. Args: goal (required) — natural-language task description; max_steps (optional, default 15) — maximum browser steps; start_url (optional) — starting URL.',
+  description: '使用 AI 执行独立的网页浏览器子任务。智能体会在真实网页中导航、点击、输入并提取信息。适用于登录网站、抓取信息、填写表单、打开 URL。参数：goal（必填）为自然语言任务描述；max_steps（可选，默认 15）为最大浏览器步骤数；start_url（可选）为起始网址。',
   parameters: {
     type: 'object',
     properties: {
-      goal: { type: 'string', description: 'Natural-language description of the browser task.' },
-      max_steps: { type: 'number', description: 'Maximum browser interaction steps. Default 15.' },
-      start_url: { type: 'string', description: 'Optional starting URL.' },
+      goal: { type: 'string', description: '浏览器任务的自然语言描述。' },
+      max_steps: { type: 'number', description: '最大浏览器交互步骤数。默认 15。' },
+      start_url: { type: 'string', description: '可选起始网址。' },
     },
     required: ['goal'],
   },

@@ -108,7 +108,7 @@ test('chat:send waits for high-risk confirmation through a natural chat reply', 
   })
   expect(send).toHaveBeenCalledWith('chat:delta', {
     convId: 'conv-1',
-    text: expect.stringContaining('previous attempt failed: BROWSER_TASK_INCOMPLETE: summary_missing')
+      text: expect.stringContaining('上一次尝试失败: BROWSER_TASK_INCOMPLETE: summary_missing')
   })
   expect(approvedValue).toBeUndefined()
 
@@ -316,7 +316,7 @@ test('chat:approve-tool is deprecated and does not resolve pending confirmation'
   await Promise.resolve()
   const response = await ipcMain.handlers.get('chat:approve-tool')({}, { convId: 'conv-legacy', callId: call.id, approved: true })
 
-  expect(response).toEqual({ ok: false, error: { code: 'DEPRECATED', message: 'Use chat confirmation replies.' } })
+  expect(response).toEqual({ ok: false, error: { code: 'DEPRECATED', message: '请通过对话回复进行确认。' } })
   expect(approvedValue).toBeUndefined()
   expect(send.mock.calls.filter(([event]) => event === 'chat:confirmation-cleared')).toHaveLength(0)
 

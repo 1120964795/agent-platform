@@ -5,17 +5,10 @@ function sanitizeConfigPatch(input = {}) {
   if (typeof input.apiKey === 'string' && input.apiKey && !input.apiKey.includes('***')) patch.apiKey = input.apiKey.trim()
   if (typeof input.baseUrl === 'string' && input.baseUrl) patch.baseUrl = input.baseUrl.trim()
   if (typeof input.model === 'string' && input.model) patch.model = input.model.trim()
-  if (typeof input.qwenApiKey === 'string' && input.qwenApiKey && !input.qwenApiKey.includes('***')) patch.qwenApiKey = input.qwenApiKey.trim()
-  if (typeof input.qwenBaseUrl === 'string' && input.qwenBaseUrl) patch.qwenBaseUrl = input.qwenBaseUrl.trim()
-  if (typeof input.qwenPrimaryModel === 'string' && input.qwenPrimaryModel) patch.qwenPrimaryModel = input.qwenPrimaryModel.trim()
-  if (typeof input.qwenCodingModel === 'string' && input.qwenCodingModel) patch.qwenCodingModel = input.qwenCodingModel.trim()
   if (input.fallbackProvider === '' || input.fallbackProvider === 'deepseek') patch.fallbackProvider = input.fallbackProvider
   if (typeof input.fallbackModel === 'string' && input.fallbackModel) patch.fallbackModel = input.fallbackModel.trim()
   if (typeof input.deepseekApiKey === 'string' && input.deepseekApiKey && !input.deepseekApiKey.includes('***')) patch.deepseekApiKey = input.deepseekApiKey.trim()
   if (typeof input.deepseekBaseUrl === 'string' && input.deepseekBaseUrl) patch.deepseekBaseUrl = input.deepseekBaseUrl.trim()
-  if (typeof input.doubaoVisionApiKey === 'string' && input.doubaoVisionApiKey && !input.doubaoVisionApiKey.includes('***')) patch.doubaoVisionApiKey = input.doubaoVisionApiKey.trim()
-  if (typeof input.doubaoVisionEndpoint === 'string' && input.doubaoVisionEndpoint) patch.doubaoVisionEndpoint = input.doubaoVisionEndpoint.trim()
-  if (typeof input.doubaoVisionModel === 'string' && input.doubaoVisionModel) patch.doubaoVisionModel = input.doubaoVisionModel.trim()
   if (typeof input.browserUseApiKey === 'string' && !input.browserUseApiKey.includes('***')) {
     const browserUseApiKey = input.browserUseApiKey.trim()
     if (browserUseApiKey) patch.browserUseApiKey = browserUseApiKey

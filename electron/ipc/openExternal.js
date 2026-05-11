@@ -1,7 +1,5 @@
 const ALLOWED_PREFIXES = [
   'https://platform.deepseek.com',
-  'https://bailian.console.aliyun.com',
-  'https://console.volcengine.com',
   'https://chromewebstore.google.com',
 ]
 
@@ -30,7 +28,7 @@ function getShell(deps = {}) {
 
 function register(ipcMain, deps = {}) {
   ipcMain.handle('app:open-external', async (_evt, { url } = {}) => {
-    if (!isAllowed(url)) throw new Error(`URL not in allowlist: ${url}`)
+    if (!isAllowed(url)) throw new Error(`URL 不在允许列表中：${url}`)
     await getShell(deps).openExternal(url)
     return { ok: true }
   })

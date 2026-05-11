@@ -1,5 +1,4 @@
 const RUNTIME_NAMES = Object.freeze({
-  QWEN: 'qwen',
   DEEPSEEK: 'deepseek',
   UI_TARS: 'ui-tars',
   DRY_RUN: 'aionui-dry-run'

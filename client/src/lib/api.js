@@ -142,6 +142,8 @@ export function denyAction(id, reason) { return invoke('actions:deny', { id, rea
 export function cancelAction(id, reason) { return invoke('actions:cancel', { id, reason }) }
 export function listAuditEvents(filters = {}) { return invoke('audit:list', { filters }) }
 export function exportAuditEvents(filters = {}, outputPath) { return invoke('audit:export', { filters, outputPath }) }
+export function listArtifacts() { return invoke('artifacts:list') }
+export function deleteArtifact(id) { return invoke('artifacts:delete', { id }) }
 export function listRunOutputs(filters = {}) { return invoke('outputs:list', { filters }) }
 export function exportRunOutputs(filters = {}, outputPath) { return invoke('outputs:export', { filters, outputPath }) }
 export function openRunOutput(filePath) { return invoke('outputs:open', { path: filePath }) }

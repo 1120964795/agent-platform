@@ -7,15 +7,13 @@ function setBridgeContext(ctx) {
 }
 
 const KEY_FIELD_MAP = {
-  deepseekKey: 'deepseekApiKey',
-  doubaoKey: 'doubaoVisionApiKey'
+  deepseekKey: 'deepseekApiKey'
 }
 
 async function computeSetupStatus({ storeRef = store } = {}) {
   const cfg = storeRef.getConfig()
   const deps = {
     deepseekKey: Boolean(cfg.deepseekApiKey),
-    doubaoKey: Boolean(cfg.doubaoVisionApiKey),
   }
 
   // Check Python/bridge health (non-blocking)
@@ -37,14 +35,14 @@ async function computeSetupStatus({ storeRef = store } = {}) {
 
   const tiers = {
     lite: {
-      label: 'Lite: chat only',
+      label: '轻量模式：仅聊天',
       requires: ['deepseekKey'],
       ready: deps.deepseekKey
     },
     browser: {
-      label: 'Browser + Desktop automation',
-      requires: ['deepseekKey', 'doubaoKey'],
-      ready: deps.deepseekKey && deps.doubaoKey && deps.python !== false,
+      label: '浏览器自动化',
+      requires: ['deepseekKey'],
+      ready: deps.deepseekKey && deps.python !== false,
       recommended: true
     },
   }
@@ -53,7 +51,6 @@ async function computeSetupStatus({ storeRef = store } = {}) {
     tiers,
     helpLinks: {
       deepseekKey: 'https://platform.deepseek.com/api_keys',
-      doubaoKey: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
     }
   }
 }
@@ -67,8 +64,8 @@ function register(ipcMain) {
   })
   ipcMain.handle('setup:set-key', (_evt, { dep, value } = {}) => {
     const field = KEY_FIELD_MAP[dep]
-    if (!field) throw new Error(`Unknown dep ${dep}`)
-    if (typeof value !== 'string' || value.length > 4096) throw new Error('invalid key')
+    if (!field) throw new Error(`未知配置项 ${dep}`)
+    if (typeof value !== 'string' || value.length > 4096) throw new Error('密钥无效')
     store.setConfig({ [field]: value.trim() })
     return { ok: true }
   })

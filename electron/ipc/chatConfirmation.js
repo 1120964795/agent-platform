@@ -28,12 +28,12 @@ function formatArgs(args) {
 function buildConfirmationPrompt({ call, decision, retry }) {
   const lines = [
     `需要确认高风险操作: ${call.name}`,
-    `风险原因: ${decision.reason || 'high risk operation'}`,
+    `风险原因: ${decision.reason || '高风险操作'}`,
   ]
   const args = formatArgs(call.args)
   if (args) lines.push(`参数:\n${args}`)
   if (retry?.previousError) {
-    lines.push(`previous attempt failed: ${retry.previousError.code}: ${retry.previousError.message}`)
+    lines.push(`上一次尝试失败: ${retry.previousError.code}: ${retry.previousError.message}`)
   }
   lines.push('回复“确认 / 可以 / 同意 / 继续”执行。')
   lines.push('回复“取消 / 拒绝 / 不行 / 不要”取消。')
@@ -43,7 +43,7 @@ function buildConfirmationPrompt({ call, decision, retry }) {
 function buildPendingExplanation(pending) {
   const lines = [
     `当前仍在等待确认: ${pending.call.name}`,
-    `风险原因: ${pending.decision.reason || 'high risk operation'}`,
+    `风险原因: ${pending.decision.reason || '高风险操作'}`,
   ]
   const args = formatArgs(pending.call.args)
   if (args) lines.push(`参数:\n${args}`)

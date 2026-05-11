@@ -38,7 +38,7 @@ function register(ipcMain) {
   ipcMain.handle('conversations:rename', async (_event, payload = {}) => {
     const { id, title } = payload
     const nextTitle = typeof title === 'string' ? title.trim() : ''
-    if (!id || !nextTitle) return { ok: false, error: { code: 'BAD_REQUEST', message: '需要提供 id 和 title。' } }
+    if (!id || !nextTitle) return { ok: false, error: { code: 'BAD_REQUEST', message: '需要提供对话 ID 和标题。' } }
     const conversation = store.renameConversation(id, nextTitle)
     if (!conversation) return { ok: false, error: { code: 'NOT_FOUND', message: '未找到对话。' } }
     return { ok: true, conversation }

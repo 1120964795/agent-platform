@@ -20,7 +20,7 @@ function register(ipcMain) {
   })
 
   ipcMain.handle('bridge:restart', async (_event, { key } = {}) => {
-    if (!supervisor) return { ok: false, error: 'supervisor not available' }
+    if (!supervisor) return { ok: false, error: '桥接监控不可用' }
     try {
       await supervisor.startOne(key)
       const state = supervisor.getState()

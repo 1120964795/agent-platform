@@ -9,7 +9,7 @@ async function desktopClick(args, context = {}) {
     return { error: { code: 'INVALID_ARGS', message: '需要提供 target 参数（点击目标的自然语言描述）。' } }
   }
 
-  // High-risk operation — confirm with user
+  // High-risk operation: confirm with user.
   if (!context.skipInternalConfirm) {
     const allowed = await requestConfirm({
       kind: 'desktop-click',
@@ -25,7 +25,7 @@ async function desktopClick(args, context = {}) {
     return {
       error: {
         code: 'RUNTIME_UNAVAILABLE',
-        message: 'UI-TARS 桌面运行时不可用。请确认 uitars-bridge (port 8765) 已启动。',
+        message: 'UI-TARS 桌面运行时不可用。请确认 uitars-bridge（端口 8765）已启动。',
         detail: health.detail,
       },
     }
@@ -50,11 +50,11 @@ async function desktopClick(args, context = {}) {
 
 register({
   name: 'desktop_click',
-  description: 'Click on a UI element on the desktop screen identified by a natural-language description. The AI vision model will locate the element and click it. Args: target (required) — natural-language description of what to click (e.g., "the blue Submit button in the bottom right", "the Chrome icon on the taskbar").',
+  description: '点击桌面屏幕上的界面元素。AI 视觉模型会根据自然语言描述定位并点击目标。参数：target（必填）表示要点击的目标描述。',
   parameters: {
     type: 'object',
     properties: {
-      target: { type: 'string', description: 'Natural-language description of the element to click.' },
+      target: { type: 'string', description: '要点击的界面元素的自然语言描述。' },
     },
     required: ['target'],
   },

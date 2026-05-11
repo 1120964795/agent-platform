@@ -57,7 +57,7 @@ test('README describes the V2 control plane scope', () => {
   const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf-8')
   const requiredText = [
     'DeepSeek-V4 owns chat, planning, intent classification, and coding reasoning',
-    'Doubao 1.5 vision runs desktop screen control through UI-TARS on Volcengine Ark',
+    'Browser Use is the browser automation capability',
     'Open Interpreter remains the managed local runtime',
     'AionUi owns policy',
     'High-risk actions always require explicit confirmation'

@@ -59,8 +59,8 @@ describe('bridgeSupervisor', () => {
     expect(calls).toHaveLength(2)
     expect(calls.every((call) => call.windowsHide === true)).toBe(true)
     const uitars = calls.find((c) => c.args.some((arg) => arg.includes('uitars-bridge')))
-    expect(uitars.env.UITARS_MODEL_PROVIDER).toBe('volcengine')
-    expect(uitars.env.UITARS_MODEL_ENDPOINT).toContain('volces.com')
+    expect(uitars.env.UITARS_MODEL_PROVIDER).toBeUndefined()
+    expect(uitars.env.UITARS_MODEL_ENDPOINT).toBeUndefined()
     const browserUse = calls.find((c) => c.cmd === 'python' && c.args.some((arg) => arg.includes('browser-use-bridge')))
     expect(browserUse).toBeDefined()
     expect(browserUse.env.BROWSER_USE_MODEL_ENDPOINT).toBe('https://zenmux.ai/api/v1')
@@ -114,7 +114,7 @@ describe('bridgeSupervisor', () => {
     }))
   }, 15000)
 
-  it('reports Browser-Use config fields separately from Doubao diagnostics', async () => {
+  it('reports Browser-Use config fields without removed provider diagnostics', async () => {
     const sup = createSupervisor({
       spawnImpl: () => ({ on() {}, kill() {}, killed: false }),
       healthImpl: async () => ({ ok: false })
@@ -162,7 +162,7 @@ describe('bridgeSupervisor', () => {
     )
 
     expect(result.state).toBe('failed')
-    expect(result.lastError).toBe('health check timeout')
+    expect(result.lastError).toBe('健康检查超时')
     expect(child.killed).toBe(true)
     expect(sup.getState().browserUse.child).toBe(null)
   })
@@ -412,7 +412,7 @@ describe('bridgeSupervisor', () => {
 
     const failed = await sup.startOne('browserUse', { healthTimeoutMs: 50, maxRestarts: 0 })
     expect(failed.state).toBe('failed')
-    expect(failed.lastError).toBe('health check timeout')
+    expect(failed.lastError).toBe('健康检查超时')
     expect(failed.diagnostics).toEqual(expect.objectContaining({
       missingConfig: ['browserUseApiKey']
     }))

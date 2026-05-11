@@ -40,7 +40,7 @@ function delay(ms) {
 
 function normalizeError(error) {
   if (error instanceof Error) return error
-  return new Error(error === undefined ? 'Unknown child process error' : String(error))
+  return new Error(error === undefined ? '未知子进程错误' : String(error))
 }
 
 function watchChildError(child) {
@@ -89,11 +89,6 @@ function buildDiagnostics(key, lastError) {
   let config = {}
   try { config = require('../store').store.getConfig() } catch {}
   const missingConfig = []
-  if (key === 'uitars') {
-    if (!config.doubaoVisionApiKey) missingConfig.push('doubaoVisionApiKey')
-    if (!config.doubaoVisionEndpoint) missingConfig.push('doubaoVisionEndpoint')
-    if (!config.doubaoVisionModel) missingConfig.push('doubaoVisionModel')
-  }
   if (key === 'browserUse') {
     if (!config.browserUseApiKey) missingConfig.push('browserUseApiKey')
     if (!config.browserUseEndpoint) missingConfig.push('browserUseEndpoint')
@@ -101,11 +96,11 @@ function buildDiagnostics(key, lastError) {
   }
 
   const nextSteps = []
-  if (missingConfig.length) nextSteps.push(`Configure missing settings: ${missingConfig.join(', ')}`)
-  nextSteps.push(`Inspect stderr log: ${logs.stderrLog}`)
-  if (key === 'uitars') nextSteps.push('Check server/uitars-bridge dependencies and screen-control permissions.')
-  if (key === 'browserUse') nextSteps.push('Check Python, browser-use, and Playwright Chromium installation.')
-  nextSteps.push(`Restart the ${cfg.name} bridge from Settings > Runtime.`)
+  if (missingConfig.length) nextSteps.push(`请配置缺少的设置：${missingConfig.join(', ')}`)
+  nextSteps.push(`检查错误日志：${logs.stderrLog}`)
+  if (key === 'uitars') nextSteps.push('检查 server/uitars-bridge 依赖和屏幕控制权限。')
+  if (key === 'browserUse') nextSteps.push('检查 Python、browser-use 和 Playwright Chromium 是否已安装。')
+  nextSteps.push(`请在 设置 > 运行时 中重启 ${cfg.name} 桥接服务。`)
 
   return {
     bridge: key,
@@ -144,12 +139,6 @@ function createSupervisor(opts = {}) {
   function buildEnv(key) {
     const config = require('../store').store.getConfig()
     const env = { ...process.env }
-    if (key === 'uitars') {
-      env.UITARS_MODEL_PROVIDER = 'volcengine'
-      env.UITARS_MODEL_ENDPOINT = config.doubaoVisionEndpoint || ''
-      env.UITARS_MODEL_API_KEY = config.doubaoVisionApiKey || ''
-      env.UITARS_MODEL_NAME = config.doubaoVisionModel || ''
-    }
     if (key === 'browserUse') {
       env.BROWSER_USE_MODEL_ENDPOINT = config.browserUseEndpoint || 'https://zenmux.ai/api/v1'
       env.BROWSER_USE_MODEL_API_KEY = config.browserUseApiKey || ''
@@ -378,7 +367,7 @@ function createSupervisor(opts = {}) {
         if (staleBeforeRetry) return staleBeforeRetry
         return startOneLocked(key, { healthTimeoutMs, maxRestarts }, generation)
       }
-      state[key].lastError = 'health check timeout'
+      state[key].lastError = '健康检查超时'
       await clearBridgeChild(key)
       const staleBeforeFailed = await cancelIfStale(key, child, generation)
       if (staleBeforeFailed) return staleBeforeFailed

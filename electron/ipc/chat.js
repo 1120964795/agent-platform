@@ -203,7 +203,7 @@ async function handleChatSend(evt, payload = {}, deps) {
         })
 
         if (!approved) {
-          send('chat:tool-error', { callId: call.id, error: { code: 'USER_DENIED', message: 'User denied tool execution.' } })
+          send('chat:tool-error', { callId: call.id, error: { code: 'USER_DENIED', message: '用户拒绝执行工具。' } })
         }
         return approved
       }
@@ -238,7 +238,7 @@ function createRegister(overrides = {}) {
   }
   return function register(ipcMain) {
     ipcMain.handle('chat:send', (evt, payload) => handleChatSend(evt, payload, deps))
-    ipcMain.handle('chat:approve-tool', async () => ({ ok: false, error: { code: 'DEPRECATED', message: 'Use chat confirmation replies.' } }))
+    ipcMain.handle('chat:approve-tool', async () => ({ ok: false, error: { code: 'DEPRECATED', message: '请通过对话回复进行确认。' } }))
     ipcMain.handle('chat:abort', async (_evt, payload = {}) => {
       const ctl = activeControllers.get(payload.convId)
       if (ctl) ctl.abort()

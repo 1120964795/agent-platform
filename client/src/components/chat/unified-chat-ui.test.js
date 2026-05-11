@@ -31,12 +31,14 @@ describe('unified chat UI wiring', () => {
     expect(source).not.toContain('onModeChange')
   })
 
-  test('ModelSelector uses the configured Doubao endpoint alias instead of a hard-coded old model', () => {
+  test('ModelSelector exposes only DeepSeek and Browser Use choices', () => {
     const source = readProjectFile('client/src/components/chat/ModelSelector.jsx')
 
-    expect(source).toContain("{ id: 'doubao-vision'")
-    expect(source).toContain("'doubao-seed-1-6-vision': 'doubao-vision'")
-    expect(source).not.toContain("{ id: 'doubao-seed-1-6-vision'")
+    expect(source).toContain("{ id: 'deepseek-chat'")
+    expect(source).toContain("{ id: 'deepseek-reasoner'")
+    expect(source).toContain("id: 'browser-use'")
+    expect(source).not.toMatch(/qwen/i)
+    expect(source).not.toMatch(/doubao/i)
   })
 
   test('MainArea and TopBar no longer expose execution mode copy', () => {
@@ -87,21 +89,23 @@ describe('unified chat UI wiring', () => {
     expect(topBar).toContain('统一对话工作台')
   })
 
-  test('SettingsPage shows external-link buttons for all model API keys', () => {
+  test('SettingsPage shows external-link buttons only for retained model API keys', () => {
     const settings = readProjectFile('client/src/pages/SettingsPage.jsx')
 
     expect(settings).toContain('ExternalLink')
-    expect(settings.match(/<ApiKeyInput /g)).toHaveLength(4)
-    expect(settings).toContain('id="settings-qwen-api-key"')
+    expect(settings).toContain("['artifacts', '产物']")
+    expect(settings).toContain('已生成文件')
+    expect(settings).toContain('deleteArtifact')
+    expect(settings.match(/<ApiKeyInput /g)).toHaveLength(2)
     expect(settings).toContain('id="settings-deepseek-api-key"')
-    expect(settings).toContain('id="settings-doubao-api-key"')
     expect(settings).toContain('id="settings-browser-use-api-key"')
-    expect(settings).toContain("qwenApiKey: ''")
     expect(settings).toContain("browserUseApiKey: ''")
-    expect(settings).toContain('https://bailian.console.aliyun.com/')
     expect(settings).toContain('https://platform.deepseek.com/api_keys')
-    expect(settings).toContain('https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey')
     expect(settings).toContain('https://zenmux.ai/')
+    expect(settings).not.toMatch(/qwen/i)
+    expect(settings).not.toMatch(/doubao/i)
+    expect(settings).not.toMatch(/dashscope/i)
+    expect(settings).not.toMatch(/volcengine/i)
   })
 
   test('SettingsPage keeps masked API key state visible after save or reload', () => {
@@ -110,27 +114,33 @@ describe('unified chat UI wiring', () => {
     expect(settings).toContain('maskedKeys')
     expect(settings).toContain('setMaskedKeys')
     expect(settings).toContain('applyConfig(result.config || {})')
-    expect(settings).toContain("placeholder={maskedKeys.qwenApiKey || 'DashScope API Key'}")
     expect(settings).toContain("placeholder={maskedKeys.deepseekApiKey || 'sk-...'}")
-    expect(settings).toContain("placeholder={maskedKeys.doubaoVisionApiKey || 'Volcengine Ark API Key'}")
-    expect(settings).toContain("placeholder={maskedKeys.browserUseApiKey || 'ZenMux API Key'}")
-    expect(settings).toContain('savedValue={maskedKeys.qwenApiKey}')
+    expect(settings).toContain("placeholder={maskedKeys.browserUseApiKey || 'ZenMux API 密钥'}")
     expect(settings).toContain('savedValue={maskedKeys.deepseekApiKey}')
-    expect(settings).toContain('savedValue={maskedKeys.doubaoVisionApiKey}')
     expect(settings).toContain('savedValue={maskedKeys.browserUseApiKey}')
+  })
+
+  test('WelcomeSetupDialog no longer collects Doubao model settings', () => {
+    const welcome = readProjectFile('client/src/components/WelcomeSetupDialog.jsx')
+
+    expect(welcome).not.toMatch(/doubao/i)
+    expect(welcome).not.toMatch(/volcengine/i)
+    expect(welcome).not.toContain('doubaoVisionApiKey')
+    expect(welcome).not.toContain('doubaoVisionEndpoint')
+    expect(welcome).not.toContain('doubaoVisionModel')
   })
 
   test('SettingsPage exposes Browser Use endpoint model and vision toggle', () => {
     const settings = readProjectFile('client/src/pages/SettingsPage.jsx')
 
-    expect(settings).toContain('Browser Use')
+    expect(settings).toContain('浏览器自动化')
     expect(settings).toContain('browserUseEndpoint')
     expect(settings).toContain('browserUseModel')
     expect(settings).toContain('browserUseVisionEnabled')
     expect(settings).toContain('https://zenmux.ai/api/v1')
     expect(settings).toContain('openai/gpt-5.5')
     expect(settings).toContain('checked={form.browserUseVisionEnabled !== false}')
-    expect(settings).toContain('Vision enabled')
+    expect(settings).toContain('启用视觉能力')
   })
 
   test('action updates are summarized in chat instead of rendered as action cards', () => {
@@ -197,7 +207,7 @@ describe('unified chat UI wiring', () => {
 
     expect(source).toContain('插件')
     expect(source).toContain('浏览器')
-    expect(source).toContain('Browser Use')
+    expect(source).toContain('浏览器自动化')
     expect(source).toContain('onPluginModeChange')
   })
 
@@ -287,7 +297,7 @@ describe('unified chat UI wiring', () => {
     expect(input).toContain('pendingConfirmation')
     expect(input).toContain('CommandPalette')
     expect(input).toContain('useCommand(skills)')
-    expect(input).toContain('Waiting for confirmation')
+    expect(input).toContain('等待确认')
     expect(input).toContain('listSkills')
     expect(chatArea).toContain('pendingConfirmation')
     expect(chatArea).toContain('parseSkillCommandLine')

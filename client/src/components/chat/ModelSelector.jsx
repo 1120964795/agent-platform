@@ -3,8 +3,7 @@ import { ChevronDown } from 'lucide-react'
 
 const MODEL_OPTIONS = [
   { id: 'deepseek-chat', label: 'DeepSeek V4 Flash', provider: 'deepseek' },
-  { id: 'deepseek-reasoner', label: 'DeepSeek V4 Pro', provider: 'deepseek' },
-  { id: 'doubao-vision', label: '豆包 视觉', provider: 'doubao' }
+  { id: 'deepseek-reasoner', label: 'DeepSeek V4 Pro', provider: 'deepseek' }
 ]
 
 const BROWSER_USE_OPTION = {
@@ -15,15 +14,11 @@ const BROWSER_USE_OPTION = {
 }
 
 const STORAGE_KEY = 'agentdev-selected-model'
-const LEGACY_MODEL_ALIASES = {
-  'doubao-seed-1-6-vision': 'doubao-vision'
-}
 
 function loadModel() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    const normalized = LEGACY_MODEL_ALIASES[saved] || saved
-    if (normalized && MODEL_OPTIONS.find(o => o.id === normalized)) return normalized
+    if (saved && MODEL_OPTIONS.find(o => o.id === saved)) return saved
   } catch {}
   return 'deepseek-chat'
 }

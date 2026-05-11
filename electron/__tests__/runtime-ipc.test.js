@@ -15,7 +15,8 @@ test('registers runtime status and bootstrap handlers', async () => {
   expect([...ipcMain.handlers.keys()]).toEqual(expect.arrayContaining(['runtime:status', 'runtime:bootstrap', 'runtime:start', 'runtime:stop']))
   const status = await ipcMain.handlers.get('runtime:status')()
   expect(status.ok).toBe(true)
-  expect(status.runtimes.map((item) => item.runtime)).toEqual(expect.arrayContaining(['qwen', 'deepseek', 'browser-use', 'ui-tars', 'aionui-dry-run']))
+  expect(status.runtimes.map((item) => item.runtime)).toEqual(expect.arrayContaining(['deepseek', 'browser-use', 'ui-tars', 'aionui-dry-run']))
+  expect(status.runtimes.map((item) => item.runtime)).not.toContain('qwen')
 })
 
 test('runtime bootstrap returns expected failure wrapper for unknown runtime', async () => {
@@ -26,11 +27,14 @@ test('runtime bootstrap returns expected failure wrapper for unknown runtime', a
   expect(result.error.message).toContain('未知运行时')
 })
 
-test('runtime configure sanitizes and masks provider keys', async () => {
+test('runtime configure ignores removed Qwen and Doubao provider keys', async () => {
   const ipcMain = ipc()
   runtime.register(ipcMain)
-  const result = await ipcMain.handlers.get('runtime:configure')({}, { qwenApiKey: 'sk-qwen-secret-value' })
+  const result = await ipcMain.handlers.get('runtime:configure')({}, {
+    qwenApiKey: 'sk-qwen-secret-value',
+    doubaoVisionApiKey: 'sk-doubao-secret-value'
+  })
   expect(result.ok).toBe(true)
-  expect(result.config.qwenApiKey).toContain('***')
-  expect(result.config.qwenApiKey).not.toContain('secret-value')
+  expect(result.config).not.toHaveProperty('qwenApiKey')
+  expect(result.config).not.toHaveProperty('doubaoVisionApiKey')
 })

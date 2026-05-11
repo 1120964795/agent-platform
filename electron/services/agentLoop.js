@@ -2,14 +2,14 @@ const MAX_STEPS = 30
 
 function normalizeToolFailure(result) {
   if (!result || typeof result !== 'object') return null
-  const rawError = result.error || (result.ok === false ? { code: 'TOOL_FAILED', message: result.summary || 'Tool returned ok:false.' } : null)
+  const rawError = result.error || (result.ok === false ? { code: 'TOOL_FAILED', message: result.summary || '工具返回 ok:false。' } : null)
   if (!rawError) return null
   if (typeof rawError === 'string') {
     return { code: rawError.startsWith('BROWSER_TASK_INCOMPLETE') ? 'BROWSER_TASK_INCOMPLETE' : 'TOOL_ERROR', message: rawError }
   }
   return {
     code: rawError.code || (result.ok === false ? 'TOOL_FAILED' : 'TOOL_ERROR'),
-    message: rawError.message || result.summary || 'Tool execution failed.',
+    message: rawError.message || result.summary || '工具执行失败。',
     ...(rawError.detail ? { detail: rawError.detail } : {})
   }
 }
@@ -34,13 +34,9 @@ function toolAttemptKey(call) {
 
 function getProvider(modelId, deps = {}) {
   const deepseek = deps.deepseek || require('./deepseek')
-  const doubao = deps.doubao || require('./doubao')
 
   if (!modelId || modelId.startsWith('deepseek')) {
     return { model: modelId || 'deepseek-chat', chat: deepseek.chat }
-  }
-  if (modelId.startsWith('doubao') || modelId.startsWith('ep-')) {
-    return { model: modelId.startsWith('ep-') ? modelId : undefined, chat: doubao.chat }
   }
   return { model: 'deepseek-chat', chat: deepseek.chat }
 }
@@ -149,8 +145,8 @@ function historyHasPriorLoadedSkillContent(history, forcedSkill) {
 }
 
 function forcedSkillStopReason(forcedSkill, outcome, priorHistory) {
-  if (!outcome) return 'skill load did not return a result.'
-  if (outcome.failure) return outcome.failure.message || outcome.failure.code || 'skill load failed.'
+  if (!outcome) return '技能加载没有返回结果。'
+  if (outcome.failure) return outcome.failure.message || outcome.failure.code || '技能加载失败。'
   const result = outcome.result
   if (
     result &&
@@ -159,7 +155,7 @@ function forcedSkillStopReason(forcedSkill, outcome, priorHistory) {
     !String(result.content || '').trim() &&
     !historyHasPriorLoadedSkillContent(priorHistory, forcedSkill)
   ) {
-    return 'cached skill content is unavailable.'
+    return '缓存的技能内容不可用。'
   }
   return null
 }
@@ -222,8 +218,8 @@ async function runTurn({ messages, model, signal, onEvent, onStreamEvent, reques
       if (!ok) {
         history.push({ role: 'tool', tool_call_id: call.id, content: 'USER_DENIED' })
         emitStream('tool_result', { tool: call.name, summary: '用户拒绝执行。' })
-        toolAttempts.set(attemptKey, { count: attempt, lastError: { code: 'USER_DENIED', message: 'User denied tool execution.' } })
-        toolOutcomes.set(call.id, { failure: { code: 'USER_DENIED', message: 'User denied tool execution.' } })
+        toolAttempts.set(attemptKey, { count: attempt, lastError: { code: 'USER_DENIED', message: '用户拒绝执行工具。' } })
+        toolOutcomes.set(call.id, { failure: { code: 'USER_DENIED', message: '用户拒绝执行工具。' } })
         return null
       }
     }
@@ -272,7 +268,7 @@ async function runTurn({ messages, model, signal, onEvent, onStreamEvent, reques
   if (forcedSkillCall) {
     const historyBeforeForcedSkill = [...history]
     emitStream('reasoning_summary', {
-      text: `Loading skill ${forcedSkill} before continuing.`,
+      text: `正在加载技能 ${forcedSkill}，然后继续。`,
     })
     history.push({ role: 'assistant', content: null, tool_calls: [forcedSkillCall.raw] })
     onEvent?.('assistant_message', { content: '', toolCalls: [forcedSkillCall] })
@@ -280,7 +276,7 @@ async function runTurn({ messages, model, signal, onEvent, onStreamEvent, reques
     if (forcedSkillResult) return forcedSkillResult
     const stopReason = forcedSkillStopReason(forcedSkill, toolOutcomes.get(forcedSkillCall.id), historyBeforeForcedSkill)
     if (stopReason) {
-      return { finalText: `Unable to load forced skill ${forcedSkill}: ${stopReason}`, history }
+      return { finalText: `无法加载指定技能 ${forcedSkill}：${stopReason}`, history }
     }
   }
 

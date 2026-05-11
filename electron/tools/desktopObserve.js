@@ -7,7 +7,7 @@ async function desktopObserve(args, context = {}) {
     return {
       error: {
         code: 'RUNTIME_UNAVAILABLE',
-        message: 'UI-TARS 桌面运行时不可用。请确认 uitars-bridge (port 8765) 已启动并且 Doubao vision 模型已配置。',
+        message: 'UI-TARS 桌面运行时不可用。请确认 uitars-bridge（端口 8765）正在运行。',
         detail: health.detail,
       },
     }
@@ -19,7 +19,7 @@ async function desktopObserve(args, context = {}) {
   )
 
   if (!result.ok) {
-    return { error: result.error || { code: 'OBSERVE_FAILED', message: '屏幕截图失败。' } }
+    return { error: result.error || { code: 'OBSERVE_FAILED', message: '屏幕捕获失败。' } }
   }
 
   return {
@@ -31,7 +31,7 @@ async function desktopObserve(args, context = {}) {
 
 register({
   name: 'desktop_observe',
-  description: 'Capture a screenshot of the current desktop screen. Returns a base64-encoded PNG image. Use this to see what is currently on screen before clicking or typing.',
+  description: '捕获当前桌面屏幕截图，返回 base64 编码的 PNG 图片。点击或输入前可用它查看屏幕当前内容。',
   parameters: {
     type: 'object',
     properties: {},

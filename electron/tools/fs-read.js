@@ -47,19 +47,19 @@ function searchFiles(args) {
 
 register({
   name: 'read_file',
-  description: 'Read a local file as text or base64. Supports text files plus PDF/DOCX text extraction when available.',
+  description: '以文本或 base64 形式读取本地文件。支持文本文件，并在可用时提取 PDF/DOCX 文本。',
   parameters: { type: 'object', properties: { path: { type: 'string' }, encoding: { type: 'string', enum: ['utf8', 'base64'] }, max_bytes: { type: 'number' } }, required: ['path'] }
 }, readFile)
 
 register({
   name: 'list_dir',
-  description: 'List entries in a local directory.',
+  description: '列出本地目录中的条目。',
   parameters: { type: 'object', properties: { path: { type: 'string' }, show_hidden: { type: 'boolean' } }, required: ['path'] }
 }, listDirectory)
 
 register({
   name: 'search_files',
-  description: 'Search file and directory names under a root path.',
+  description: '在根路径下搜索文件和目录名称。',
   parameters: { type: 'object', properties: { root: { type: 'string' }, query: { type: 'string' }, max_depth: { type: 'number' } }, required: ['root', 'query'] }
 }, searchFiles)
 

@@ -9,7 +9,7 @@ async function desktopType(args, context = {}) {
     return { error: { code: 'INVALID_ARGS', message: '需要提供 text 参数（要输入的文本）。' } }
   }
 
-  // Medium-risk operation — confirm with user
+  // Medium-risk operation: confirm with user.
   if (!context.skipInternalConfirm) {
     const allowed = await requestConfirm({
       kind: 'desktop-type',
@@ -25,7 +25,7 @@ async function desktopType(args, context = {}) {
     return {
       error: {
         code: 'RUNTIME_UNAVAILABLE',
-        message: 'UI-TARS 桌面运行时不可用。请确认 uitars-bridge (port 8765) 已启动。',
+        message: 'UI-TARS 桌面运行时不可用。请确认 uitars-bridge（端口 8765）已启动。',
         detail: health.detail,
       },
     }
@@ -50,11 +50,11 @@ async function desktopType(args, context = {}) {
 
 register({
   name: 'desktop_type',
-  description: 'Type text at the current keyboard focus on the desktop. Use this after clicking into a text field to input content. Args: text (required) — the exact text to type.',
+  description: '在桌面当前键盘焦点处输入文本。通常先点击输入框，再调用此工具输入内容。参数：text（必填）表示要输入的完整文本。',
   parameters: {
     type: 'object',
     properties: {
-      text: { type: 'string', description: 'The exact text to type at the current focus.' },
+      text: { type: 'string', description: '要在当前焦点处输入的完整文本。' },
     },
     required: ['text'],
   },

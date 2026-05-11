@@ -4,9 +4,34 @@ const { generateDocx } = require('../services/docxGen')
 const { generatePptx } = require('../services/pptxGen')
 const { store } = require('../store')
 
+function normalizeTextItem(item) {
+  if (item == null) return ''
+  if (typeof item === 'string' || typeof item === 'number') return String(item).trim()
+  return String(item.text || item.content || item.body || item.title || item.heading || '').trim()
+}
+
+function normalizeOutlineHeading(item = {}) {
+  return String(item.heading || item.title || item.name || `章节 ${item.level || ''}`.trim()).trim()
+}
+
+function normalizeOutlineContent(item = {}) {
+  const parts = []
+  for (const key of ['content', 'body', 'text']) {
+    const value = item[key]
+    if (Array.isArray(value)) parts.push(...value.map(normalizeTextItem))
+    else if (value) parts.push(String(value).trim())
+  }
+  for (const key of ['paragraphs', 'bullets', 'points', 'items']) {
+    const value = item[key]
+    if (Array.isArray(value)) parts.push(...value.map(normalizeTextItem))
+    else if (value) parts.push(String(value).trim())
+  }
+  return parts.filter(Boolean).join('\n\n')
+}
+
 async function generateDocxTool({ outline = [], out_path, template }) {
-  const title = outline[0]?.heading || '文档'
-  const sections = outline.map((item) => ({ heading: item.heading || `章节 ${item.level || ''}`.trim(), content: item.content || '' }))
+  const title = outline[0] ? normalizeOutlineHeading(outline[0]) : '文档'
+  const sections = outline.map((item) => ({ heading: normalizeOutlineHeading(item), content: normalizeOutlineContent(item) }))
   const result = await generateDocx({ title, sections, out_path, template })
   if (out_path && result.path !== out_path) { fs.mkdirSync(require('path').dirname(out_path), { recursive: true }); fs.copyFileSync(result.path, out_path) }
   const finalPath = out_path || result.path

@@ -22,7 +22,7 @@ async function detect() {
 async function repair() {
   return {
     runtime: 'browser-use',
-    guidance: '请确保 Python 3.11+ 已安装，并运行：pip install browser-use && playwright install chromium',
+    guidance: '请确认已安装 Python 3.11+，然后运行：pip install browser-use && playwright install chromium',
     installCommand: 'pip install browser-use && playwright install chromium --with-deps',
   }
 }
@@ -30,12 +30,12 @@ async function repair() {
 async function getSetupGuide() {
   return {
     title: '浏览器自动化 (browser-use)',
-    description: 'browser-use 通过 AI 驱动真实浏览器完成网页任务。需要 Python 3.11+ 和 Chromium。',
+    description: 'browser-use 会使用 AI 驱动真实浏览器。它需要 Python 3.11+、Chromium，以及浏览器自动化设置。',
     steps: [
-      '安装 Python 3.11 或更高版本',
+      '安装 Python 3.11 或更高版本。',
       'pip install browser-use',
       'playwright install chromium --with-deps',
-      '在设置页面配置 Doubao vision 模型的 API Key 和 endpoint',
+      '请在设置中配置浏览器自动化 API 密钥、服务地址和模型。',
     ],
   }
 }

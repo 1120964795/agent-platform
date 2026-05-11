@@ -12,7 +12,6 @@ const STATE_LABELS = {
 }
 
 const RUNTIME_LABELS = {
-  qwen: 'Qwen',
   deepseek: 'DeepSeek 备用聊天',
   'open-interpreter': 'Open Interpreter',
   'ui-tars': 'UI-TARS',

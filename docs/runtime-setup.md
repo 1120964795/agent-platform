@@ -7,29 +7,13 @@ DeepSeek-V4 is the primary text model for chat, planning, intent classification,
 Configure:
 
 - DeepSeek API key.
-- Base URL, default `https://api.platform.deepseek.com`.
+- Base URL, default `https://api.deepseek.com`.
 - Chat model, default `deepseek-chat`.
 - Coding model, default `deepseek-coder`.
 
-## Doubao Vision
-
-Doubao 1.5 vision is consumed by `server/uitars-bridge` for desktop screen control through UI-TARS.
-
-Default Volcengine Ark endpoint:
-
-```text
-https://ark.cn-beijing.volces.com/api/v3
-```
-
-Configure:
-
-- Doubao vision API key in `doubaoVisionApiKey`.
-- Doubao model, default `doubao-1-5-thinking-vision-pro-250428`.
-- Screen authorization in AionUi before real desktop input.
-
 ## Open Interpreter
 
-Open Interpreter is external. Do not copy its AGPL source into this repository. AionUi launches the managed `server/oi-bridge` sidecar on `127.0.0.1:8756`.
+Open Interpreter is external. Do not copy its AGPL source into this repository. AionUi launches the managed sidecar on `127.0.0.1:8756`.
 
 Recommended setup:
 
@@ -47,14 +31,13 @@ Body protocol: `aionui.open-interpreter.v1`.
 
 ## UI-TARS
 
-UI-TARS is the desktop screen-control runtime. AionUi launches `server/uitars-bridge` on `127.0.0.1:8765` and injects Doubao Volcengine Ark settings.
+UI-TARS is the desktop screen-control runtime. AionUi launches `server/uitars-bridge` on `127.0.0.1:8765`.
 
 Recommended setup:
 
-1. Configure `doubaoVisionApiKey`.
-2. Keep `doubaoVisionEndpoint` at the default unless your Ark deployment differs.
-3. Enable screen authorization only for safe visible screens.
-4. Test observe, click proposal, keyboard proposal, and emergency stop.
+1. Enable screen authorization only for safe visible screens.
+2. Test observe, click proposal, keyboard proposal, and emergency stop.
+3. Keep desktop input behind AionUi policy and confirmation prompts.
 
 Endpoint contract:
 
@@ -74,20 +57,20 @@ Browser-use is a Python-based browser automation runtime. AionUi launches `serve
 2. Ensure Python is on PATH (verify with `python --version`)
 3. Install browser-use: `pip install browser-use`
 4. Install Playwright browsers: `playwright install chromium`
-5. (Optional) Install uv for faster package management: `pip install uv`
+5. Configure Browser Use API key, endpoint, and model in Settings
 
 ### Recommended setup
 
 1. Verify Python 3.11+: `python --version`
 2. Install browser-use: `pip install browser-use`
 3. Install browsers: `playwright install chromium`
-4. Configure vision model API key for LiteLLM (browser-use uses this internally)
-5. Run Models/Runtimes health check — AionUi auto-detects Python and browser-use readiness
-6. Test with a simple `browser_navigate` or `browser_snapshot` before using `browser_task`
+4. Run Models/Runtimes health check. AionUi auto-detects Python and browser-use readiness.
+5. Test with a simple browser task before using richer automation.
 
 ### Detection
 
 AionUi automatically detects:
+
 - Python 3.11+ installation and path
 - uv availability (optional acceleration)
 - browser-use package installation

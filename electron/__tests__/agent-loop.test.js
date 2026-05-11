@@ -47,32 +47,12 @@ test('no tool calls → returns immediately', async () => {
   expect(deepseek).toBeDefined()
 })
 
-test('Doubao model aliases use configured Ark endpoint model from settings', () => {
-  const doubao = { chat: vi.fn() }
+test('removed Doubao aliases fall back to DeepSeek provider', () => {
+  const deepseek = { chat: vi.fn() }
 
-  expect(getProvider('doubao-vision', { doubao })).toEqual({ model: undefined, chat: doubao.chat })
-  expect(getProvider('doubao-seed-1-6-vision', { doubao })).toEqual({ model: undefined, chat: doubao.chat })
-  expect(getProvider('ep-20260510143244-hjcjf', { doubao })).toEqual({ model: 'ep-20260510143244-hjcjf', chat: doubao.chat })
-})
-
-test('runTurn sends Doubao alias without overriding configured Ark endpoint model', async () => {
-  const doubao = {
-    chat: vi.fn(async ({ model }) => ({
-      content: `model:${model || 'configured'}`,
-      assistant_message: { role: 'assistant', content: `model:${model || 'configured'}` },
-      tool_calls: []
-    }))
-  }
-  const tools = { getAgentLoopToolSchemas: vi.fn(() => []) }
-  const policy = mockPolicy({})
-
-  const result = await runTurn(
-    { messages: [{ role: 'user', content: 'hi' }], model: 'doubao-vision' },
-    { doubao, tools, policy }
-  )
-
-  expect(doubao.chat).toHaveBeenCalledWith(expect.objectContaining({ model: undefined }))
-  expect(result.finalText).toBe('model:configured')
+  expect(getProvider('doubao-vision', { deepseek })).toEqual({ model: 'deepseek-chat', chat: deepseek.chat })
+  expect(getProvider('doubao-seed-1-6-vision', { deepseek })).toEqual({ model: 'deepseek-chat', chat: deepseek.chat })
+  expect(getProvider('ep-20260510143244-hjcjf', { deepseek })).toEqual({ model: 'deepseek-chat', chat: deepseek.chat })
 })
 
 test('single tool call → executed → result fed back → finishes', async () => {
@@ -517,7 +497,7 @@ test('forcedSkill load failure stops before model and browser work', async () =>
     { deepseek, tools, policy }
   )
 
-  expect(result.finalText).toBe('Unable to load forced skill superpowers: missing skill')
+  expect(result.finalText).toBe('无法加载指定技能 superpowers：missing skill')
   expect(deepseek.chat).not.toHaveBeenCalled()
   expect(tools.execute).toHaveBeenCalledTimes(1)
   expect(tools.execute).toHaveBeenCalledWith('load_skill', { name: 'superpowers' }, expect.any(Object))
@@ -564,7 +544,7 @@ test('forcedSkill already_loaded without prior skill history stops before model 
   )
 
   expect(first.finalText).toBe('First done.')
-  expect(result.finalText).toBe('Unable to load forced skill superpowers: cached skill content is unavailable.')
+  expect(result.finalText).toBe('无法加载指定技能 superpowers：缓存的技能内容不可用。')
   expect(deepseek.chat).toHaveBeenCalledTimes(1)
   expect(tools.execute).toHaveBeenCalledWith('load_skill', { name: 'superpowers' }, expect.any(Object))
 })

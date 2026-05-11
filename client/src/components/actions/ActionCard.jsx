@@ -13,6 +13,38 @@ const STATUS_LABELS = {
   cancelled: '已取消'
 }
 
+const RUNTIME_LABELS = {
+  deepseek: 'DeepSeek',
+  'browser-use': '浏览器自动化',
+  'ui-tars': 'UI-TARS',
+  'aionui-dry-run': '演示模式'
+}
+
+const ACTION_TYPE_LABELS = {
+  'shell.command': 'Shell 命令',
+  'file.read': '读取文件',
+  'file.write': '写入文件',
+  'file.delete': '删除文件',
+  'file.move': '移动文件',
+  'code.execute': '执行代码',
+  'runtime.setup': '运行时设置',
+  'runtime.start': '启动运行时',
+  'runtime.stop': '停止运行时',
+  'screen.observe': '查看屏幕',
+  'screen.region.select': '选择屏幕区域',
+  'mouse.move': '移动鼠标',
+  'mouse.click': '鼠标点击',
+  'keyboard.type': '键盘输入',
+  'keyboard.shortcut': '键盘快捷键',
+  'web.navigate': '网页导航',
+  'web.observe': '查看网页',
+  'web.click': '网页点击',
+  'web.type': '网页输入',
+  'web.query': '网页查询',
+  'output.open': '打开输出',
+  'audit.export': '导出审计'
+}
+
 function payloadText(payload) {
   if (!payload || Object.keys(payload).length === 0) return ''
   return JSON.stringify(payload, null, 2)
@@ -21,6 +53,8 @@ function payloadText(payload) {
 export default function ActionCard({ action, onApprove, onDeny, onCancel, compact = false }) {
   const risk = action.risk || action.riskLevel || 'medium'
   const status = action.status || 'proposed'
+  const runtimeLabel = RUNTIME_LABELS[action.runtime] || action.runtime || '运行时'
+  const typeLabel = ACTION_TYPE_LABELS[action.type] || action.type || '动作'
   const canConfirmHighRisk = risk === 'high' && status === 'pending' && onApprove && onDeny
   const canCancelRunning = (risk === 'low' || risk === 'medium') && status === 'running' && onCancel
   const borderClass = risk === 'high' && status === 'pending'
@@ -40,10 +74,10 @@ export default function ActionCard({ action, onApprove, onDeny, onCancel, compac
     <div className={`rounded-md bg-[color:var(--bg-secondary)] p-3 ${borderClass}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-semibold truncate">{action.title || action.type}</div>
+          <div className="text-sm font-semibold truncate">{action.title || typeLabel}</div>
           <div className="mt-1 flex items-center gap-1 text-xs text-[color:var(--text-muted)]">
             {status === 'running' && <Loader2 size={12} className="animate-spin" />}
-            <span>{action.runtime} · {action.type} · {statusText}</span>
+            <span>{runtimeLabel} · {typeLabel} · {statusText}</span>
           </div>
         </div>
         <RiskBadge risk={risk} />
