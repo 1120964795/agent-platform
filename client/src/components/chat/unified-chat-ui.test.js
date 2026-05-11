@@ -25,7 +25,8 @@ describe('unified chat UI wiring', () => {
 
     expect(source).toContain('export default function ChatArea({ conversationId })')
     expect(source).toContain('parseSkillCommandLine(text, skills)')
-    expect(source).toContain('sendUserMessage(messageText, pluginMode ===')
+    expect(source).toContain('shouldRouteToDesktopTask')
+    expect(source).toContain("if (pluginMode === 'desktop') setPluginMode(null)")
     expect(source).toContain('forcedSkill')
     expect(source).not.toContain('sendAgentMessage')
     expect(source).not.toContain('onModeChange')

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useChat } from '../../hooks/useChat.js'
 import { listSkills } from '../../lib/api.js'
 import { parseSkillCommandLine } from '../../lib/commands.js'
+import { shouldRouteToDesktopTask } from '../../lib/desktopIntent.js'
 import MessageList from './MessageList.jsx'
 import InputBar from './InputBar.jsx'
 import { loadModel } from './ModelSelector.jsx'
@@ -29,10 +30,13 @@ export default function ChatArea({ conversationId }) {
   function handleSend(text) {
     const parsed = parseSkillCommandLine(text, skills)
     const messageText = parsed?.message || text
-    sendUserMessage(messageText, pluginMode === 'browser' ? 'browser-use' : selectedModel, {
-      pluginMode,
+    const wantsDesktop = pluginMode === 'desktop' && shouldRouteToDesktopTask(messageText)
+    const nextPluginMode = wantsDesktop ? 'desktop' : (pluginMode === 'browser' ? 'browser' : null)
+    sendUserMessage(messageText, nextPluginMode === 'browser' ? 'browser-use' : selectedModel, {
+      pluginMode: nextPluginMode,
       forcedSkill: parsed?.forcedSkill || null
     })
+    if (pluginMode === 'desktop') setPluginMode(null)
   }
 
   return (
