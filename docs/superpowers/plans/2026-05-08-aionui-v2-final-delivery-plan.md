@@ -1,10 +1,10 @@
-# AionUi V2 Final Delivery Implementation Plan
+# 司南 V2 Final Delivery Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build AionUi V2 from `origin/main` into a final Windows desktop release where Qwen plans tasks, Open Interpreter executes command/file/code work, UI-TARS performs screen/mouse/keyboard operations, and AionUi controls permissions, confirmations, safety policy, runtime setup, logs, and packaging.
+**Goal:** Build 司南 V2 from `origin/main` into a final Windows desktop release where Qwen plans tasks, Open Interpreter executes command/file/code work, UI-TARS performs screen/mouse/keyboard operations, and 司南 controls permissions, confirmations, safety policy, runtime setup, logs, and packaging.
 
-**Architecture:** AionUi is the control plane. The renderer shows chat, control center, runtime setup, pending approvals, audit logs, and outputs. Electron main owns model routing, task orchestration, action policy, audit logging, runtime bootstrapping, and adapters. Qwen is the only Phase 1 model allowed to produce execution plans and action proposals; Open Interpreter and UI-TARS are default product capabilities but run through managed adapters and cannot bypass AionUi policy.
+**Architecture:** 司南 is the control plane. The renderer shows chat, control center, runtime setup, pending approvals, audit logs, and outputs. Electron main owns model routing, task orchestration, action policy, audit logging, runtime bootstrapping, and adapters. Qwen is the only Phase 1 model allowed to produce execution plans and action proposals; Open Interpreter and UI-TARS are default product capabilities but run through managed adapters and cannot bypass 司南 policy.
 
 **Tech Stack:** Electron 33, React/Vite/Tailwind, Node.js CommonJS main process, Vitest, Qwen hosted OpenAI-compatible API through Alibaba Cloud Model Studio or DashScope-compatible endpoint, optional DeepSeek plain-chat fallback, managed external Open Interpreter sidecar, managed UI-TARS Desktop/SDK/fork runtime, JSONL audit storage, Windows electron-builder NSIS packaging.
 
@@ -23,7 +23,7 @@ Execution rules:
 - Run the exact verification listed for each task.
 - Do not copy large code from `dev`; only cherry-pick small ideas after reading them.
 - Do not vendor Open Interpreter AGPL source into this repository.
-- Keep every Open Interpreter and UI-TARS action behind AionUi's action broker.
+- Keep every Open Interpreter and UI-TARS action behind 司南's action broker.
 - When an external runtime is missing, implement dry-run and setup guidance instead of failing the app.
 
 ## 1. Confirmed Product Decisions
@@ -31,8 +31,8 @@ Execution rules:
 - Qwen is the primary model for task planning, action intent, and coding reasoning.
 - Recommended hosted defaults: `qwen-max-latest` for general planning and `qwen3-coder-plus` or available Qwen3-Coder endpoint for code-heavy tasks.
 - DeepSeek is optional plain-chat fallback only.
-- Open Interpreter is a default AionUi execution feature, integrated as a managed external sidecar or external fork/patch set. Do not place Open Interpreter AGPL source inside this repository.
-- UI-TARS is a default AionUi screen-control feature. UI-TARS Desktop is Apache-2.0, so source-level adaptation, fork maintenance, or adapter-service integration is allowed with notices preserved.
+- Open Interpreter is a default 司南 execution feature, integrated as a managed external sidecar or external fork/patch set. Do not place Open Interpreter AGPL source inside this repository.
+- UI-TARS is a default 司南 screen-control feature. UI-TARS Desktop is Apache-2.0, so source-level adaptation, fork maintenance, or adapter-service integration is allowed with notices preserved.
 - High-risk actions always require explicit confirmation.
 - The old Office generator, diagnosis OCR/UIA/rule detector, experience library, heavy workflow system, and project indexing are not final V2 core features.
 
@@ -94,7 +94,7 @@ flowchart LR
 Non-negotiable invariant:
 
 - The model proposes actions.
-- AionUi validates and classifies actions.
+- 司南 validates and classifies actions.
 - The user approves risky actions.
 - Adapters execute approved actions.
 - Audit log records everything.
@@ -235,7 +235,7 @@ Create renderer modules:
 Modify existing renderer modules:
 
 - `client/src/components/layout/RightDrawer.jsx`: replace old side tabs with Control, Models/Runtimes, Logs, Outputs, Settings.
-- `client/src/components/layout/Sidebar.jsx`: rename product to AionUi.
+- `client/src/components/layout/Sidebar.jsx`: rename product to 司南.
 - `client/src/components/layout/TopBar.jsx`: add execution mode and emergency stop state.
 - `client/src/components/chat/ChatArea.jsx`: show action planning and action progress.
 - `client/src/components/chat/MessageList.jsx`: render action cards.
@@ -319,7 +319,7 @@ Acceptance:
 - Modify: `package.json`
 - Test: `electron/__tests__/packaging.test.js`
 
-- [ ] Rename user-facing product identity to AionUi.
+- [ ] Rename user-facing product identity to 司南.
 - [ ] Replace document-generator/student-assistant language with control-plane language.
 - [ ] Keep package name stable unless electron-builder requires a new product name.
 - [ ] Run:
@@ -338,7 +338,7 @@ git commit -m "docs: define aionui v2 product identity"
 
 Acceptance:
 
-- The first screen and docs describe Qwen + Open Interpreter + UI-TARS + AionUi responsibilities.
+- The first screen and docs describe Qwen + Open Interpreter + UI-TARS + 司南 responsibilities.
 
 ### Task 4: Add Model Router And Qwen Provider
 
@@ -793,7 +793,7 @@ Acceptance:
 - Modify: `client/src/hooks/useChat.js`
 
 - [ ] Add mode switch: Chat / Execute.
-- [ ] In Execute mode, show that Qwen will plan and AionUi will ask before risky actions.
+- [ ] In Execute mode, show that Qwen will plan and 司南 will ask before risky actions.
 - [ ] Render action cards inside messages.
 - [ ] Surface blocked and denied action explanations.
 - [ ] Keep normal chat usable without configured runtimes.
@@ -904,7 +904,7 @@ git commit -m "docs: document open interpreter integration"
 
 Acceptance:
 
-- User can enable Open Interpreter as a default AionUi execution capability.
+- User can enable Open Interpreter as a default 司南 execution capability.
 
 ### Task 21: Real UI-TARS Integration
 
@@ -935,7 +935,7 @@ git commit -m "docs: document ui tars integration"
 
 Acceptance:
 
-- User can enable UI-TARS as a default AionUi screen-control capability.
+- User can enable UI-TARS as a default 司南 screen-control capability.
 
 ### Task 22: End-To-End Dry-Run Demo
 
@@ -944,7 +944,7 @@ Acceptance:
 - Create: `docs/demo-script.md`
 - Modify: `README.md`
 
-- [ ] Add dry-run demo script: ask AionUi to inspect a fake screen, propose a click, run a fake command, write a fake output, and export logs.
+- [ ] Add dry-run demo script: ask 司南 to inspect a fake screen, propose a click, run a fake command, write a fake output, and export logs.
 - [ ] Verify demo works with no Qwen key by using deterministic dry-run model mode.
 - [ ] Verify demo works with Qwen configured by using real planning and dry-run runtimes.
 - [ ] Run:
@@ -1064,7 +1064,7 @@ git push -u origin codex/aionui-v2
 - [ ] PR title:
 
 ```text
-feat: deliver AionUi V2 control-plane agent
+feat: deliver 司南 V2 control-plane agent
 ```
 
 - [ ] PR body must include:
@@ -1072,7 +1072,7 @@ feat: deliver AionUi V2 control-plane agent
 ```markdown
 ## Summary
 - Adds Qwen-first task planning and action proposal flow.
-- Adds AionUi action broker, policy engine, confirmations, audit logs, emergency stop.
+- Adds 司南 action broker, policy engine, confirmations, audit logs, emergency stop.
 - Adds default Open Interpreter execution runtime integration as managed external sidecar.
 - Adds default UI-TARS screen-control runtime integration.
 - Adds Control, Models/Runtimes, Logs, Outputs, and updated Settings UI.
@@ -1119,7 +1119,7 @@ The project is final when all are true:
 - User can run normal chat.
 - User can start an execution task.
 - Qwen creates action proposals.
-- AionUi displays proposed actions.
+- 司南 displays proposed actions.
 - User can approve or deny risky actions.
 - Open Interpreter executes approved command/file/code actions.
 - UI-TARS executes approved screen/mouse/keyboard actions.
@@ -1170,7 +1170,7 @@ The project is final when all are true:
 Coverage:
 
 - Qwen model choice is implemented by Tasks 4, 5, 13, 14, and 17.
-- AionUi safety, confirmation, logging, and emergency stop are implemented by Tasks 6, 7, 8, 12, 15, 16, and 19.
+- 司南 safety, confirmation, logging, and emergency stop are implemented by Tasks 6, 7, 8, 12, 15, 16, and 19.
 - Open Interpreter default capability is implemented by Tasks 9, 12, 13, 14, 20, and 24.
 - UI-TARS default capability is implemented by Tasks 10, 12, 13, 14, 21, and 24.
 - Dry-run and final demonstrability are implemented by Tasks 11 and 22.
@@ -1179,7 +1179,7 @@ Coverage:
 Ambiguity removal:
 
 - Open Interpreter is default product functionality but external runtime source.
-- UI-TARS can be source-adapted but remains behind AionUi policy.
+- UI-TARS can be source-adapted but remains behind 司南 policy.
 - DeepSeek is not an execution brain.
 - `main` is the base; `dev` is reference only.
 

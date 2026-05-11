@@ -2,7 +2,7 @@
 
 > **For codex (executor):** Execute by Phase. Each phase commits independently. Spec: `docs/superpowers/specs/2026-05-09-agent-loop-with-browser-use-design.md`. **This is a major rebuild — Phase 0 deletes deprecated code, Phases 1-6 build the new architecture, Phase 7 verifies acceptance.**
 
-**Goal:** Replace AionUi's plan-execute split with a single chat surface backed by an agent loop using DeepSeek-V4 native tool calling. Tools route to browser-use (browser), uitars-bridge (desktop), oi-bridge (shell/file), and a new skill registry. Drop Midscene Bridge Mode entirely.
+**Goal:** Replace 司南's plan-execute split with a single chat surface backed by an agent loop using DeepSeek-V4 native tool calling. Tools route to browser-use (browser), uitars-bridge (desktop), oi-bridge (shell/file), and a new skill registry. Drop Midscene Bridge Mode entirely.
 
 **Branch:** `feat/agent-loop-browser-use` from `main`.
 
@@ -94,7 +94,7 @@ const MAX_STEPS = 30
 
 function buildSystemPrompt() {
   return [
-    'You are AionUi, a desktop AI agent. Help the user via tool calls.',
+    'You are 司南, a desktop AI agent. Help the user via tool calls.',
     'You have tools for: browser tasks, desktop screen/mouse/keyboard, local shell/files/code, and user-installed skills.',
     'Loop: think, call a tool when needed, observe its result, continue. When the task is complete or you need user input, reply with text and stop.',
     'Do not narrate every internal thought. Use tools concisely.'

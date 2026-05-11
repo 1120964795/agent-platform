@@ -1,4 +1,4 @@
-# AionUi V2 Test Report
+# 司南 V2 Test Report
 
 Date: 2026-05-08
 
@@ -20,10 +20,10 @@ Result: passed.
 npm run electron:build
 ```
 
-Result: passed. Output included `dist-electron\AionUi Setup 0.1.0.exe`.
+Result: passed. Output included `dist-electron\司南 Setup 0.1.0.exe`.
 
 ```text
-dist-electron\win-unpacked\AionUi.exe
+dist-electron\win-unpacked\司南.exe
 ```
 
 Result: launch smoke passed after the final package build. The packaged app process started and stayed alive for the smoke window, then was closed.
@@ -56,7 +56,7 @@ Environment: Windows 11 x64 dev machine, Node.js/npm workspace, Electron Builder
 |---|---|---|
 | `npm test` | PASS | 40 test files, 160 tests |
 | `npm run build:client` | PASS | Vite production build completed |
-| `npm run electron:build` | PASS | Generated `dist-electron\AionUi Setup 0.1.0.exe` |
+| `npm run electron:build` | PASS | Generated `dist-electron\司南 Setup 0.1.0.exe` |
 
 Packaged resource verification: PASS. `dist-electron\win-unpacked\resources\server\` contains `oi-bridge`, `uitars-bridge`, and `midscene-bridge`.
 

@@ -441,7 +441,7 @@ git commit: `feat(client): add file attachment button in InputBar`
   "name": "agentdev-lite",
   "version": "0.1.0",
   "private": true,
-  "description": "Lightweight AionUi-style agent app",
+  "description": "Lightweight 司南-style agent app",
   "main": "electron/main.js",
   "scripts": {
     "setup": "npm install && npm --prefix client install && npm --prefix server install",

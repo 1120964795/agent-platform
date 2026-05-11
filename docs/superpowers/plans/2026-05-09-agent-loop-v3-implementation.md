@@ -208,7 +208,7 @@ module.exports = { registerTool, unregisterTool, catalog, invoke, clear, TOOL_NA
   - Call `sidecarTokens.generateAll()` on `start()`
   - For each spawn, set `SIDECAR_TOKEN: sidecarTokens.get(key)` env
   - Call `sidecarTokens.clear()` on `stop()` (and from Electron `before-quit`)
-  - Health check sends `X-AionUi-Token` header
+  - Health check sends `X-司南-Token` header
 
 ### 2.2 sidecar middleware
 
@@ -230,7 +230,7 @@ module.exports = { registerTool, unregisterTool, catalog, invoke, clear, TOOL_NA
 - [ ] Create `electron/services/tools/oiTools.js`:
   - Registers `shell_command`, `file_read`, `file_write`, `code_execute`
   - Each `invoke` runs `toolPolicy.evaluateToolCall` first; if blocked/needs-approval, the dispatcher / agent loop already handled it (this is a defense-in-depth re-check)
-  - HTTP POST to `http://127.0.0.1:8756/execute` with `X-AionUi-Token` header
+  - HTTP POST to `http://127.0.0.1:8756/execute` with `X-司南-Token` header
   - signal propagated to fetch
   - Return result text (extracted from response.metadata)
 
@@ -413,7 +413,7 @@ module.exports = { registerTool, unregisterTool, catalog, invoke, clear, TOOL_NA
 ## Phase 9: Acceptance — clean Windows VM
 
 - [ ] Provision clean Windows 11 x64 VM with no Python, no Node user state.
-- [ ] Install AionUi via NSIS installer.
+- [ ] Install 司南 via NSIS installer.
 - [ ] Configure DeepSeek + Doubao API keys via Welcome dialog.
 - [ ] Run all 12 §10.1 scenarios + 7 §10.2 failure modes from spec.
 - [ ] Append PASS/FAIL with notes to `docs/test-report.md` under `## 2026-05-09 Agent Loop v3 Acceptance`.

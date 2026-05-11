@@ -104,6 +104,14 @@ describe('unified chat UI wiring', () => {
     expect(settings).toContain('https://zenmux.ai/')
   })
 
+  test('SettingsPage can reopen the API setup guide', () => {
+    const settings = readProjectFile('client/src/pages/SettingsPage.jsx')
+
+    expect(settings).toContain('API 配置向导')
+    expect(settings).toContain('openWelcomeGuide')
+    expect(settings).toContain("new CustomEvent('aionui:open-welcome')")
+  })
+
   test('SettingsPage keeps masked API key state visible after save or reload', () => {
     const settings = readProjectFile('client/src/pages/SettingsPage.jsx')
 

@@ -1,8 +1,8 @@
-# AionUi Developer Guide
+# 司南 Developer Guide
 
 ## Architecture
 
-AionUi uses an agent-loop architecture:
+司南 uses an agent-loop architecture:
 
 1. **Agent Loop** (`electron/services/agentLoop.js`) — Drives the conversation: sends messages to the model, receives tool calls, evaluates policy, requests user approval, executes tools, returns results.
 2. **Tool Registry** (`electron/tools/index.js`) — All available tools register here via `register(schema, handler)`. Tools are auto-discovered by the agent loop.

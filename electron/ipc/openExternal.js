@@ -3,6 +3,10 @@ const ALLOWED_PREFIXES = [
   'https://bailian.console.aliyun.com',
   'https://console.volcengine.com',
   'https://chromewebstore.google.com',
+  'https://zenmux.ai',
+  'https://www.python.org',
+  'https://docs.openinterpreter.com',
+  'https://github.com/g-sleeper/agent-platform',
 ]
 
 function matchesAllowedPrefix(url, prefix) {

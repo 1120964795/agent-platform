@@ -1,4 +1,4 @@
-# AionUi V2 Security Policy
+# 司南 V2 Security Policy
 
 ## Execution Invariant
 

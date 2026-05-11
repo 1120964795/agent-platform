@@ -7,7 +7,7 @@
 
 ## 0. Why this exists
 
-After three rounds of independent code review, AionUi's self-built agent
+After three rounds of independent code review, 司南's self-built agent
 loop kept hitting issues that bytedance has already solved in their open
 project. Continuing to self-build is reinventing the wheel poorly.
 
@@ -69,7 +69,7 @@ The desktop app is a thin shell over the framework.
 **Choose: fresh repo, vendor their code**, not a true fork.
 
 Reasons:
-- You want to brand it as AionUi, not "UI-TARS-desktop my-build"
+- You want to brand it as 司南, not "UI-TARS-desktop my-build"
 - Your customizations may diverge significantly (skills, OI integration, Chinese-language UX)
 - License (Apache-2.0) requires attribution but allows this
 
@@ -86,15 +86,15 @@ manually rebase against their main if needed.
 | Browser agent (hybrid) | ✅ keep | |
 | MCP tool integration | ✅ keep | |
 | Event Stream + history | ✅ keep | |
-| Settings UI | ✅ keep, customize copy/strings to AionUi branding | |
+| Settings UI | ✅ keep, customize copy/strings to 司南 branding | |
 | Their tray/menu/window code | ✅ keep | |
 | Anthropic Claude provider | ⚠️ keep but unused | |
 | Their default models | replace defaults with your Doubao endpoint IDs | |
 | Their starter/example skills | ✅ keep as reference | |
 
-### 4.3 What from current AionUi to port forward
+### 4.3 What from current 司南 to port forward
 
-| AionUi current | Migration |
+| 司南 current | Migration |
 |---|---|
 | `electron/skills/loader.js` + `resources/skills/*/SKILL.md` | port — wrap each SKILL.md as an MCP tool that returns the markdown content; agent-tars consumes naturally |
 | `electron/services/openInterpreter/` + `server/oi-bridge/` | port — register `run_shell_command`, `read_file`, `write_file`, `code_execute` as custom agent-tars tools that POST to the existing oi-bridge sidecar |
@@ -105,12 +105,12 @@ manually rebase against their main if needed.
 | `electron/services/uiTars/` and `server/uitars-bridge/` | DROP — UI-TARS-desktop has native gui-agent |
 | `electron/services/visionPlanner.js`, `actionPlanner.js`, `agentLoop.js`, `taskOrchestrator.js` | DROP — agent-tars replaces |
 
-**Net: ~70% of current AionUi code retires. Only OI integration and SKILL.md system port forward as application-layer extensions.**
+**Net: ~70% of current 司南 code retires. Only OI integration and SKILL.md system port forward as application-layer extensions.**
 
 ## 5. Brand + identity
 
 Customizable in fork:
-- App name `AionUi` (in package.json, electron-builder config, app menu)
+- App name `司南` (in package.json, electron-builder config, app menu)
 - Icon (replace default UI-TARS icon with your asset)
 - Default model selection (Doubao seed-1.6-vision endpoint pre-filled)
 - Welcome dialog content (Chinese-first, your 3-tier setup wizard)
@@ -126,14 +126,14 @@ Required by Apache-2.0:
 
 The fork is "done" when:
 
-1. **Builds**: `pnpm install && pnpm build:dist && pnpm make:win` produces an AionUi.exe NSIS installer.
+1. **Builds**: `pnpm install && pnpm build:dist && pnpm make:win` produces an 司南.exe NSIS installer.
 2. **Runs**: clean Windows VM install → app launches → Welcome dialog appears → user enters DeepSeek + Doubao keys → Settings panel reflects values.
 3. **Browser task works**: "用浏览器打开 example.com 告诉我标题" → agent-tars completes the task using browser agent → result text contains "Example Domain".
 4. **Desktop task works**: "看一下当前屏幕" → desktop_observe equivalent fires → screenshot captured.
 5. **Shell tool**: ask "运行 dir 看下当前目录" → run_shell_command via oi-bridge → directory listing returned.
 6. **SKILL.md skill**: ask "use file-explorer skill to list my Downloads" → SKILL.md content loaded into context → agent uses it.
 7. **History**: chat 5 messages, restart, conversation reloads.
-8. **Branding**: app name, icon, splash all show AionUi.
+8. **Branding**: app name, icon, splash all show 司南.
 9. **Default tier-1 setup works**: Doubao key configured, browser_task runs without further setup.
 
 ## 7. Red lines

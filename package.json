@@ -5,7 +5,7 @@
   "workspaces": [
     "server/uitars-bridge"
   ],
-  "description": "AionUi V2 control-plane agent desktop app",
+  "description": "司南 V2 control-plane agent desktop app",
   "main": "electron/main.js",
   "scripts": {
     "setup": "npm install && npm --prefix client install",
@@ -27,7 +27,7 @@
   },
   "build": {
     "appId": "com.agentdev.lite",
-    "productName": "AionUi",
+    "productName": "司南",
     "asar": false,
     "directories": {
       "output": "dist-electron"
@@ -69,6 +69,7 @@
       "icon": null
     },
     "nsis": {
+      "include": "build/installer.nsh",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,

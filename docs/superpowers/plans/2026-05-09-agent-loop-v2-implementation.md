@@ -27,7 +27,7 @@
 
 - [ ] Create `scripts/spikes/spike-browser-use/`:
   - `requirements.txt` with pinned versions
-  - `spike.py` — instantiate browser-use Agent with `ChatOpenAI(base_url=Doubao endpoint, api_key=…, model=ep-…)`, run goal "open baidu.com and search 'AionUi'", print final URL + screenshot bytes.
+  - `spike.py` — instantiate browser-use Agent with `ChatOpenAI(base_url=Doubao endpoint, api_key=…, model=ep-…)`, run goal "open baidu.com and search '司南'", print final URL + screenshot bytes.
   - `README.md` documenting Python version, install steps actually used.
 - [ ] Run; capture: real browser-use API surface (Agent class signature, action result fields, cancellation API, screenshot output format). Update spec §5 with verified facts.
 - [ ] Commit. **Block Phase 3 until this passes.**
@@ -35,7 +35,7 @@
 ### Spike C — sidecar token + Origin gate
 
 - [ ] Create `scripts/spikes/spike-sidecar-auth.js`. ~60 lines:
-  - Spawn a tiny Express server on 127.0.0.1:9999 with `X-AionUi-Token` middleware and `Origin` rejection.
+  - Spawn a tiny Express server on 127.0.0.1:9999 with `X-司南-Token` middleware and `Origin` rejection.
   - Test: request without token → 401. Request with wrong token → 401. Request with `Origin: http://evil.com` → 403. Request with no Origin (Node fetch default) and correct token → 200.
 - [ ] Commit.
 
@@ -193,7 +193,7 @@ module.exports = { generateTokens, persistTokens, getToken }
 - [ ] Modify `electron/services/bridgeSupervisor.js`:
   - Generate tokens for `oi`, `uitars`, `browser-use` at supervisor.start().
   - Inject `SIDECAR_TOKEN` env var per spawn.
-  - Health check sends `X-AionUi-Token` header.
+  - Health check sends `X-司南-Token` header.
 
 - [ ] Modify each existing sidecar (`server/oi-bridge/index.js`, `server/uitars-bridge/index.js`):
   - On startup, read `process.env.SIDECAR_TOKEN`. If empty → exit with error.
@@ -213,7 +213,7 @@ module.exports = { generateTokens, persistTokens, getToken }
 - [ ] Create `electron/services/tools/oiTools.js`:
   - Registers `shell_command`, `file_read`, `file_write`, `code_execute` via `toolDispatcher.registerTool`.
   - Each tool's `invoke` POSTs to `http://127.0.0.1:8756/execute` with the new token header.
-  - Translates from agent tool args to existing AionUi protocol shape, returns parsed result text.
+  - Translates from agent tool args to existing 司南 protocol shape, returns parsed result text.
 
 ### Task 2.3: tool wrappers for uitars-bridge
 
@@ -223,7 +223,7 @@ module.exports = { generateTokens, persistTokens, getToken }
 
 ### Task 2.4: integration smoke test
 
-- [ ] Manual: start AionUi dev mode, run a script that calls agentLoop directly with a mock model that emits a `shell_command` tool call. Verify shell command runs and result returned.
+- [ ] Manual: start 司南 dev mode, run a script that calls agentLoop directly with a mock model that emits a `shell_command` tool call. Verify shell command runs and result returned.
 
 **Phase 2 commit:** `feat(tools): sidecar tokens + oi/uitars wrapped as agent tools`
 
@@ -309,7 +309,7 @@ module.exports = { generateTokens, persistTokens, getToken }
 
 - [ ] `resources/builtin-skills/web-search/skill.json` + `entry.js` (Bing or 百度 API; api key from settings).
 - [ ] `resources/builtin-skills/note-write/skill.json` + `entry.js`.
-- [ ] `resources/builtin-skills/screenshot-save/skill.json` + `entry.js` (calls back to AionUi via a callback IPC for `desktop_observe` — gated by skill permission `desktop`).
+- [ ] `resources/builtin-skills/screenshot-save/skill.json` + `entry.js` (calls back to 司南 via a callback IPC for `desktop_observe` — gated by skill permission `desktop`).
 - [ ] On first run, copy `resources/builtin-skills/*` to `<userData>/skills/`.
 - [ ] Default state for all 3: `enabled: false`. User must opt in.
 
@@ -395,7 +395,7 @@ This is the only phase that deletes things. **Do not start before Phase 9 accept
 ## Phase 9: Acceptance — clean Windows VM
 
 - [ ] Set up clean Windows 11 VM with no Python, no Node-related state.
-- [ ] Install AionUi installer.
+- [ ] Install 司南 installer.
 - [ ] Run scenarios §10.1 (10 happy paths) + §10.2 (7 failure modes) from the spec.
 - [ ] Append results to `docs/test-report.md` under `## 2026-05-09 Agent Loop v2 Acceptance` with PASS/FAIL per item.
 - [ ] If all PASS → push branch, open PR titled `feat: agent loop v2 with browser-use + skills + first-run bootstrap`.

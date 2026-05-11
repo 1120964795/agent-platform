@@ -40,10 +40,10 @@ test('desktop build bundles renderer and skills resources', () => {
   ]))
 })
 
-test('package metadata uses AionUi product identity', () => {
+test('package metadata uses 司南 product identity', () => {
   expect(pkg.name).toBe('agentdev-lite')
-  expect(pkg.description).toContain('AionUi V2')
-  expect(pkg.build.productName).toBe('AionUi')
+  expect(pkg.description).toContain('司南 V2')
+  expect(pkg.build.productName).toBe('司南')
 })
 
 test('main-process runtime modules are production dependencies', () => {
@@ -53,13 +53,43 @@ test('main-process runtime modules are production dependencies', () => {
   }
 })
 
+test('browser-use bridge runtime dependencies are installed by the app installer', () => {
+  const prepareScript = fs.readFileSync(path.join(repoRoot, 'scripts', 'prepare-bridges.js'), 'utf-8')
+  const requirements = fs.readFileSync(path.join(repoRoot, 'server', 'browser-use-bridge', 'requirements.txt'), 'utf-8')
+
+  expect(prepareScript).toContain("'.deps'")
+  expect(prepareScript).not.toContain("['-m', 'pip', 'install'")
+  expect(prepareScript).not.toContain("'--target'")
+  expect(prepareScript).not.toContain("'playwright', 'install', 'chromium'")
+  expect(requirements).toContain('selenium')
+  expect(requirements).toContain('playwright')
+})
+
+test('windows installer runs browser runtime dependency setup after app install', () => {
+  const installerInclude = path.join(repoRoot, 'build', 'installer.nsh')
+  const mainProcess = fs.readFileSync(path.join(repoRoot, 'electron', 'main.js'), 'utf-8')
+
+  expect(pkg.build.nsis.include).toBe('build/installer.nsh')
+  expect(fs.existsSync(installerInclude)).toBe(true)
+  expect(fs.readFileSync(installerInclude, 'utf-8')).toContain('--install-browser-runtime')
+  expect(mainProcess).toContain('--install-browser-runtime')
+})
+
+test('main process wires Python bootstrap detection into setup status', () => {
+  const mainProcess = fs.readFileSync(path.join(repoRoot, 'electron', 'main.js'), 'utf-8')
+
+  expect(mainProcess).toContain("require('./services/pythonBootstrap')")
+  expect(mainProcess).toContain('setBridgeContext({ pythonBootstrap, supervisor })')
+  expect(mainProcess).not.toContain('pythonBootstrap: null')
+})
+
 test('README describes the V2 control plane scope', () => {
   const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf-8')
   const requiredText = [
     'DeepSeek-V4 owns chat, planning, intent classification, and coding reasoning',
     'Doubao 1.5 vision runs desktop screen control through UI-TARS on Volcengine Ark',
     'Open Interpreter remains the managed local runtime',
-    'AionUi owns policy',
+    '司南 owns policy',
     'High-risk actions always require explicit confirmation'
   ]
 

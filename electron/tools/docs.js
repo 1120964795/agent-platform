@@ -23,7 +23,7 @@ async function generatePptxTool({ slides = [], out_path, template }) {
   return { path: finalPath, bytes_written: fs.statSync(finalPath).size, artifact }
 }
 
-register({ name: 'generate_docx', description: '兼容辅助：根据大纲生成 Word DOCX。不会暴露给 AionUi 执行模式。', parameters: { type: 'object', properties: { outline: { type: 'array' }, out_path: { type: 'string' }, template: { type: 'string' } }, required: ['outline'] } }, generateDocxTool)
-register({ name: 'generate_pptx', description: '兼容辅助：根据幻灯片内容生成 PowerPoint PPTX。不会暴露给 AionUi 执行模式。', parameters: { type: 'object', properties: { slides: { type: 'array' }, out_path: { type: 'string' }, template: { type: 'string' } }, required: ['slides'] } }, generatePptxTool)
+register({ name: 'generate_docx', description: '兼容辅助：根据大纲生成 Word DOCX。不会暴露给 司南 执行模式。', parameters: { type: 'object', properties: { outline: { type: 'array' }, out_path: { type: 'string' }, template: { type: 'string' } }, required: ['outline'] } }, generateDocxTool)
+register({ name: 'generate_pptx', description: '兼容辅助：根据幻灯片内容生成 PowerPoint PPTX。不会暴露给 司南 执行模式。', parameters: { type: 'object', properties: { slides: { type: 'array' }, out_path: { type: 'string' }, template: { type: 'string' } }, required: ['slides'] } }, generatePptxTool)
 
 module.exports = { generateDocxTool, generatePptxTool }

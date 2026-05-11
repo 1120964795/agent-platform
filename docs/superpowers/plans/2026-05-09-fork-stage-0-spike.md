@@ -166,7 +166,7 @@ Then **STOP**. Do not start any migration work. Wait for human to read the repor
 
 ## Out of scope for this stage
 
-- Renaming to AionUi
+- Renaming to 司南
 - Porting SKILL.md skills
 - Porting oi-bridge
 - Welcome dialog work

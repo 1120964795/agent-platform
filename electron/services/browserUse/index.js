@@ -1,5 +1,6 @@
 const adapter = require('./adapter')
 const { detect: detectPython, getSetupGuide: getPythonGuide } = require('../pythonBootstrap')
+const { installBrowserRuntime } = require('../pythonRuntimeInstaller')
 
 async function detect() {
   const [health, python] = await Promise.all([
@@ -20,22 +21,25 @@ async function detect() {
 }
 
 async function repair() {
+  const result = installBrowserRuntime()
   return {
     runtime: 'browser-use',
-    guidance: '请确保 Python 3.11+ 已安装，并运行：pip install browser-use && playwright install chromium',
-    installCommand: 'pip install browser-use && playwright install chromium --with-deps',
+    state: 'installed',
+    depsPath: result.depsPath,
+    python: result.python,
+    pythonVersion: result.pythonVersion,
+    installCommand: 'python -m pip install -r server/browser-use-bridge/requirements.txt --target <runtime-deps> && python -m playwright install chromium'
   }
 }
 
 async function getSetupGuide() {
   return {
-    title: '浏览器自动化 (browser-use)',
-    description: 'browser-use 通过 AI 驱动真实浏览器完成网页任务。需要 Python 3.11+ 和 Chromium。',
+    title: 'Browser automation (browser-use)',
+    description: 'browser-use drives a real browser for web tasks. It requires Python 3.11+, Chromium, and the Python packages installed by the app installer.',
     steps: [
-      '安装 Python 3.11 或更高版本',
-      'pip install browser-use',
-      'playwright install chromium --with-deps',
-      '在设置页面配置 Doubao vision 模型的 API Key 和 endpoint',
+      'Run the Windows installer to prepare browser-use, Playwright, Selenium, and Chromium.',
+      'Use Runtime repair if the dependency check still reports missing packages.',
+      'Configure Browser Use API Key, endpoint, and model in Settings.',
     ],
   }
 }

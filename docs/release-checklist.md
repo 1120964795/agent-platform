@@ -1,8 +1,8 @@
-# AionUi V2 Release Checklist
+# 司南 V2 Release Checklist
 
 - [x] Branch created from `origin/main`.
 - [x] Final delivery plan copied into `docs/superpowers/plans/`.
-- [x] Product identity changed to AionUi.
+- [x] Product identity changed to 司南.
 - [x] DeepSeek-V4 model router and provider added.
 - [x] Agent loop, tool registry, and tool policy engine added.
 - [x] Open Interpreter external runtime boundary added.

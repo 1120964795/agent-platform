@@ -58,7 +58,7 @@ After: **DeepSeek-V4 is primary for everything text-shaped**:
 - Code reasoning / generation
 
 Qwen and Doubao **never appear in modelRouter**. They are visual models
-consumed inside their respective bridges, not routed by AionUi.
+consumed inside their respective bridges, not routed by 司南.
 
 ### Settings schema (in `electron/store.js`)
 
@@ -85,9 +85,9 @@ qwenApiKey, qwenBaseUrl, qwenPlannerModel, qwenCodingModel
 
 Replace the V2 product-direction bullet list. New canonical wording:
 
-> AionUi V2 routes work to three Chinese-cloud models, each on its strongest
+> 司南 V2 routes work to three Chinese-cloud models, each on its strongest
 > task: DeepSeek-V4 for chat/planning/coding, Qwen3-VL for browser vision via
-> Midscene, and Doubao 1.5 vision for desktop vision via UI-TARS. AionUi owns
+> Midscene, and Doubao 1.5 vision for desktop vision via UI-TARS. 司南 owns
 > policy, confirmations, audit logging, emergency stop, setup guidance, and run
 > outputs.
 
@@ -136,12 +136,12 @@ sourced from env vars `MIDSCENE_QWEN_ENDPOINT`, `MIDSCENE_QWEN_API_KEY`,
 
 1. Install Chrome extension "Midscene" once (link in USER_MANUAL).
 2. Click the extension icon → "Allow Bridge Connection".
-3. AionUi shows green "Browser ready" in Settings.
+3. 司南 shows green "Browser ready" in Settings.
 4. Web actions now operate on the user's logged-in tab.
 
 ### First-run Welcome / Setup dialog
 
-On first launch (and reopenable from `Settings → 初始设置向导`), AionUi shows a
+On first launch (and reopenable from `Settings → 初始设置向导`), 司南 shows a
 modal with three usage tiers and live ✓/✗ for each dependency:
 
 | Tier | Required | Status detected from |
@@ -180,7 +180,7 @@ must terminate any of them. Each result must show in Run Outputs panel.
    `electron/services/uiTars/protocol.js`, `server/oi-bridge/translator.js`,
    `server/uitars-bridge/translator.js`. They are frozen contracts.
 2. **Do not auto-install Chrome extension.** USER_MANUAL documents the
-   manual install. AionUi only checks `/extension-status`.
+   manual install. 司南 only checks `/extension-status`.
 3. **Bridges bind `127.0.0.1` only.** Verified in tests (already done for
    oi/uitars; replicate for midscene).
 4. **`@midscene/web` API churn risk** — pin exact resolved version. Upgrades

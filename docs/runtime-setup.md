@@ -1,4 +1,4 @@
-# AionUi Runtime Setup
+# 司南 Runtime Setup
 
 ## DeepSeek
 
@@ -25,11 +25,11 @@ Configure:
 
 - Doubao vision API key in `doubaoVisionApiKey`.
 - Doubao model, default `doubao-1-5-thinking-vision-pro-250428`.
-- Screen authorization in AionUi before real desktop input.
+- Screen authorization in 司南 before real desktop input.
 
 ## Open Interpreter
 
-Open Interpreter is external. Do not copy its AGPL source into this repository. AionUi launches the managed `server/oi-bridge` sidecar on `127.0.0.1:8756`.
+Open Interpreter is external. Do not copy its AGPL source into this repository. 司南 launches the managed `server/oi-bridge` sidecar on `127.0.0.1:8756`.
 
 Recommended setup:
 
@@ -47,7 +47,7 @@ Body protocol: `aionui.open-interpreter.v1`.
 
 ## UI-TARS
 
-UI-TARS is the desktop screen-control runtime. AionUi launches `server/uitars-bridge` on `127.0.0.1:8765` and injects Doubao Volcengine Ark settings.
+UI-TARS is the desktop screen-control runtime. 司南 launches `server/uitars-bridge` on `127.0.0.1:8765` and injects Doubao Volcengine Ark settings.
 
 Recommended setup:
 
@@ -66,7 +66,7 @@ Body protocol: `aionui.ui-tars.v1`.
 
 ## Browser Automation (browser-use)
 
-Browser-use is a Python-based browser automation runtime. AionUi launches `server/browser-use-bridge` on `127.0.0.1:8780`.
+Browser-use is a Python-based browser automation runtime. 司南 launches `server/browser-use-bridge` on `127.0.0.1:8780`.
 
 ### Prerequisites
 
@@ -82,12 +82,12 @@ Browser-use is a Python-based browser automation runtime. AionUi launches `serve
 2. Install browser-use: `pip install browser-use`
 3. Install browsers: `playwright install chromium`
 4. Configure vision model API key for LiteLLM (browser-use uses this internally)
-5. Run Models/Runtimes health check — AionUi auto-detects Python and browser-use readiness
+5. Run Models/Runtimes health check — 司南 auto-detects Python and browser-use readiness
 6. Test with a simple `browser_navigate` or `browser_snapshot` before using `browser_task`
 
 ### Detection
 
-AionUi automatically detects:
+司南 automatically detects:
 - Python 3.11+ installation and path
 - uv availability (optional acceleration)
 - browser-use package installation

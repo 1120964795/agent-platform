@@ -8,23 +8,30 @@ function setBridgeContext(ctx) {
 
 const KEY_FIELD_MAP = {
   deepseekKey: 'deepseekApiKey',
-  doubaoKey: 'doubaoVisionApiKey'
+  qwenKey: 'qwenApiKey',
+  doubaoKey: 'doubaoVisionApiKey',
+  browserUseKey: 'browserUseApiKey'
 }
 
 async function computeSetupStatus({ storeRef = store } = {}) {
   const cfg = storeRef.getConfig()
   const deps = {
     deepseekKey: Boolean(cfg.deepseekApiKey),
+    qwenKey: Boolean(cfg.qwenApiKey),
     doubaoKey: Boolean(cfg.doubaoVisionApiKey),
+    browserUseKey: Boolean(cfg.browserUseApiKey),
   }
 
   // Check Python/bridge health (non-blocking)
   try {
     if (typeof pythonBootstrap !== 'undefined' && pythonBootstrap) {
       const pyResult = await pythonBootstrap.detect()
-      deps.python = pyResult.available
-      deps.browserUse = pyResult.browserUseInstalled
-      deps.playwright = pyResult.playwrightInstalled
+      deps.python = Boolean(pyResult.available ?? pyResult.python)
+      deps.browserUse = Boolean(pyResult.browserUseInstalled ?? pyResult.browserUse)
+      deps.playwright = Boolean(pyResult.playwrightInstalled ?? pyResult.playwright)
+      deps.selenium = Boolean(pyResult.seleniumInstalled ?? pyResult.selenium)
+      deps.pythonDepsBundled = Boolean(pyResult.bundledDepsPath)
+      deps.pythonDepsInstalled = Boolean(pyResult.userDepsPath)
     }
   } catch { deps.python = false }
 
@@ -43,8 +50,8 @@ async function computeSetupStatus({ storeRef = store } = {}) {
     },
     browser: {
       label: 'Browser + Desktop automation',
-      requires: ['deepseekKey', 'doubaoKey'],
-      ready: deps.deepseekKey && deps.doubaoKey && deps.python !== false,
+      requires: ['deepseekKey', 'doubaoKey', 'browserUseKey'],
+      ready: Boolean(deps.deepseekKey && deps.doubaoKey && deps.browserUseKey && deps.python && deps.browserUse && deps.playwright && deps.selenium),
       recommended: true
     },
   }
@@ -53,7 +60,9 @@ async function computeSetupStatus({ storeRef = store } = {}) {
     tiers,
     helpLinks: {
       deepseekKey: 'https://platform.deepseek.com/api_keys',
+      qwenKey: 'https://bailian.console.aliyun.com/',
       doubaoKey: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
+      browserUseKey: 'https://zenmux.ai/',
     }
   }
 }

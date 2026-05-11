@@ -3,11 +3,11 @@
 - Date: 2026-05-09
 - Status: Approved (for codex execution)
 - Audience: codex (executor)
-- Supersedes: substantial parts of the existing AionUi V2 architecture (see §7)
+- Supersedes: substantial parts of the existing 司南 V2 architecture (see §7)
 
 ## 0. Why
 
-Today's AionUi splits "Chat" and "Execute" into separate UI surfaces. Execute
+Today's 司南 splits "Chat" and "Execute" into separate UI surfaces. Execute
 mode runs a one-shot planner (DeepSeek text or Doubao vision) that generates
 all actions up-front, then submits them to a broker for per-action approval.
 This is brittle:
@@ -24,7 +24,7 @@ take a screenshot, when to click, when to read a file — all as tool calls
 in a continuous loop, with the agent self-correcting based on each tool's
 return value.
 
-This spec rebuilds AionUi around that pattern, with these constraints from
+This spec rebuilds 司南 around that pattern, with these constraints from
 the user:
 
 1. **No more Bridge Mode** (login state preservation is no longer required).
@@ -255,7 +255,7 @@ The new architecture is "done" when these scenarios all work end-to-end:
    asks "搜一下豆包最新模型发布日期".
 5. **High-risk gating**: `desktop.click` request pauses for user approval in
    the Activity log before firing. User can deny.
-6. **Conversation history**: open AionUi, have a chat, close AionUi, reopen
+6. **Conversation history**: open 司南, have a chat, close 司南, reopen
    — last conversation is in the sidebar and the messages reload.
 7. **Cancel**: long-running `browser_task` is cancelled mid-flight via
    Emergency Stop; agent receives the cancellation, replies "任务已取消".

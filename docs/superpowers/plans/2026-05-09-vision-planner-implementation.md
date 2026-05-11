@@ -179,7 +179,7 @@ class VisionPlannerError extends Error {
 }
 
 const SYSTEM_PROMPT = [
-  'You are the AionUi vision-grounded action planner. You see a screenshot of the user\'s current Chrome tab.',
+  'You are the 司南 vision-grounded action planner. You see a screenshot of the user\'s current Chrome tab.',
   'Plan the NEXT 1-3 actions to make progress toward the user\'s goal. Output ONLY JSON: { "actions": [...] }.',
   'Use concrete visual locators that describe what you SEE on this screenshot, e.g. "left sidebar item with text 章节, 4th from top" not "navigation menu". Mention colors, positions, surrounding text — Midscene\'s per-action vision model uses these phrases to find the element.',
   'Login fields: never autofill credentials. If the user is on a login page, plan only an observe so they can fill in manually, then expect the user to say "继续" once logged in.',
@@ -464,7 +464,7 @@ git commit -m "feat(orchestrator): vision-planner branch with internal observe +
 - [ ] **Step 2:** Manual scenario:
 
 1. Open Chrome, log into 学习通, navigate to a course homepage (the page where the sidebar shows AI助教/任务/章节/...).
-2. In AionUi say: "帮我打开章节列表然后点击第一个未完成的课时"
+2. In 司南 say: "帮我打开章节列表然后点击第一个未完成的课时"
 3. Verify orchestrator events show `chat:action-plan` with at least one `web.click` whose target description quotes specific visual elements present on the screenshot ("左侧侧边栏第三项 章节" or similar concrete phrase).
 4. Approve the action(s).
 5. Bridge executes; Chrome navigates to 章节 list.

@@ -2,7 +2,7 @@
 
 > **For codex (executor):** Spec: `docs/superpowers/specs/2026-05-09-fork-ui-tars-desktop-design.md`. **This replaces all previous v1/v2/v3 agent-loop plans.** We're abandoning the self-build path and adopting bytedance/UI-TARS-desktop as the new base.
 
-**Decision:** Fresh repo seeded from UI-TARS-desktop (not a true git fork). Vendor their code, brand as AionUi, port your differentiating features (SKILL.md skills + Open Interpreter integration) on top.
+**Decision:** Fresh repo seeded from UI-TARS-desktop (not a true git fork). Vendor their code, brand as 司南, port your differentiating features (SKILL.md skills + Open Interpreter integration) on top.
 
 **Estimated total work:** 6-8 days for one engineer. Phases below.
 
@@ -39,7 +39,7 @@ UI-TARS-desktop requires:
 - [ ] Verify the dev mode launches their Electron app on Windows. If something breaks (they're a Mac-first project), open issues; document workarounds.
 - [ ] Note: this scratch clone is throwaway. Don't commit it.
 
-### 0.3 Create fresh AionUi repo
+### 0.3 Create fresh 司南 repo
 
 - [ ] Make new dir: `C:\Users\g\Desktop\aionui`. `git init`.
 - [ ] Copy the reference's contents (excluding `.git`) into `aionui/`:
@@ -49,14 +49,14 @@ UI-TARS-desktop requires:
   ```
 - [ ] In `aionui/`, replace `LICENSE` with the upstream Apache-2.0 (already present); add `NOTICE` file:
   ```
-  AionUi
+  司南
   Copyright 2026 <your name>
 
   This product includes software developed by ByteDance Ltd.,
   available at https://github.com/bytedance/UI-TARS-desktop, licensed
   under Apache-2.0. See LICENSE for full terms.
   ```
-- [ ] Initial commit: `chore: vendor UI-TARS-desktop@<sha> as base for AionUi`. Note the upstream commit SHA in the message — this is your rebase anchor.
+- [ ] Initial commit: `chore: vendor UI-TARS-desktop@<sha> as base for 司南`. Note the upstream commit SHA in the message — this is your rebase anchor.
 - [ ] Commit pnpm-lock.yaml for reproducibility.
 
 ---
@@ -71,16 +71,16 @@ UI-TARS-desktop requires:
   - Window title strings in `apps/ui-tars/src/main/window/*`
   - Tray title, menu strings
   - CSS/HTML in renderer where the UI shows "UI-TARS"
-- [ ] Replace icons: `apps/ui-tars/build/icon.*` → AionUi icon assets (use existing `agent-lite/resources/skills/.../icon.png` or similar; create one if absent).
-- [ ] Adjust user-data dir name in Electron app config so settings don't collide with a real UI-TARS-desktop install (`getPath('userData')` should resolve to `AionUi` not `UI-TARS-desktop`).
+- [ ] Replace icons: `apps/ui-tars/build/icon.*` → 司南 icon assets (use existing `agent-lite/resources/skills/.../icon.png` or similar; create one if absent).
+- [ ] Adjust user-data dir name in Electron app config so settings don't collide with a real UI-TARS-desktop install (`getPath('userData')` should resolve to `司南` not `UI-TARS-desktop`).
 
 ### 1.2 First Windows build
 
 - [ ] `pnpm install` (full).
 - [ ] `pnpm dev` — verify dev mode runs.
 - [ ] `pnpm make:win` (or whatever electron-forge target builds Windows x64 NSIS).
-- [ ] Install the resulting installer on a clean VM. Verify it launches as "AionUi", not "UI-TARS-desktop".
-- [ ] Commit: `feat(brand): rename to AionUi, replace icons, update product strings`
+- [ ] Install the resulting installer on a clean VM. Verify it launches as "司南", not "UI-TARS-desktop".
+- [ ] Commit: `feat(brand): rename to 司南, replace icons, update product strings`
 
 ---
 
@@ -131,7 +131,7 @@ UI-TARS-desktop has shell/file tools but not OI. We register OI as additional to
 agent-tars likely has a tool registration API (per their MCP integration). Investigate `multimodal/agent-tars/` for the tool definition pattern. Then:
 
 - [ ] Create `apps/ui-tars/src/main/tools/oiTools.ts`:
-  - Register `run_shell_command`, `read_file`, `write_file`, `edit_file`, `delete_path` (use existing AionUi tool name conventions).
+  - Register `run_shell_command`, `read_file`, `write_file`, `edit_file`, `delete_path` (use existing 司南 tool name conventions).
   - Each tool's `invoke` → HTTP POST to oi-bridge `/execute` with proper sidecar token.
   - Use agent-tars's tool schema (likely Zod or JSON schema).
 
@@ -169,10 +169,10 @@ UI-TARS-desktop uses MCP tools (executable). Your existing skills are markdown p
 
 ## Phase 5: Verify history + bootstrap (likely no-op)
 
-UI-TARS-desktop already has Event Stream + history persistence. Just confirm it works for AionUi:
+UI-TARS-desktop already has Event Stream + history persistence. Just confirm it works for 司南:
 
 - [ ] Have a 5-message chat (mix of pure chat + tool calls + browser task).
-- [ ] Close + reopen AionUi.
+- [ ] Close + reopen 司南.
 - [ ] Verify the conversation reloads from sidebar.
 - [ ] Verify their database/storage location is in our renamed `userData` folder, not the old UI-TARS one.
 
@@ -188,7 +188,7 @@ For bootstrap (Python deps for browser-use): UI-TARS-desktop's hybrid browser ag
 
 ## Phase 6: Welcome dialog + Chinese UX
 
-UI-TARS-desktop's UX is English-first. Polish for AionUi:
+UI-TARS-desktop's UX is English-first. Polish for 司南:
 
 ### 6.1 Welcome dialog
 
@@ -206,7 +206,7 @@ UI-TARS-desktop's UX is English-first. Polish for AionUi:
 
 - [ ] Match agent-lite default state: 5 SKILL.md skills installed but enabled per user choice.
 
-- [ ] Commit: `feat(ux): port AionUi 3-tier Welcome + Chinese UX`
+- [ ] Commit: `feat(ux): port 司南 3-tier Welcome + Chinese UX`
 
 ---
 
@@ -221,7 +221,7 @@ Use the same scenarios from agent-loop v3 spec §10.1, adjusted for the new base
 5. **Desktop screenshot**: "看下我屏幕" → screenshot captured.
 6. **SKILL.md load**: "use file-explorer skill to list Downloads" → workflow loaded.
 7. **History**: chat → restart → conversation reloads.
-8. **Branding**: title bar / about dialog / installer all say AionUi.
+8. **Branding**: title bar / about dialog / installer all say 司南.
 9. **Cancel mid-browser-task**: click stop within 5s → completes within 2s.
 10. **No Python required** (assumption from Phase 5; if false, this changes).
 
@@ -235,7 +235,7 @@ If all PASS → tag v0.1.0-fork. If anything FAILs → file an issue, address be
 
 ## Definition of Done
 
-- AionUi.exe NSIS installer builds via `pnpm make:win`.
+- 司南.exe NSIS installer builds via `pnpm make:win`.
 - Clean Windows VM install: app launches, Welcome dialog asks for keys, user enters DeepSeek + Doubao, all 7 pillars work.
 - 5 existing SKILL.md skills still loadable via `load_skill` tool.
 - oi-bridge integrated as agent-tars tool — shell/file/code work.
@@ -243,7 +243,7 @@ If all PASS → tag v0.1.0-fork. If anything FAILs → file an issue, address be
 - Desktop control works (screenshot + click) via gui-agent.
 - Conversation history persists.
 - Apache-2.0 LICENSE + NOTICE file in repo.
-- README updated to identify AionUi as a fork of UI-TARS-desktop with attribution.
+- README updated to identify 司南 as a fork of UI-TARS-desktop with attribution.
 - Old `agent-lite/` repo preserved as backup (not deleted; it's the source we ported from).
 
 ## Backout plan

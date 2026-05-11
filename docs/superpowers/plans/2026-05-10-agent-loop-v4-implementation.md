@@ -1,6 +1,6 @@
 # Agent Loop v4 Implementation Plan (final)
 
-> **For codex (executor):** Spec: `docs/superpowers/specs/2026-05-10-agent-loop-v4-design.md`. v4 absorbs all 4 reviewer rounds + lessons from the failed UI-TARS-desktop fork spike. **Reuse existing AionUi infrastructure — do NOT write parallel registries or providers.**
+> **For codex (executor):** Spec: `docs/superpowers/specs/2026-05-10-agent-loop-v4-design.md`. v4 absorbs all 4 reviewer rounds + lessons from the failed UI-TARS-desktop fork spike. **Reuse existing 司南 infrastructure — do NOT write parallel registries or providers.**
 
 **Branch:** `feat/agent-loop-v4` from `main`.
 
@@ -92,7 +92,7 @@ Commit: `feat(agent): policyPatterns + pathSafety + toolPolicy + agentLoop (reus
 - [ ] Modify `electron/services/bridgeSupervisor.js`:
   - On `start()`, call `sidecarTokens.generateAll(['oi', 'uitars', 'browser'])`
   - For each spawn, set env `SIDECAR_TOKEN: sidecarTokens.get(key)`
-  - Health probe sends `X-AionUi-Token` header
+  - Health probe sends `X-司南-Token` header
   - On `stop()` and Electron `before-quit`, call `sidecarTokens.clear()`
 
 ### 2.2 sidecar middleware (oi + uitars)
@@ -131,7 +131,7 @@ Commit: `feat(agent): policyPatterns + pathSafety + toolPolicy + agentLoop (reus
     parameters: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }
   }, typeText)
   ```
-  Each handler POSTs to `http://127.0.0.1:8765/execute` with `X-AionUi-Token`, `signal` propagated.
+  Each handler POSTs to `http://127.0.0.1:8765/execute` with `X-司南-Token`, `signal` propagated.
 - [ ] Wire `require('./tools/desktop')` into `tools/index.js` `loadBuiltins()`.
 - [ ] Smoke test in dev mode.
 

@@ -185,7 +185,7 @@ say "去淘宝下单" the regex catches "下单"-equivalent and stops.
 
 ### 4.2 Every step audited
 
-browser-use sidecar emits SSE events. Each event is captured by AionUi as:
+browser-use sidecar emits SSE events. Each event is captured by 司南 as:
 
 ```json
 {
@@ -208,7 +208,7 @@ matches the credential regex from `policyPatterns.js` — then it's redacted
 to `<redacted: 12 chars>`.
 
 Screenshots saved to `<userData>/screenshots/<convId>/step_<n>.png` so the
-user can review what AionUi actually saw at each step.
+user can review what 司南 actually saw at each step.
 
 ### 4.3 Live progress in chat
 
@@ -276,7 +276,7 @@ Each step has retry (3x) + exponential backoff. Network errors fall through
 to user with actionable error: "下载 uv 失败：{network/cert/proxy 提示}。
 检查 Settings → Network 中的代理设置后重试。"
 
-Skip is allowed: user dismisses dialog, AionUi keeps working without
+Skip is allowed: user dismisses dialog, 司南 keeps working without
 `browser_task` (tool absent from catalog with reason "browser-use sidecar
 not available — bootstrap to install").
 
@@ -312,8 +312,8 @@ module.exports = { generateAll, get, clear }
 ```
 
 Supervisor calls `generateAll()` on startup. Spawns each sidecar with
-`SIDECAR_TOKEN=<token>` env. AionUi's HTTP calls include
-`X-AionUi-Token: <token>` header.
+`SIDECAR_TOKEN=<token>` env. 司南's HTTP calls include
+`X-司南-Token: <token>` header.
 
 **No file persistence.** Tokens live in main-process memory only. On main
 process death, tokens are gone — sidecars die with main (already happens
@@ -339,7 +339,7 @@ This stops:
 - Same-user other process probing localhost (no token = 401)
 
 It does NOT stop:
-- Same-user processes that read AionUi's main-process memory (they could
+- Same-user processes that read 司南's main-process memory (they could
   extract the token). For that we'd need OS-level isolation; explicit
   non-goal in v3.
 
@@ -451,7 +451,7 @@ possible).
 8. **Auto-block (browser)**: "用浏览器去 alipay.com/checkout 付钱" — pre-flight blocks `PAYMENT_INTENT`, agent reports refusal.
 9. **Auto-block (browser scheme)**: "用浏览器打开 file:///C:/Windows/win.ini" — pre-flight blocks `URL_PROTOCOLS_BLOCKED`.
 10. **Cancellation**: ask for a long browser task, click Stop within 5s, chat shows "操作已取消" within 2s.
-11. **History persistence**: have a 5-message chat with mixed tools, restart AionUi, the conversation reloads from the sidebar.
+11. **History persistence**: have a 5-message chat with mixed tools, restart 司南, the conversation reloads from the sidebar.
 12. **Bootstrap first-run**: clean Windows VM, no Python, first launch shows BootstrapDialog, install completes, browser_task becomes available.
 
 ### 10.2 Failure modes (graceful degradation required)
@@ -490,7 +490,7 @@ Phase 0-7 ship alongside old code (feature-flagged: `agentLoopEnabled` in store)
 ## 12. Red lines
 
 1. Tool names: `^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`. No dots.
-2. Sidecars require `X-AionUi-Token` (in-memory tokens, never on disk).
+2. Sidecars require `X-司南-Token` (in-memory tokens, never on disk).
 3. API keys via env only; never in request bodies.
 4. **Skills are PROMPT skills only** in v3. No executable plugins. Existing `electron/skills/loader.js` is not modified.
 5. Phase 8 (deletion) only after Phase 9 (acceptance) PASSes on clean VM.

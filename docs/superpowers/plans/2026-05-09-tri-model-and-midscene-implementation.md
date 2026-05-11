@@ -2,7 +2,7 @@
 
 > **For codex (executor):** Execute this plan task-by-task using TDD. Each step is bite-sized (2–5 min). Steps use `- [ ]` syntax. Commit after every passing test. Do not skip ahead. Spec: `docs/superpowers/specs/2026-05-09-tri-model-and-midscene-design.md`. This plan ALSO finishes leftover Tasks 12–15 from the previous bridge-sidecars plan; they appear here as **Phase 0**.
 
-**Goal:** (1) Pivot AionUi's model router so DeepSeek-V4 owns chat/plan/code/intent; (2) add a third bridge sidecar `server/midscene-bridge` driving Midscene Bridge Mode with Qwen3-VL; (3) swap UI-TARS's model to Doubao 1.5 vision via Volcengine Ark; (4) finish the previous plan's leftover packaging/docs/acceptance work.
+**Goal:** (1) Pivot 司南's model router so DeepSeek-V4 owns chat/plan/code/intent; (2) add a third bridge sidecar `server/midscene-bridge` driving Midscene Bridge Mode with Qwen3-VL; (3) swap UI-TARS's model to Doubao 1.5 vision via Volcengine Ark; (4) finish the previous plan's leftover packaging/docs/acceptance work.
 
 **Branch:** Create `feat/tri-model-midscene` from current `main`. Commit per step.
 
@@ -1344,9 +1344,9 @@ export default function WelcomeSetupDialog({ open, onClose, onMarkSeen }) {
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal welcome-setup">
-        <h2>欢迎使用 AionUi</h2>
+        <h2>欢迎使用 司南</h2>
         <p className="lede">
-          AionUi 把三个国内模型分配到各自最强的活上：DeepSeek-V4 负责聊天/规划/写代码，
+          司南 把三个国内模型分配到各自最强的活上：DeepSeek-V4 负责聊天/规划/写代码，
           Qwen3-VL 负责浏览器看屏，豆包 1.5 视觉版负责桌面看屏。
           按需启用，不必一次到位。
         </p>
@@ -1449,7 +1449,7 @@ turns the dialog from a read-only status report into a one-stop setup flow.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│  AionUi 初始设置                                                    ✕   │
+│  司南 初始设置                                                    ✕   │
 │  按你想要解锁的能力档位完成对应配置。                                    │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ ┌──────────────────────────────────────────────────────────────────────┐ │
@@ -1823,7 +1823,7 @@ showed `Chrome Midscene extension connected` as ⚠ unsatisfied. Two reasons:
 2. The Midscene extension shows its own "Please set up your environment
    variables before using" warning in the Playground tab. That warning is
    for the extension's Playground feature (it wants OPENAI_API_KEY for its
-   own demo) and is **completely unrelated** to AionUi Bridge Mode. Users
+   own demo) and is **completely unrelated** to 司南 Bridge Mode. Users
    conflate the two and try to fix the wrong thing.
 
 **Files:**
@@ -1849,8 +1849,8 @@ showed `Chrome Midscene extension connected` as ⚠ unsatisfied. Two reasons:
 │   4. 回到这里 —— 状态会自动变绿                                        │
 │                                                                       │
 │  ⓘ 扩展自带的 Playground 显示的 "Please set up environment variables" │
-│     警告与本应用无关，可忽略。AionUi 走 Bridge Mode，模型配置在        │
-│     AionUi 这一侧。                                                   │
+│     警告与本应用无关，可忽略。司南 走 Bridge Mode，模型配置在        │
+│     司南 这一侧。                                                   │
 │                                                                       │
 │  还没装扩展？  [前往 Chrome Web Store ↗]                              │
 └──────────────────────────────────────────────────────────────────────┘
@@ -1902,7 +1902,7 @@ function MidsceneBridgeRow({ ok, onSaved }) {
 
         <div className="hint">
           ⓘ 扩展自带的 Playground 显示的 “Please set up environment variables” 警告与本应用无关，可忽略。
-          AionUi 走 Bridge Mode，模型配置在 AionUi 这一侧。
+          司南 走 Bridge Mode，模型配置在 司南 这一侧。
         </div>
 
         <p className="fallback">
@@ -1933,7 +1933,7 @@ if (dep === 'midsceneExtension') return <MidsceneBridgeRow ok={ok} onSaved={onSa
 
 - [ ] **Step 3: Auto-refresh `setup:status` while dialog is open**
 
-The user does steps 1–4 outside AionUi. They expect the dialog to flip to ✓
+The user does steps 1–4 outside 司南. They expect the dialog to flip to ✓
 without manual reload. Add a 5-second polling effect that re-fetches
 `setup:status` whenever the dialog is open and at least one dep is missing:
 
@@ -1974,7 +1974,7 @@ git commit -m "fix(welcome): accurate Midscene Bridge label + inline 3-step guid
 ## Task 5.5e: midscene-bridge — `extensionConnected()` actually probes the bridge
 
 **Why:** A user with the Midscene extension installed and the **Bridge Mode**
-tab showing "Listening for connection" still sees the AionUi welcome dialog
+tab showing "Listening for connection" still sees the 司南 welcome dialog
 mark `Chrome Midscene Bridge 已连接` as ⚠ unsatisfied. Root cause is in
 `server/midscene-bridge/bridgeMode.js`:
 
@@ -2159,7 +2159,7 @@ npm run electron:dev
 ```
 
 Expected end-to-end behaviour:
-- Boot AionUi with Chrome Midscene extension closed → dialog shows ⚠ for Bridge.
+- Boot 司南 with Chrome Midscene extension closed → dialog shows ⚠ for Bridge.
 - Open extension → Bridge Mode tab → "Listening for connection".
 - Within ~5s the welcome dialog flips that row to ✓ **without** the user
   triggering any Midscene action.
@@ -2174,7 +2174,7 @@ git commit -m "fix(midscene-bridge): /health reflects probe-based connection sta
 
 ## Task 5.5f: Packaging — bundle sidecar `node_modules` into installer
 
-**Why:** Live debugging on a real install (`C:\Users\g\AppData\Local\Programs\AgentDevLite\…\AionUi\resources\server\`) revealed that none of the three bridges' `node_modules` were shipped. `extraResources` at Task 4.6 / Task 13 only copies sidecar source files; deps (`@midscene/web`, `express`, `@ui-tars/sdk`, `@nut-tree-fork/nut-js`, `screenshot-desktop`, `node-fetch`) are absent. With `stdio: 'ignore'` in the supervisor, the `Cannot find module 'express'` failure is silent. Consequence: every fresh install has all three sidecars dead on arrival; users see "extension not connected" forever even with everything else perfect. A development hot-fix using a Windows junction (`mklink /J`) only works on the developer's machine.
+**Why:** Live debugging on a real install (`C:\Users\g\AppData\Local\Programs\AgentDevLite\…\司南\resources\server\`) revealed that none of the three bridges' `node_modules` were shipped. `extraResources` at Task 4.6 / Task 13 only copies sidecar source files; deps (`@midscene/web`, `express`, `@ui-tars/sdk`, `@nut-tree-fork/nut-js`, `screenshot-desktop`, `node-fetch`) are absent. With `stdio: 'ignore'` in the supervisor, the `Cannot find module 'express'` failure is silent. Consequence: every fresh install has all three sidecars dead on arrival; users see "extension not connected" forever even with everything else perfect. A development hot-fix using a Windows junction (`mklink /J`) only works on the developer's machine.
 
 **Files:**
 - Create: `scripts/prepare-bridges.js`
@@ -2330,7 +2330,7 @@ Spot-check at least one `package.json` exists under each `node_modules`.
 (Important: do this on a VM where the dev tree is NOT present, so junctions/symlinks from the developer's machine cannot mask packaging gaps.)
 
 1. Install the new NSIS installer.
-2. Launch AionUi.
+2. Launch 司南.
 3. Welcome dialog should NOT show "extension not connected" forever after Bridge Mode is started — the same probe logic from Task 5.5e must work because the bridge can now actually start.
 4. `netstat -ano | findstr :8770` shows midscene-bridge listening within ~5s of app launch.
 
@@ -2353,7 +2353,7 @@ Whoever has the developer-machine junction set (`mklink /J resources/server/<bri
 
 ```powershell
 foreach ($b in @("oi-bridge","uitars-bridge","midscene-bridge")) {
-  $p = "C:\Users\g\AppData\Local\Programs\AgentDevLite\AgentDev Lite\AionUi\resources\server\$b"
+  $p = "C:\Users\g\AppData\Local\Programs\AgentDevLite\AgentDev Lite\司南\resources\server\$b"
   if ((Get-Item $p -Force).LinkType -eq 'Junction') { Remove-Item $p -Force }
 }
 ```

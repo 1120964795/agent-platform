@@ -8,6 +8,9 @@ describe('openExternal allowlist', () => {
   it('allows known https prefixes', () => {
     expect(isAllowed('https://platform.deepseek.com/api_keys')).toBe(true)
     expect(isAllowed('https://bailian.console.aliyun.com')).toBe(true)
+    expect(isAllowed('https://zenmux.ai/')).toBe(true)
+    expect(isAllowed('https://www.python.org/downloads/')).toBe(true)
+    expect(isAllowed('https://docs.openinterpreter.com/')).toBe(true)
   })
 
   it('rejects http', () => {

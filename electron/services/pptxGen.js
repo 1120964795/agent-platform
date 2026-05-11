@@ -17,7 +17,7 @@ async function generatePptx({ title, slides }) {
   const pres = new PptxGenJS()
   pres.layout = 'LAYOUT_16X9'
   pres.title = title
-  pres.company = 'AionUi'
+  pres.company = '司南'
 
   const cover = pres.addSlide()
   cover.background = { color: 'F6F8FB' }

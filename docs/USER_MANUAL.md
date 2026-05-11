@@ -1,10 +1,10 @@
-# AionUi V2 User Manual
+# 司南 V2 User Manual
 
-This manual covers the AionUi V2 desktop app: chat, tool execution, model setup, runtime setup, confirmations, audit logs, run outputs, dry-run demos, and Windows packaging.
+This manual covers the 司南 V2 desktop app: chat, tool execution, model setup, runtime setup, confirmations, audit logs, run outputs, dry-run demos, and Windows packaging.
 
-## What AionUi Does
+## What 司南 Does
 
-AionUi is the visible control plane for agentic desktop work. DeepSeek-V4 plans text work and proposes tool calls. AionUi validates those tool calls, applies safety policy, asks for confirmation when risk is medium or high, dispatches approved tool calls to managed runtimes, and records the full timeline.
+司南 is the visible control plane for agentic desktop work. DeepSeek-V4 plans text work and proposes tool calls. 司南 validates those tool calls, applies safety policy, asks for confirmation when risk is medium or high, dispatches approved tool calls to managed runtimes, and records the full timeline.
 
 Default runtimes:
 
@@ -12,7 +12,7 @@ Default runtimes:
 - UI-TARS + Doubao vision: desktop screen observation, mouse, and keyboard actions.
 - Browser-Use: Python-based browser automation (navigate, snapshot, click, type, task).
 - Open Interpreter: managed sidecar for command, file, and code execution.
-- AionUi dry-run: deterministic demo runtime when external runtimes are missing.
+- 司南 dry-run: deterministic demo runtime when external runtimes are missing.
 
 ## First-Time Setup
 
@@ -47,7 +47,7 @@ pip install open-interpreter
 
 - UI-TARS is not ready: confirm the Doubao Volcengine Ark API key is set and screen authorization is enabled only when the visible desktop is safe.
 - Browser-Use is not ready: check Python 3.11+ is installed and `pip install browser-use` succeeded. Run `python -c "import browser_use"` to verify.
-- Open Interpreter is not ready: confirm Python can run `interpreter` from a terminal and then restart AionUi.
+- Open Interpreter is not ready: confirm Python can run `interpreter` from a terminal and then restart 司南.
 - If a managed runtime will not start, check `%TEMP%\aionui-logs\<bridge>-stderr.log`, for example `%TEMP%\aionui-logs\browser-use-stderr.log`.
 
 ## First Run
@@ -67,7 +67,7 @@ Chat mode does not invoke tools. It is safe for regular questions, coding discus
 
 ## Agent Mode
 
-Agent mode routes the user task to DeepSeek-V4 with tool access. The model may propose tool calls. AionUi then:
+Agent mode routes the user task to DeepSeek-V4 with tool access. The model may propose tool calls. 司南 then:
 
 1. Receives tool calls from the model.
 2. Classifies risk via toolPolicy.
@@ -102,7 +102,7 @@ Run Outputs stores command summaries, generated files, screenshots metadata, dry
 
 ## Open Interpreter
 
-Open Interpreter is a default AionUi execution capability, but its AGPL source is not vendored here. Configure it as an external command, sidecar endpoint, or maintained fork outside this repository.
+Open Interpreter is a default 司南 execution capability, but its AGPL source is not vendored here. Configure it as an external command, sidecar endpoint, or maintained fork outside this repository.
 
 Supported actions include `shell.command`, `file.read`, `file.write`, `file.delete`, `code.execute`, and `runtime.setup`.
 
@@ -111,7 +111,7 @@ Open Interpreter never receives raw model output directly. It only executes tool
 ### Setup
 
 1. Install Open Interpreter outside this repository.
-2. Start an AionUi-compatible sidecar or wrapper process.
+2. Start an 司南-compatible sidecar or wrapper process.
 3. Set `Open Interpreter endpoint` in Settings, for example `http://127.0.0.1:8756`.
 4. Run a health check from Models/Runtimes.
 5. Test a command action such as `npm test`, a workspace file write, and a small code execution snippet.
@@ -120,7 +120,7 @@ Every proposed command, file write, or code execution appears in Control Center 
 
 ## UI-TARS (Desktop Control)
 
-UI-TARS is the desktop screen-control capability. AionUi launches the managed `uitars-bridge` automatically and injects the Doubao Volcengine Ark endpoint from Settings.
+UI-TARS is the desktop screen-control capability. 司南 launches the managed `uitars-bridge` automatically and injects the Doubao Volcengine Ark endpoint from Settings.
 
 Supported tools include `desktop_observe`, `desktop_click`, and `desktop_type`.
 
@@ -139,7 +139,7 @@ All UI-TARS actions appear in Control Center and Audit Logs. Mouse and keyboard 
 
 ## Browser-Use (Web Automation)
 
-Browser-Use is the Python-based browser automation capability. AionUi launches the managed `browser-use-bridge` automatically on port 8780.
+Browser-Use is the Python-based browser automation capability. 司南 launches the managed `browser-use-bridge` automatically on port 8780.
 
 Supported tools include `browser_navigate`, `browser_snapshot`, `browser_screenshot`, `browser_click`, `browser_type`, `browser_scroll`, and `browser_task`.
 
@@ -151,7 +151,7 @@ Supported tools include `browser_navigate`, `browser_snapshot`, `browser_screens
 4. Configure vision model API key for LiteLLM in Settings.
 5. Test `browser_navigate` or `browser_snapshot` before `browser_click` or `browser_type`.
 
-All Browser-Use actions appear in Control Center and Audit Logs. AionUi auto-detects Python and browser-use readiness.
+All Browser-Use actions appear in Control Center and Audit Logs. 司南 auto-detects Python and browser-use readiness.
 
 ## Dry-Run Demo
 

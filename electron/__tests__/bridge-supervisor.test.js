@@ -61,7 +61,7 @@ describe('bridgeSupervisor', () => {
     const uitars = calls.find((c) => c.args.some((arg) => arg.includes('uitars-bridge')))
     expect(uitars.env.UITARS_MODEL_PROVIDER).toBe('volcengine')
     expect(uitars.env.UITARS_MODEL_ENDPOINT).toContain('volces.com')
-    const browserUse = calls.find((c) => c.cmd === 'python' && c.args.some((arg) => arg.includes('browser-use-bridge')))
+    const browserUse = calls.find((c) => c.args.some((arg) => arg.includes('browser-use-bridge')))
     expect(browserUse).toBeDefined()
     expect(browserUse.env.BROWSER_USE_MODEL_ENDPOINT).toBe('https://zenmux.ai/api/v1')
     expect(browserUse.env.BROWSER_USE_MODEL_API_KEY).toBe('')
@@ -69,6 +69,27 @@ describe('bridgeSupervisor', () => {
     expect(browserUse.env.BROWSER_USE_VISION_ENABLED).toBe('true')
     expect(browserUse.env.BROWSER_USE_HEADLESS).toBe('false')
     expect(browserUse.env.BROWSER_USE_KEEP_ALIVE).toBe('true')
+  })
+
+  it('adds packaged browser-use Python deps to the bridge environment', async () => {
+    const rootDir = path.join(TMP, 'packaged-app')
+    const depsDir = path.join(rootDir, 'server', 'browser-use-bridge', '.deps')
+    fs.mkdirSync(depsDir, { recursive: true })
+    const calls = []
+    const sup = createSupervisor({
+      rootDir,
+      spawnImpl: (cmd, args, opts) => {
+        calls.push({ cmd, args, env: opts.env })
+        return { on() {}, kill() {}, killed: false }
+      },
+      healthImpl: async () => ({ ok: true })
+    })
+
+    await sup.startOne('browserUse')
+
+    const browserUse = calls.find((c) => c.args.some((arg) => arg.includes('browser-use-bridge')))
+    expect(browserUse.env.PYTHONPATH.split(path.delimiter)[0]).toBe(depsDir)
+    expect(browserUse.env.PLAYWRIGHT_BROWSERS_PATH).toBe('0')
   })
 
   it('captures child stdout and stderr in bridge-specific log files', async () => {

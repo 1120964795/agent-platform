@@ -10,10 +10,10 @@ function getSetupGuide(config = store.getConfig()) {
     status: config.uiTarsEndpoint || config.uiTarsCommand ? 'needs-verification' : 'not-installed',
     title: 'Configure UI-TARS with Doubao vision on Volcengine Ark',
     steps: [
-      'AionUi launches the in-app UI-TARS uitars-bridge automatically.',
+      '司南 launches the in-app UI-TARS uitars-bridge automatically.',
       'Create or reuse a Volcengine Ark endpoint for doubao-1-5-thinking-vision-pro-250428.',
       'Set doubaoVisionApiKey in Settings; keep doubaoVisionEndpoint at https://ark.cn-beijing.volces.com/api/v3 unless your Ark deployment differs.',
-      'Enable screen authorization in AionUi before running observe, click, or type actions.',
+      'Enable screen authorization in 司南 before running observe, click, or type actions.',
       'Run a dry-run observe/click/type smoke test on a controlled desktop before real automation.'
     ],
     proposedSetupActions: [{

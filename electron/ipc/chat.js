@@ -14,8 +14,8 @@ const {
   buildMissingSkillMessage
 } = require('./chatConfirmation')
 
-const BASE_PROMPT = '你是 AionUi，一个桌面控制平面助手。请默认使用简体中文，回答要简洁、专业。所有用户输入都在同一个 Agent Loop 中处理：普通问题直接回答，需要本地、浏览器或桌面操作时再调用工具。除非 AionUi 已报告审批通过的执行结果，否则不要暗示本地动作已经运行。'
-const FULL_PROMPT = `${BASE_PROMPT}\n\n当前配置允许兼容工具进入候选集，但所有执行仍必须经过 AionUi 策略、确认、适配器和审计日志。`
+const BASE_PROMPT = '你是 司南，一个桌面控制平面助手。请默认使用简体中文，回答要简洁、专业。所有用户输入都在同一个 Agent Loop 中处理：普通问题直接回答，需要本地、浏览器或桌面操作时再调用工具。除非 司南 已报告审批通过的执行结果，否则不要暗示本地动作已经运行。'
+const FULL_PROMPT = `${BASE_PROMPT}\n\n当前配置允许兼容工具进入候选集，但所有执行仍必须经过 司南 策略、确认、适配器和审计日志。`
 const REMEMBER_GUIDANCE = '当用户表达长期偏好，例如”以后””始终””下次”或”从现在开始”时，调用 remember_user_rule。不要记住一次性任务细节。'
 const TOOL_CALL_RULES = `
 ## 工具调用规则（必须遵守）

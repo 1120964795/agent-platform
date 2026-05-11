@@ -810,7 +810,7 @@ const os = require('os')
 const mockElectron = {
   app: {
     getPath: () => path.join(os.tmpdir(), 'agentdev-smoke'),
-    getName: () => 'AionUi',
+    getName: () => '司南',
     getVersion: () => '0.1.0',
     requestSingleInstanceLock: () => true,
     on: () => {},

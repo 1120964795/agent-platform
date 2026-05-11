@@ -69,7 +69,7 @@ export default function Sidebar({
       <div className="h-14 px-3 flex items-center justify-between border-b border-[color:var(--border)]">
         {!collapsed && (
           <div className="min-w-0">
-            <div className="font-semibold text-base leading-tight">AionUi</div>
+            <div className="font-semibold text-base leading-tight">司南</div>
             <div className="text-[11px] text-[color:var(--text-muted)] leading-tight">聊天历史</div>
           </div>
         )}

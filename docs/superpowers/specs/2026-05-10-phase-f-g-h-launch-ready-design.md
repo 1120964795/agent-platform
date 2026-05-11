@@ -1,6 +1,6 @@
-# AionUi Launch-Ready: Phase F, G, H Design
+# 司南 Launch-Ready: Phase F, G, H Design
 
-> **Goal:** Make AionUi runnable end-to-end — from app launch through API key configuration to completing tasks via browser-use and UI-TARS bridges — and produce a distributable installer.
+> **Goal:** Make 司南 runnable end-to-end — from app launch through API key configuration to completing tasks via browser-use and UI-TARS bridges — and produce a distributable installer.
 
 **Architecture:** Three sequential phases. Each phase produces independently testable results. Phase F (cleanup + settings), Phase G (packaging + startup flow), Phase H (UX polish).
 
@@ -252,7 +252,7 @@ Combine G2 welcome wizard + Python detection + API key config into a single guid
 ### H4 — Final E2E validation
 
 Manual test plan:
-1. Delete config (`%APPDATA%/AionUi/config.json`) to simulate fresh install
+1. Delete config (`%APPDATA%/司南/config.json`) to simulate fresh install
 2. Launch app → welcome wizard appears
 3. Enter Doubao API key → next
 4. Python detection runs → shows results

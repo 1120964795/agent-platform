@@ -34,3 +34,12 @@ test('runtime configure sanitizes and masks provider keys', async () => {
   expect(result.config.qwenApiKey).toContain('***')
   expect(result.config.qwenApiKey).not.toContain('secret-value')
 })
+
+test('runtime status tracks Browser Use and UI-TARS API keys separately', async () => {
+  const status = await runtime.runtimeStatus({ browserUseApiKey: 'sk-browser', doubaoVisionApiKey: '' })
+  const browserUse = status.find((item) => item.runtime === 'browser-use')
+  const uiTars = status.find((item) => item.runtime === 'ui-tars')
+
+  expect(browserUse.configured).toBe(true)
+  expect(uiTars.configured).toBe(false)
+})

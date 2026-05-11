@@ -28,12 +28,31 @@ function copyDir(src, dst, ignore = []) {
   }
 }
 
-function run(cmd, args, cwd) {
-  const r = spawnSync(cmd, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' })
+function resolveCommand(cmd, args) {
+  if (process.platform === 'win32' && cmd === 'npm') {
+    const npmCli = process.env.npm_execpath || path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
+    return { command: process.execPath, args: [npmCli, ...args] }
+  }
+  return { command: cmd, args }
+}
+
+function run(cmd, args, cwd, envPatch = {}, options = {}) {
+  const resolved = resolveCommand(cmd, args)
+  const r = spawnSync(resolved.command, resolved.args, {
+    cwd,
+    stdio: 'inherit',
+    shell: false,
+    env: { ...process.env, ...envPatch }
+  })
   if (r.status !== 0) {
+    if (options.optional) {
+      process.stderr.write(`\n[prepare-bridges] optional ${cmd} ${args.join(' ')} failed in ${cwd}\n`)
+      return false
+    }
     process.stderr.write(`\n[prepare-bridges] ${cmd} ${args.join(' ')} failed in ${cwd}\n`)
     process.exit(r.status || 1)
   }
+  return true
 }
 
 rmrf(STAGING_ROOT)
@@ -54,26 +73,12 @@ for (const name of BRIDGES) {
   copyDir(tempDst, finalDst)
 }
 
-// Python bridge: copy source + install Python deps
+// Python bridge: copy source. The installer prepares Python deps in user app data.
 const pySrc = path.join(SRC_ROOT, 'browser-use-bridge')
 const pyFinal = path.join(STAGING_ROOT, 'browser-use-bridge')
 if (fs.existsSync(pySrc)) {
-  copyDir(pySrc, pyFinal, ['__tests__', '__pycache__', '.venv', 'venv'])
-  // Install Python dependencies if pip is available
-  const reqPath = path.join(pyFinal, 'requirements.txt')
-  if (fs.existsSync(reqPath)) {
-    try {
-      const { execSync } = require('child_process')
-      execSync(`pip install -r "${reqPath}" --target "${path.join(pyFinal, '.deps')}"`, {
-        encoding: 'utf8',
-        timeout: 120000,
-        stdio: 'pipe'
-      })
-      console.log('[prepare-bridges] Python deps installed for browser-use-bridge')
-    } catch (e) {
-      process.stderr.write(`[prepare-bridges] pip install failed — bridge may need manual dep setup\n`)
-    }
-  }
+  copyDir(pySrc, pyFinal, ['__tests__', '__pycache__', '.venv', 'venv', '.deps'])
+  process.stdout.write('[prepare-bridges] browser-use Python deps will be installed by the app installer runtime setup\n')
 } else {
   process.stderr.write(`[prepare-bridges] missing Python bridge source: ${pySrc}\n`)
 }

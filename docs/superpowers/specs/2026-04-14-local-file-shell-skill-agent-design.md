@@ -1,7 +1,7 @@
 # 2026-04-14 本地文件 / Shell / Skill Agent 重构设计
 
 **状态**：已通过头脑风暴确认，待实现
-**目标**：把 agentdev-lite 从"被动注入文件文本的聊天机器人"升级为"AionUi 风格的主动 tool-calling 桌面 Agent"，带 skill 系统、本地终端辅助、用户规则持久化。
+**目标**：把 agentdev-lite 从"被动注入文件文本的聊天机器人"升级为"司南 风格的主动 tool-calling 桌面 Agent"，带 skill 系统、本地终端辅助、用户规则持久化。
 **执行方**：用户指挥 codex 按阶段实现。本 spec 不含实现代码；实现计划由 `writing-plans` skill 另行产出。
 
 ---
@@ -12,7 +12,7 @@
 
 当前 `agentdev-lite` 已具备：Electron + Express + React 的桌面应用骨架、DeepSeek 聊天、"全权限模式"开关、文件浏览器面板、`/word` `/ppt` 固定 slash 命令。
 
-但架构上存在以下问题，限制了"像 AionUi 一样的真正 Agent 能力"：
+但架构上存在以下问题，限制了"像 司南 一样的真正 Agent 能力"：
 
 1. **文件访问是"被动注入"而非"主动工具"**。`server/routes/chat.js` 中 `LOCAL_PATH_WITH_EXT_RE` 用正则从用户消息里抓路径，读取文本塞进 system context。模型不知道自己"可以读文件"，只能基于被喂进来的文本回答；无法主动读多个文件、无法写文件、无法执行命令。
 2. **没有 shell 能力**。用户想让 agent 帮忙"装个 uv""克隆个仓库",只能自己开终端手动跑。
@@ -22,7 +22,7 @@
 
 ### 1.2 目标
 
-借鉴 [AionUi](https://github.com/iOfficeAI/AionUi) 的架构，在 exe-only 形态下重构 `agentdev-lite`，使其：
+借鉴 [司南](https://github.com/iOfficeAI/司南) 的架构，在 exe-only 形态下重构 `agentdev-lite`，使其：
 
 - **模型成为主动的 tool caller**：通过 DeepSeek 原生 function calling，模型自主决定何时读文件、写文件、执行 shell 命令。
 - **获得本地 shell 能力**：用户说"帮我装 uv"，模型能调 `get_os_info` / `which` / `run_shell_command` 完成安装。
@@ -32,7 +32,7 @@
 
 ### 1.3 非目标（第一版明确不做）
 
-- AionUi 格式 skill 的字节级兼容 / 自动导入（只用 Claude Code 风格 frontmatter；未来可做转换器）
+- 司南 格式 skill 的字节级兼容 / 自动导入（只用 Claude Code 风格 frontmatter；未来可做转换器）
 - 多 agent / 多 assistant（本应用保持单 agent 模型）
 - PTY 真终端 / xterm 嵌入（命令卡片足矣）
 - Skill 市场、版本管理、远程仓库
@@ -508,7 +508,7 @@ useChatStore (zustand 或等价)
 
 ## 12. 范围之外（第一版明确不做）
 
-- AionUi 格式 skill 的自动导入 / 字节级兼容
+- 司南 格式 skill 的自动导入 / 字节级兼容
 - 多 agent / 多 assistant
 - PTY / xterm 嵌入终端
 - Skill 市场、版本管理、远程仓库

@@ -215,6 +215,11 @@ export default function SettingsPage({ onClose, initialTab = 'models' }) {
     }
   }
 
+  function openWelcomeGuide() {
+    window.dispatchEvent(new CustomEvent('aionui:open-welcome'))
+    onClose?.()
+  }
+
   return (
     <div className="fixed inset-0 z-40 bg-black/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.() }}>
       <section className="mx-auto flex h-full max-h-[820px] w-full max-w-3xl flex-col rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] shadow-xl">
@@ -223,9 +228,18 @@ export default function SettingsPage({ onClose, initialTab = 'models' }) {
             <h2 className="text-base font-semibold">设置</h2>
             <p className="text-xs text-[color:var(--text-muted)]">模型、运行环境和安全策略</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded p-1 hover:bg-[color:var(--bg-tertiary)]" aria-label="关闭设置">
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={openWelcomeGuide}
+              className="h-8 rounded-md border border-[color:var(--border)] px-3 text-sm text-[color:var(--text-muted)] hover:bg-[color:var(--bg-tertiary)]"
+            >
+              API 配置向导
+            </button>
+            <button type="button" onClick={onClose} className="rounded p-1 hover:bg-[color:var(--bg-tertiary)]" aria-label="关闭设置">
+              <X size={16} />
+            </button>
+          </div>
         </header>
 
         <div className="flex gap-1 border-b border-[color:var(--border)] px-5 py-3">

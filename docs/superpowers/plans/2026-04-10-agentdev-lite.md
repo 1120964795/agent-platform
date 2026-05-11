@@ -8,7 +8,7 @@
 >
 > **参考文档**：[设计文档](../specs/2026-04-10-agentdev-lite-design.md)
 
-**Goal：** 5.5 天做一个仿 AionUi 布局的浅色主题 Web Agent 应用，覆盖 Word/PPT/论文/任务规划/定时任务 5 个功能。
+**Goal：** 5.5 天做一个仿 司南 布局的浅色主题 Web Agent 应用，覆盖 Word/PPT/论文/任务规划/定时任务 5 个功能。
 
 **Architecture：** 前后端分离但同目录（client/ + server/ + 根 package.json 聚合启动）。React+Vite+Tailwind 前端；Express+Node 后端；DeepSeek 做 LLM；docx + pptxgenjs 生成文件；node-cron 做定时任务；JSON 文件做持久化。
 
@@ -105,7 +105,7 @@ generated/
 ```markdown
 # AgentDev Lite
 
-简易版 Agent 软件，仿 AionUi 布局，覆盖 Word/PPT/论文/任务规划/定时任务。
+简易版 Agent 软件，仿 司南 布局，覆盖 Word/PPT/论文/任务规划/定时任务。
 
 ## 启动
 
@@ -142,7 +142,7 @@ git commit -m "chore: init project"
   "name": "agentdev-lite",
   "version": "0.1.0",
   "private": true,
-  "description": "Lightweight AionUi-style agent app",
+  "description": "Lightweight 司南-style agent app",
   "scripts": {
     "setup": "npm install && npm --prefix client install && npm --prefix server install",
     "dev": "concurrently -n server,client -c cyan,magenta \"npm --prefix server run dev\" \"npm --prefix client run dev\""
@@ -4066,7 +4066,7 @@ git commit -m "style: polish ui pass N"
 ```markdown
 # AgentDev Lite
 
-模仿 AionUi 布局的简易版 Agent 助手。覆盖 Word/PPT 生成、论文助手、任务规划、定时任务五大能力。
+模仿 司南 布局的简易版 Agent 助手。覆盖 Word/PPT 生成、论文助手、任务规划、定时任务五大能力。
 
 ## 技术栈
 
@@ -4124,7 +4124,7 @@ agentdev-lite/
 
 1. **普通对话**：发"帮我写一个 Python 二分查找函数"
 2. **Word**：`/word` → 标题"软件工程实验报告" → 要求"包含实验目的/步骤/结果/总结" → 2000 字 → academic
-3. **PPT**：`/ppt` → 标题"期中项目汇报" → 内容方向"AionUi 简化版开发过程" → 10 页 → business
+3. **PPT**：`/ppt` → 标题"期中项目汇报" → 内容方向"司南 简化版开发过程" → 10 页 → business
 4. **论文大纲**：`/paper` → 大纲 tab → 主题"基于深度学习的情感分析研究"
 5. **任务规划**：`/plan` → 目标"两周内完成软件工程大作业" → 显示时间线和甘特图
 6. **定时任务**：`/schedule` → "每天 8 点" → prompt "给我一个编程小技巧"

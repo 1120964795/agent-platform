@@ -1,5 +1,5 @@
 // Phase E acceptance smoke test
-// Tests the full AionUi stack: agent loop, tools, bridges, persistence
+// Tests the full 司南 stack: agent loop, tools, bridges, persistence
 // Usage: node scripts/smoke-phase-e.js
 
 const path = require('path')
@@ -13,7 +13,7 @@ fs.mkdirSync(smokeDir, { recursive: true })
 const mockElectron = {
   app: {
     getPath: (key) => smokeDir,
-    getName: () => 'AionUi',
+    getName: () => '司南',
     getVersion: () => '0.1.0',
     requestSingleInstanceLock: () => true,
     on: () => {},

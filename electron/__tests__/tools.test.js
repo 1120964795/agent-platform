@@ -27,7 +27,7 @@ test('tool registry loads expected stage B tools', () => {
   expect(typeof TOOLS.read_file).toBe('function')
 })
 
-test('legacy tools are hidden from AionUi Execute mode', () => {
+test('legacy tools are hidden from 司南 Execute mode', () => {
   expect(getExecutionToolSchemas()).toEqual([])
 })
 

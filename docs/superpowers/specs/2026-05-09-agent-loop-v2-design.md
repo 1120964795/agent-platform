@@ -7,14 +7,14 @@
 
 ## 0. Background
 
-Today's AionUi splits Chat/Execute. The plan-then-execute split forces the
+Today's 司南 splits Chat/Execute. The plan-then-execute split forces the
 model to commit to actions before seeing results, which fails in dense UIs
 (see today's logs: 学习通 sidebar 任务/章节 mis-clicked, 继续 loops).
 Modern agents (Claude Code, Codex, Operator) use a single chat surface with
 **native tool calling** — the model loops, deciding when to take a screenshot,
 click, read a file, all as tool calls.
 
-This rebuilds AionUi around that pattern, with seven product pillars
+This rebuilds 司南 around that pattern, with seven product pillars
 preserved: 屏幕监视 / 鼠键控制 / skill / 浏览器自动化 / 本地资源 / 历史对话 / 本地 exe.
 
 ## 0.1 What changed from v1
@@ -26,7 +26,7 @@ A reviewer audit caught 9 real issues in v1. v2 fixes each:
 | Tool names with dots violate `^[a-zA-Z0-9_-]{1,64}$` | `desktop.observe` | `desktop_observe`, `shell_command`, `file_read`, `skill_<n>` |
 | Policy too coarse | `policy.requiresApproval(call)` | `policy.evaluateToolCall(name, args, context)` returns `{risk, reason, allowed}` with content-aware checks |
 | "subprocess sandbox" is fiction | called it sandboxing | acknowledged as "user-permission code"; skills require explicit per-permission grants in manifest, default-disabled, no install-from-URL |
-| Localhost not a security boundary | bound 127.0.0.1, no auth | per-sidecar random token + `X-AionUi-Token` header + `Origin` validation; API keys via env only, never in request body |
+| Localhost not a security boundary | bound 127.0.0.1, no auth | per-sidecar random token + `X-司南-Token` header + `Origin` validation; API keys via env only, never in request body |
 | browser-use integration assumed | "browser-use bundles its own Chromium" | mandatory Phase 0 spike; Chromium via `playwright install chromium` (not bundled with browser-use); pin exact versions |
 | Cancellation incomplete | check `signal` between tool calls | per-task `AbortController` registry, `AbortSignal` propagated to fetch, sidecar `/cancel/:taskId` actually kills subprocess |
 | Frontend event protocol drift | renamed to `agent:event`, no migration | explicit migration layer; kept `chat:*` channels as aliases until next release |
@@ -153,7 +153,7 @@ mode `0o600` (best-effort on Windows; ACL the file for current user only).
 
 Each sidecar:
 - Reads its token from env var `SIDECAR_TOKEN` (set by supervisor at spawn).
-- Rejects requests missing or mismatching `X-AionUi-Token` header → HTTP 401.
+- Rejects requests missing or mismatching `X-司南-Token` header → HTTP 401.
 - Rejects requests with `Origin` header set to anything (Electron requests
   have empty `Origin`; browser-page requests would have `Origin: http://...`).
   → HTTP 403.
@@ -186,7 +186,7 @@ before this is implemented.** Pinned versions:
 
 ### 5.1 Endpoints
 
-All require `X-AionUi-Token`.
+All require `X-司南-Token`.
 
 - `GET /health` → `{ok, runtime:'browser-use', version, chromium_installed}`
 - `POST /run-task` → SSE stream:
@@ -224,7 +224,7 @@ BROWSER_USE_PLAYWRIGHT_CHROMIUM  (path to bootstrap-installed chromium)
 
 ## 6. First-run Python bootstrap
 
-When AionUi starts and `<userData>/python-runtime/python.exe` doesn't exist,
+When 司南 starts and `<userData>/python-runtime/python.exe` doesn't exist,
 the user is shown a `BootstrapDialog` (modal, blocking the browser_task tool
 but not other features). It runs:
 
@@ -282,7 +282,7 @@ Skills live at `<userData>/agentdev-lite/skills/<name>/`.
 
 Permissions not in the manifest are **denied** by the sidecar wrapper that
 invokes the skill. v1 enforces this **at the dispatcher layer** (toolDispatcher
-sees skill manifest; if skill calls back to AionUi via a callback IPC, AionUi
+sees skill manifest; if skill calls back to 司南 via a callback IPC, 司南
 checks permission). Skills are launched via Node `child_process.spawn` —
 not eval, never `vm.Script`.
 
@@ -304,7 +304,7 @@ All skills default `enabled: false` (per-skill state in
   permissions: `network`. risk: low.
 - `note-write` — appends a line to `<userData>/notes.md`. permissions:
   `fs.write:<userData>/notes.md`. risk: low.
-- `screenshot-save` — calls AionUi's `desktop_observe` tool internally then
+- `screenshot-save` — calls 司南's `desktop_observe` tool internally then
   writes the PNG to `<userData>/screenshots/`. permissions: `desktop`,
   `fs.write:<userData>/screenshots/`. risk: medium.
 
@@ -350,11 +350,11 @@ includes tool messages.
 1. **No-tool chat**: User: "中国地质大学有几个校区？" → agent answers without tools.
 2. **Pure shell**: "在桌面创建一个 hello.txt 文件，内容是 'hello world'" → `file_write` (medium, requires approval) → user approves → file appears on disk.
 3. **Multi-tool sequence**: "创建 hello.txt 写入 'hello'，然后读出来确认" → `file_write` + `file_read` → result text matches.
-4. **Browser**: "用浏览器打开 baidu.com 搜索 AionUi 然后告诉我标题" → `browser_task("open baidu.com, search 'AionUi', report top result title")` → result text contains a recognizable string.
+4. **Browser**: "用浏览器打开 baidu.com 搜索 司南 然后告诉我标题" → `browser_task("open baidu.com, search '司南', report top result title")` → result text contains a recognizable string.
 5. **Skill**: User explicitly enables `web-search` skill; "用 web-search 搜 deepseek 最新模型" → `skill_web_search` invoked with appropriate query.
 6. **Approval gate**: "运行 `rm -rf C:\\` 命令" → `shell_command` evaluated as `blocked` → tool returns `POLICY_BLOCKED` → agent reports refusal in plain text.
 7. **Cancel**: long `browser_task` started; user clicks Stop within 2s; sidecar receives `/cancel/<id>` within 1s; agent receives `CANCELLED` and reports cancellation.
-8. **History persistence**: have a 5-message chat; close AionUi; reopen; the conversation is in the sidebar; clicking it reloads all 5 messages including tool cards.
+8. **History persistence**: have a 5-message chat; close 司南; reopen; the conversation is in the sidebar; clicking it reloads all 5 messages including tool cards.
 9. **Bootstrap first-run**: fresh Windows VM with no Python; first launch shows BootstrapDialog; user clicks "Install"; progress completes; `browser_task` becomes available.
 10. **Locked-down skill**: skill is disabled in Settings; user asks for it → agent reports the skill isn't available.
 
@@ -391,7 +391,7 @@ is the deletion. Phase 9 verifies. Backout: revert Phase 8 only, keep 1-7.
 ## 12. Red lines
 
 1. Tool names match `^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`. **No dots.**
-2. Sidecars require `X-AionUi-Token`. **No exception** for "internal observe".
+2. Sidecars require `X-司南-Token`. **No exception** for "internal observe".
 3. API keys via env vars only. **Never in request body.**
 4. Skills are user-permission code. **No "sandbox" claim**, no install-from-URL, default-disabled.
 5. browser-use spike (Phase 0) must complete before Phase 3 starts. **No coding around unverified assumptions.**

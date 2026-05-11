@@ -1,6 +1,6 @@
-# AionUi
+# 司南
 
-AionUi is a Windows desktop control plane for agentic work. It keeps the model, local execution, screen control, confirmations, audit logs, and runtime setup in one visible Electron app.
+司南 is a Windows desktop control plane for agentic work. It keeps the model, local execution, screen control, confirmations, audit logs, and runtime setup in one visible Electron app.
 
 The V2 product direction is deliberately narrow and tri-model by design:
 
@@ -8,9 +8,9 @@ The V2 product direction is deliberately narrow and tri-model by design:
 - Qwen3-VL is vision-only and drives browser automation through the Midscene bridge.
 - Doubao 1.5 vision runs desktop screen control through UI-TARS on Volcengine Ark.
 - Open Interpreter remains the managed local runtime for command, file, and code work.
-- AionUi owns policy, confirmations, audit logging, emergency stop, setup guidance, and run outputs.
+- 司南 owns policy, confirmations, audit logging, emergency stop, setup guidance, and run outputs.
 
-The model proposes actions. AionUi validates and classifies them. The user approves risky work. Adapters execute only approved actions. Every meaningful event is recorded in the audit log.
+The model proposes actions. 司南 validates and classifies them. The user approves risky work. Adapters execute only approved actions. Every meaningful event is recorded in the audit log.
 
 Security review details live in `docs/security-policy.md`. The short version is: model output must pass through the action planner, policy engine, broker, confirmation path, adapter boundary, audit log, and run output storage.
 
@@ -105,21 +105,21 @@ Open Settings inside the app:
 
 ## Open Interpreter Runtime
 
-AionUi launches the managed `server/oi-bridge` sidecar on `127.0.0.1:8756`. Install Open Interpreter outside this repository with Python, then let the sidecar call the external runtime for approved shell, file, and code actions.
+司南 launches the managed `server/oi-bridge` sidecar on `127.0.0.1:8756`. Install Open Interpreter outside this repository with Python, then let the sidecar call the external runtime for approved shell, file, and code actions.
 
-Open Interpreter's AGPL source is not vendored here. Setup commands are high risk and must be confirmed through AionUi before running.
+Open Interpreter's AGPL source is not vendored here. Setup commands are high risk and must be confirmed through 司南 before running.
 
 ## UI-TARS Runtime
 
-UI-TARS is the desktop screen-control capability. AionUi launches `server/uitars-bridge` on `127.0.0.1:8765` and injects the Doubao 1.5 vision endpoint from Settings. Screen authorization must be active before observe, mouse, or keyboard actions run.
+UI-TARS is the desktop screen-control capability. 司南 launches `server/uitars-bridge` on `127.0.0.1:8765` and injects the Doubao 1.5 vision endpoint from Settings. Screen authorization must be active before observe, mouse, or keyboard actions run.
 
 Mouse and keyboard proposals are high risk by default and appear in Control Center. Emergency stop cancels queued UI actions and notifies the adapter.
 
 ## Midscene Runtime
 
-Midscene is the browser automation capability. AionUi launches `server/midscene-bridge` on `127.0.0.1:8770`; the bridge uses `@midscene/web` Bridge Mode, Qwen3-VL on DashScope, and the manually installed Chrome Midscene extension.
+Midscene is the browser automation capability. 司南 launches `server/midscene-bridge` on `127.0.0.1:8770`; the bridge uses `@midscene/web` Bridge Mode, Qwen3-VL on DashScope, and the manually installed Chrome Midscene extension.
 
-Browser actions such as `web.observe`, `web.click`, `web.type`, and `web.query` still pass through policy, confirmation, audit logging, and run outputs. AionUi never auto-installs the Chrome extension.
+Browser actions such as `web.observe`, `web.click`, `web.type`, and `web.query` still pass through policy, confirmation, audit logging, and run outputs. 司南 never auto-installs the Chrome extension.
 
 ## Safety Model
 

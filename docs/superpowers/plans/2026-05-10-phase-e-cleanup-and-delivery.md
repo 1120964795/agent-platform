@@ -125,11 +125,11 @@ File: `docs/developer-guide.md`
 Replace entirely. Document:
 
 ```markdown
-# AionUi Developer Guide
+# 司南 Developer Guide
 
 ## Architecture
 
-AionUi uses an agent-loop architecture:
+司南 uses an agent-loop architecture:
 
 1. **Agent Loop** (`electron/services/agentLoop.js`) — Drives the conversation: sends messages to the model, receives tool calls, evaluates policy, requests user approval, executes tools, returns results.
 2. **Tool Registry** (`electron/tools/index.js`) — All available tools register here via `register(schema, handler)`. Tools are auto-discovered by the agent loop.
@@ -652,7 +652,7 @@ File: `scripts/smoke-phase-e.js`
 
 ```js
 // Phase E acceptance smoke test
-// Tests the full AionUi stack: agent loop, tools, bridges, persistence
+// Tests the full 司南 stack: agent loop, tools, bridges, persistence
 // Usage: node scripts/smoke-phase-e.js
 
 const path = require('path')
@@ -666,7 +666,7 @@ const mockElectron = {
       if (key === 'userData') return path.join(os.tmpdir(), 'aionui-smoke-e')
       return path.join(os.tmpdir(), 'aionui-smoke-e')
     },
-    getName: () => 'AionUi',
+    getName: () => '司南',
     getVersion: () => '0.1.0',
     requestSingleInstanceLock: () => true,
     on: () => {},

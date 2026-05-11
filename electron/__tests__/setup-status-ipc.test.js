@@ -25,24 +25,38 @@ describe('setup-status', () => {
     const status = await computeSetupStatus({ storeRef: fakeStore })
     expect(status.helpLinks).toEqual({
       deepseekKey: 'https://platform.deepseek.com/api_keys',
+      qwenKey: 'https://bailian.console.aliyun.com/',
       doubaoKey: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
+      browserUseKey: 'https://zenmux.ai/',
     })
   })
 
   it('reports browser tier ready when doubao key and python deps are available', async () => {
-    const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k', doubaoVisionApiKey: 'd' }) }
+    const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k', doubaoVisionApiKey: 'd', browserUseApiKey: 'b' }) }
     setBridgeContext({
-      pythonBootstrap: { detect: async () => ({ available: true, browserUseInstalled: true, playwrightInstalled: true }) },
+      pythonBootstrap: { detect: async () => ({ available: true, browserUseInstalled: true, playwrightInstalled: true, seleniumInstalled: true }) },
       supervisor: null
     })
     const status = await computeSetupStatus({ storeRef: fakeStore })
     expect(status.tiers.browser.ready).toBe(true)
     expect(status.deps.python).toBe(true)
     expect(status.deps.browserUse).toBe(true)
+    expect(status.deps.selenium).toBe(true)
+  })
+
+  it('reports browser tier not ready when selenium is missing', async () => {
+    const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k', doubaoVisionApiKey: 'd', browserUseApiKey: 'b' }) }
+    setBridgeContext({
+      pythonBootstrap: { detect: async () => ({ available: true, browserUseInstalled: true, playwrightInstalled: true, seleniumInstalled: false }) },
+      supervisor: null
+    })
+    const status = await computeSetupStatus({ storeRef: fakeStore })
+    expect(status.tiers.browser.ready).toBe(false)
+    expect(status.deps.selenium).toBe(false)
   })
 
   it('reports browser tier not ready when python is missing', async () => {
-    const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k', doubaoVisionApiKey: 'd' }) }
+    const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k', doubaoVisionApiKey: 'd', browserUseApiKey: 'b' }) }
     setBridgeContext({
       pythonBootstrap: { detect: async () => ({ available: false, browserUseInstalled: false, playwrightInstalled: false }) },
       supervisor: null
@@ -80,6 +94,10 @@ describe('setup-status', () => {
 
     expect(handlers.get('setup:set-key')({}, { dep: 'deepseekKey', value: '  sk-test  ' })).toEqual({ ok: true })
     expect(setConfig).toHaveBeenCalledWith({ deepseekApiKey: 'sk-test' })
+    expect(handlers.get('setup:set-key')({}, { dep: 'qwenKey', value: '  sk-qwen  ' })).toEqual({ ok: true })
+    expect(setConfig).toHaveBeenCalledWith({ qwenApiKey: 'sk-qwen' })
+    expect(handlers.get('setup:set-key')({}, { dep: 'browserUseKey', value: '  sk-browser  ' })).toEqual({ ok: true })
+    expect(setConfig).toHaveBeenCalledWith({ browserUseApiKey: 'sk-browser' })
   })
 
   it('setup:set-key rejects unknown dep', () => {

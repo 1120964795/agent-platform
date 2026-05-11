@@ -1,10 +1,10 @@
-# AionUi V2 Dry-Run Demo Script
+# 司南 V2 Dry-Run Demo Script
 
 Use this script to demonstrate the full product without Qwen, Open Interpreter, or UI-TARS installed.
 
 ## Setup
 
-1. Start AionUi.
+1. Start 司南.
 2. Open Settings.
 3. Leave Qwen API key empty.
 4. Enable dry-run mode.

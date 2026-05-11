@@ -1,8 +1,8 @@
-# Phase F/G/H — AionUi Launch-Ready Implementation Plan
+# Phase F/G/H — 司南 Launch-Ready Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make AionUi runnable end-to-end: cleanup legacy code, add settings UI for API keys, validate packaging, polish UX.
+**Goal:** Make 司南 runnable end-to-end: cleanup legacy code, add settings UI for API keys, validate packaging, polish UX.
 
 **Architecture:** Three sequential phases. Phase F removes Open Interpreter legacy and updates settings. Phase G validates packaging and rewrites the welcome wizard. Phase H adds bridge status indicators, restart backoff, and first-run flow.
 

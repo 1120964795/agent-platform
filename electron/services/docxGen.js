@@ -39,7 +39,7 @@ async function generateDocx({ title, sections }) {
   }
 
   const doc = new Document({
-    creator: 'AionUi',
+    creator: '司南',
     title,
     sections: [{ properties: {}, children }]
   })
