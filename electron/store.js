@@ -46,6 +46,11 @@ const DEFAULT_CONFIG = {
   browserUseModel: 'openai/gpt-5.5',
   browserUseVisionEnabled: true,
   browserUseHeadless: false,
+  desktopUseEndpoint: 'https://zenmux.ai/api/v1',
+  desktopUseApiKey: '',
+  desktopUseModel: 'openai/gpt-5.5',
+  desktopUseGroundingBackend: 'manual-coordinate',
+  desktopUseAllowBrowserFallback: false,
   dryRunEnabled: true,
   visionLoopEnabled: true,
   auditRetentionDays: 30,
@@ -132,7 +137,8 @@ const store = {
       qwenApiKey: mask(config.qwenApiKey || ''),
       deepseekApiKey: mask(config.deepseekApiKey || ''),
       doubaoVisionApiKey: mask(config.doubaoVisionApiKey || ''),
-      browserUseApiKey: maskBrowserUse(config.browserUseApiKey || '')
+      browserUseApiKey: maskBrowserUse(config.browserUseApiKey || ''),
+      desktopUseApiKey: maskBrowserUse(config.desktopUseApiKey || '')
     }
   },
 

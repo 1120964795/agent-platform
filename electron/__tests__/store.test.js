@@ -35,6 +35,11 @@ test('getConfig returns defaults including new fields', () => {
   expect(config.browserUseModel).toBe('openai/gpt-5.5')
   expect(config.browserUseVisionEnabled).toBe(true)
   expect(config.browserUseHeadless).toBe(false)
+  expect(config.desktopUseEndpoint).toBe('https://zenmux.ai/api/v1')
+  expect(config.desktopUseApiKey).toBe('')
+  expect(config.desktopUseModel).toBe('openai/gpt-5.5')
+  expect(config.desktopUseGroundingBackend).toBe('manual-coordinate')
+  expect(config.desktopUseAllowBrowserFallback).toBe(false)
 })
 
 test('config has visionLoopEnabled default true', () => {
@@ -51,4 +56,9 @@ test('setConfig persists patches', () => {
 test('getMaskedConfig masks Browser-Use API key', () => {
   store.setConfig({ browserUseApiKey: 'sk-ai-v1-abcdef1234567890' })
   expect(store.getMaskedConfig().browserUseApiKey).toBe('sk-ai***7890')
+})
+
+test('getMaskedConfig masks Desktop-Use API key', () => {
+  store.setConfig({ desktopUseApiKey: 'sk-ai-v1-desktop-use-key' })
+  expect(store.getMaskedConfig().desktopUseApiKey).toBe('sk-ai***-key')
 })

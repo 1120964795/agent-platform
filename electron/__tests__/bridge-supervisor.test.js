@@ -56,7 +56,8 @@ describe('bridgeSupervisor', () => {
     const result = await sup.start()
     expect(result.uitars.ready).toBe(true)
     expect(result.browserUse.ready).toBe(true)
-    expect(calls).toHaveLength(2)
+    expect(result.desktopUse.ready).toBe(true)
+    expect(calls).toHaveLength(3)
     expect(calls.every((call) => call.windowsHide === true)).toBe(true)
     const uitars = calls.find((c) => c.args.some((arg) => arg.includes('uitars-bridge')))
     expect(uitars.env.UITARS_MODEL_PROVIDER).toBe('volcengine')
@@ -69,6 +70,13 @@ describe('bridgeSupervisor', () => {
     expect(browserUse.env.BROWSER_USE_VISION_ENABLED).toBe('true')
     expect(browserUse.env.BROWSER_USE_HEADLESS).toBe('false')
     expect(browserUse.env.BROWSER_USE_KEEP_ALIVE).toBe('true')
+    const desktopUse = calls.find((c) => c.cmd === 'node' && c.args.some((arg) => arg.includes('desktop-use-bridge')))
+    expect(desktopUse).toBeDefined()
+    expect(desktopUse.args).toContain('8790')
+    expect(desktopUse.env.DESKTOP_USE_MODEL_ENDPOINT).toBe('https://zenmux.ai/api/v1')
+    expect(desktopUse.env.DESKTOP_USE_MODEL_API_KEY).toBe('')
+    expect(desktopUse.env.DESKTOP_USE_MODEL_NAME).toBe('openai/gpt-5.5')
+    expect(desktopUse.env.DESKTOP_USE_GROUNDING_BACKEND).toBe('manual-coordinate')
   })
 
   it('captures child stdout and stderr in bridge-specific log files', async () => {
@@ -87,11 +95,11 @@ describe('bridgeSupervisor', () => {
 
     await sup.start()
 
-    expect(seenStdio).toHaveLength(2)
+    expect(seenStdio).toHaveLength(3)
     expect(seenStdio.every((stdio) => Array.isArray(stdio) && stdio[0] === 'ignore')).toBe(true)
-    expect(openedFds).toHaveLength(4)
+    expect(openedFds).toHaveLength(6)
     expect(openedFds.map((fd) => fdWasClosed(fd)).every(Boolean)).toBe(true)
-    for (const key of ['uitars', 'browserUse']) {
+    for (const key of ['uitars', 'browserUse', 'desktopUse']) {
       expect(fs.existsSync(path.join(os.tmpdir(), 'aionui-logs', `${key}-stdout.log`))).toBe(true)
       expect(fs.existsSync(path.join(os.tmpdir(), 'aionui-logs', `${key}-stderr.log`))).toBe(true)
     }
@@ -126,6 +134,27 @@ describe('bridgeSupervisor', () => {
     expect(result.browserUse.diagnostics.missingConfig).toEqual(['browserUseApiKey'])
     expect(result.browserUse.diagnostics.nextSteps).toEqual(expect.arrayContaining([
       expect.stringContaining('browserUseApiKey')
+    ]))
+  })
+
+  it('reports Desktop-Use config fields and diagnostics separately', async () => {
+    const sup = createSupervisor({
+      spawnImpl: () => ({ on() {}, kill() {}, killed: false }),
+      healthImpl: async () => ({ ok: false })
+    })
+
+    const result = await sup.startOne('desktopUse', { healthTimeoutMs: 50, maxRestarts: 0 })
+
+    expect(result.state).toBe('failed')
+    expect(result.diagnostics).toEqual(expect.objectContaining({
+      bridge: 'desktopUse',
+      name: 'desktop-use-bridge',
+      port: 8790,
+      missingConfig: ['desktopUseApiKey']
+    }))
+    expect(result.diagnostics.nextSteps).toEqual(expect.arrayContaining([
+      expect.stringContaining('desktopUseApiKey'),
+      expect.stringContaining('desktop-use')
     ]))
   })
 
@@ -572,6 +601,6 @@ describe('bridgeSupervisor', () => {
     await sup.start()
     sup.stop()
     expect(children.every((c) => c.killed)).toBe(true)
-    expect(children).toHaveLength(2)
+    expect(children).toHaveLength(3)
   })
 })

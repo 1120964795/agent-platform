@@ -107,6 +107,41 @@ test('config handlers persist Browser-Use settings and mask key', async () => {
   expect(store.getConfig().browserUseModel).toBe('openai/gpt-5.5')
 })
 
+test('config handlers persist Desktop-Use settings and mask key', async () => {
+  const ipcMain = createIpcMain()
+  registerAll(ipcMain)
+
+  const setResult = await ipcMain.handlers.get('config:set')({}, {
+    desktopUseApiKey: '  sk-ai-v1-desktop-use-key  ',
+    desktopUseEndpoint: '  https://desktop-relay.example/v1  ',
+    desktopUseModel: '  openai/gpt-5.5  ',
+    desktopUseGroundingBackend: '  uitars  ',
+    desktopUseAllowBrowserFallback: true
+  })
+
+  expect(setResult.ok).toBe(true)
+  expect(setResult.config.desktopUseApiKey).toBe('sk-ai***-key')
+  expect(store.getConfig().desktopUseApiKey).toBe('sk-ai-v1-desktop-use-key')
+  expect(store.getConfig().desktopUseEndpoint).toBe('https://desktop-relay.example/v1')
+  expect(store.getConfig().desktopUseModel).toBe('openai/gpt-5.5')
+  expect(store.getConfig().desktopUseGroundingBackend).toBe('uitars')
+  expect(store.getConfig().desktopUseAllowBrowserFallback).toBe(true)
+
+  await ipcMain.handlers.get('config:set')({}, {
+    desktopUseApiKey: '   ',
+    desktopUseEndpoint: '   ',
+    desktopUseModel: '   ',
+    desktopUseGroundingBackend: '   ',
+    desktopUseAllowBrowserFallback: false
+  })
+
+  expect(store.getConfig().desktopUseApiKey).toBe('sk-ai-v1-desktop-use-key')
+  expect(store.getConfig().desktopUseEndpoint).toBe('https://desktop-relay.example/v1')
+  expect(store.getConfig().desktopUseModel).toBe('openai/gpt-5.5')
+  expect(store.getConfig().desktopUseGroundingBackend).toBe('uitars')
+  expect(store.getConfig().desktopUseAllowBrowserFallback).toBe(false)
+})
+
 test('conversation upsert and get handlers round trip data', async () => {
   const ipcMain = createIpcMain()
   registerAll(ipcMain)

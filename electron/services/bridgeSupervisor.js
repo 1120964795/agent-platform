@@ -10,7 +10,8 @@ const CHILD_EXIT_TIMEOUT_MS = 1500
 
 const DEFAULTS = {
   uitars: { name: 'uitars-bridge', port: 8765, dir: 'server/uitars-bridge' },
-  browserUse: { name: 'browser-use-bridge', port: 8780, dir: 'server/browser-use-bridge', runtime: 'python' }
+  browserUse: { name: 'browser-use-bridge', port: 8780, dir: 'server/browser-use-bridge', runtime: 'python' },
+  desktopUse: { name: 'desktop-use-bridge', port: 8790, dir: 'server/desktop-use-bridge' }
 }
 
 function resolveDefaultRootDir() {
@@ -99,12 +100,18 @@ function buildDiagnostics(key, lastError) {
     if (!config.browserUseEndpoint) missingConfig.push('browserUseEndpoint')
     if (!config.browserUseModel) missingConfig.push('browserUseModel')
   }
+  if (key === 'desktopUse') {
+    if (!config.desktopUseApiKey) missingConfig.push('desktopUseApiKey')
+    if (!config.desktopUseEndpoint) missingConfig.push('desktopUseEndpoint')
+    if (!config.desktopUseModel) missingConfig.push('desktopUseModel')
+  }
 
   const nextSteps = []
   if (missingConfig.length) nextSteps.push(`Configure missing settings: ${missingConfig.join(', ')}`)
   nextSteps.push(`Inspect stderr log: ${logs.stderrLog}`)
   if (key === 'uitars') nextSteps.push('Check server/uitars-bridge dependencies and screen-control permissions.')
   if (key === 'browserUse') nextSteps.push('Check Python, browser-use, and Playwright Chromium installation.')
+  if (key === 'desktopUse') nextSteps.push('Check desktop-use dependencies and desktop screen-control permissions.')
   nextSteps.push(`Restart the ${cfg.name} bridge from Settings > Runtime.`)
 
   return {
@@ -157,6 +164,13 @@ function createSupervisor(opts = {}) {
       env.BROWSER_USE_VISION_ENABLED = config.browserUseVisionEnabled === false ? 'false' : 'true'
       env.BROWSER_USE_HEADLESS = config.browserUseHeadless === true ? 'true' : 'false'
       env.BROWSER_USE_KEEP_ALIVE = config.browserUseHeadless === true ? 'false' : 'true'
+    }
+    if (key === 'desktopUse') {
+      const allowBrowserFallback = config.desktopUseAllowBrowserFallback === true
+      env.DESKTOP_USE_MODEL_ENDPOINT = config.desktopUseEndpoint || (allowBrowserFallback ? config.browserUseEndpoint : '') || 'https://zenmux.ai/api/v1'
+      env.DESKTOP_USE_MODEL_API_KEY = config.desktopUseApiKey || (allowBrowserFallback ? config.browserUseApiKey : '') || ''
+      env.DESKTOP_USE_MODEL_NAME = config.desktopUseModel || (allowBrowserFallback ? config.browserUseModel : '') || 'openai/gpt-5.5'
+      env.DESKTOP_USE_GROUNDING_BACKEND = config.desktopUseGroundingBackend || 'manual-coordinate'
     }
     return env
   }

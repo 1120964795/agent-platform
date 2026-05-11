@@ -30,6 +30,23 @@ function sanitizeConfigPatch(input = {}) {
   }
   if (typeof input.browserUseVisionEnabled === 'boolean') patch.browserUseVisionEnabled = input.browserUseVisionEnabled
   if (typeof input.browserUseHeadless === 'boolean') patch.browserUseHeadless = input.browserUseHeadless
+  if (typeof input.desktopUseApiKey === 'string' && !input.desktopUseApiKey.includes('***')) {
+    const desktopUseApiKey = input.desktopUseApiKey.trim()
+    if (desktopUseApiKey) patch.desktopUseApiKey = desktopUseApiKey
+  }
+  if (typeof input.desktopUseEndpoint === 'string') {
+    const desktopUseEndpoint = input.desktopUseEndpoint.trim()
+    if (desktopUseEndpoint) patch.desktopUseEndpoint = desktopUseEndpoint
+  }
+  if (typeof input.desktopUseModel === 'string') {
+    const desktopUseModel = input.desktopUseModel.trim()
+    if (desktopUseModel) patch.desktopUseModel = desktopUseModel
+  }
+  if (typeof input.desktopUseGroundingBackend === 'string') {
+    const desktopUseGroundingBackend = input.desktopUseGroundingBackend.trim()
+    if (desktopUseGroundingBackend) patch.desktopUseGroundingBackend = desktopUseGroundingBackend
+  }
+  if (typeof input.desktopUseAllowBrowserFallback === 'boolean') patch.desktopUseAllowBrowserFallback = input.desktopUseAllowBrowserFallback
   if (typeof input.dryRunEnabled === 'boolean') patch.dryRunEnabled = input.dryRunEnabled
   if (typeof input.auditRetentionDays === 'number') patch.auditRetentionDays = input.auditRetentionDays
   if (typeof input.outputRetentionDays === 'number') patch.outputRetentionDays = input.outputRetentionDays
