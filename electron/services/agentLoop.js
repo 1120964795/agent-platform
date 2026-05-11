@@ -169,6 +169,7 @@ function summarizeToolResult(result, failure) {
   if (failure) return `${failure.code}: ${failure.message}`
   if (typeof result === 'string') return result.slice(0, 180)
   if (result?.summary) return String(result.summary).slice(0, 180)
+  if (result?.metadata?.summary) return String(result.metadata.summary).slice(0, 180)
   if (result?.final_url) return `完成，最终页面：${result.final_url}`
   return '工具已返回结果。'
 }
@@ -294,6 +295,11 @@ async function runTurn({ messages, model, signal, onEvent, onStreamEvent, reques
     onEvent?.('assistant_message', { content: '', toolCalls: [forcedCall] })
     const forcedResult = await processToolCall(forcedCall)
     if (forcedResult) return forcedResult
+    const outcome = toolOutcomes.get(forcedCall.id)
+    return {
+      finalText: summarizeToolResult(outcome?.result, outcome?.failure),
+      history
+    }
   }
 
   for (let step = 0; step < MAX_STEPS; step++) {

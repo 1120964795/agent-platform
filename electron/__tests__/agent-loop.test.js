@@ -473,6 +473,32 @@ test('desktop plugin mode creates a desktop_task tool call', async () => {
   }), expect.objectContaining({ skipInternalConfirm: true }))
 })
 
+test('desktop plugin mode finishes from the desktop task result without another model turn', async () => {
+  const deepseek = {
+    chat: vi.fn(async () => {
+      throw new Error('model should not be called after forced desktop task')
+    })
+  }
+  const tools = {
+    execute: vi.fn(async () => ({ ok: true, metadata: { summary: 'QQ opened' } })),
+    getAgentLoopToolSchemas: vi.fn(() => [])
+  }
+  const policy = mockPolicy({ desktop_task: { risk: 'high', reason: 'desktop automation', allowed: true, requiresApproval: true } })
+
+  const result = await runTurn(
+    {
+      messages: [{ role: 'user', content: 'Open QQ' }],
+      forceTool: 'desktop_task',
+      requestApproval: async () => true
+    },
+    { deepseek, tools, policy }
+  )
+
+  expect(result.finalText).toBe('QQ opened')
+  expect(deepseek.chat).not.toHaveBeenCalled()
+  expect(tools.getAgentLoopToolSchemas).not.toHaveBeenCalled()
+})
+
 test('forcedSkill loads the skill before the normal model turn', async () => {
   const calls = []
   let chatMessages = null

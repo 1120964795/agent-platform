@@ -38,3 +38,17 @@ test('maps conversation helpers to IPC channels', async () => {
   expect(window.electronAPI.invoke).toHaveBeenCalledWith('conversations:delete', { id: 'conv-2' })
   expect(window.electronAPI.invoke).toHaveBeenCalledWith('conversations:list', undefined)
 })
+
+test('reports missing Electron IPC through onError instead of throwing', () => {
+  global.window = {}
+  const onError = vi.fn()
+
+  expect(() => api.stream({
+    channel: 'chat:send',
+    payload: { convId: 'conv-1' },
+    onError,
+  })).not.toThrow()
+
+  expect(onError).toHaveBeenCalledTimes(1)
+  expect(onError.mock.calls[0][0].code).toBe('NOT_SUPPORTED')
+})

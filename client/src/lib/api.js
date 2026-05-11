@@ -70,7 +70,13 @@ function stream(arg, legacyBody, legacyOnDelta, legacyOnDone, legacyOnError) {
     onConfirmationRequest,
     onConfirmationCleared
   } = options
-  const electron = electronAPI()
+  let electron
+  try {
+    electron = electronAPI()
+  } catch (error) {
+    onError?.(error)
+    return () => {}
+  }
   const cleanupFns = []
   let closed = false
 
