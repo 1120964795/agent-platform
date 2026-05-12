@@ -69,7 +69,21 @@ export default function AuthPage({ needsSetup = false, onLogin }) {
           <i style={{ top: '22%', left: '6%',  animationDelay: '1.1s' }} />
           <i style={{ top: '88%', left: '30%', animationDelay: '0.6s' }} />
         </div>
-        {/* Möbius strip + tagline added in later tasks */}
+        <div className="mb-content">
+          <div className="brand-row">
+            <div className="brand-mark" />
+            <span className="brand-name">AgentDev Lite</span>
+          </div>
+
+          <div className="stage">
+            {/* Möbius SVG inserted in Task 5 */}
+          </div>
+
+          <div className="tagline">
+            <div className="tag-eyebrow">A NEVER-ENDING LOOP</div>
+            <div className="tag-headline">每一次想法<br />都是 <em>下一次</em> 的起点</div>
+          </div>
+        </div>
       </div>
 
       {/* ════════ RIGHT PANEL ════════ */}
@@ -234,6 +248,66 @@ function AuthStyles() {
       @keyframes twinkle {
         0%, 100% { opacity: 0.15; }
         50%      { opacity: 1; }
+      }
+
+      .mb-content {
+        position: relative;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .brand-row {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        color: #fff;
+      }
+      .brand-mark {
+        width: 28px; height: 28px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #60a5fa, #a78bfa);
+        box-shadow: 0 4px 14px rgba(99,102,241,0.5);
+        flex-shrink: 0;
+      }
+      .brand-name {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+      }
+
+      .stage {
+        flex: 1;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 0;
+      }
+
+      .tagline { position: relative; text-align: left; }
+      .tag-eyebrow {
+        font-size: 10.5px;
+        color: #a78bfa;
+        letter-spacing: 3.5px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
+      .tag-headline {
+        font-size: 24px;
+        font-weight: 700;
+        color: #f8fafc;
+        line-height: 1.35;
+        letter-spacing: -0.5px;
+      }
+      .tag-headline em {
+        font-style: normal;
+        background: linear-gradient(90deg, #60a5fa, #a78bfa);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
       }
 
       /* Right panel */
