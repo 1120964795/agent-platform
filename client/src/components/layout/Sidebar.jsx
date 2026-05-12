@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
+import { CalendarClock, Check, ChevronLeft, ChevronRight, MoreHorizontal, PauseCircle, Pencil, Play, Plus, Search, Settings, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 function formatTime(value) {
@@ -27,7 +27,13 @@ export default function Sidebar({
   onDelete,
   onRename,
   onSearch,
-  onOpenSettings
+  onOpenSettings,
+  scheduledTasks = [],
+  onSelectScheduledTask,
+  onToggleScheduledTask,
+  onDeleteScheduledTask,
+  onRunScheduledTask,
+  onOpenScheduledTaskSettings
 }) {
   const [query, setQuery] = useState('')
   const [menuId, setMenuId] = useState(null)
@@ -106,6 +112,36 @@ export default function Sidebar({
         {!collapsed && sorted.length === 0 && (
           <div className="rounded-md border border-dashed border-[color:var(--border)] px-3 py-6 text-center text-xs text-[color:var(--text-muted)]">
             暂无聊天
+          </div>
+        )}
+
+        {!collapsed && scheduledTasks.length > 0 && (
+          <div className="mb-3 rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] p-2">
+            <div className="mb-2 flex items-center justify-between gap-2 px-1 text-xs font-medium text-[color:var(--text-muted)]">
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <CalendarClock size={13} />
+                <span className="truncate">定时任务</span>
+              </span>
+              <button type="button" onClick={onOpenScheduledTaskSettings} className="rounded px-1 py-0.5 hover:bg-[color:var(--bg-tertiary)]">管理</button>
+            </div>
+            <div className="space-y-1">
+              {scheduledTasks.slice(0, 5).map((task) => (
+                <div key={task.id} className="group rounded-md hover:bg-[color:var(--bg-tertiary)]">
+                  <button type="button" onClick={() => onSelectScheduledTask?.(task)} className="w-full px-2 py-1.5 text-left">
+                    <div className="truncate text-xs font-medium">{task.name}</div>
+                    <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-[color:var(--text-muted)]">
+                      <span className="truncate">{task.schedule?.human || 'No schedule'}</span>
+                      <span className="shrink-0">{task.enabled === false ? 'paused' : task.lastStatus || 'never-run'}</span>
+                    </div>
+                  </button>
+                  <div className="hidden gap-1 px-2 pb-1 group-hover:flex">
+                    <button type="button" onClick={() => onRunScheduledTask?.(task.id)} className="rounded p-1 hover:bg-[color:var(--bg-primary)]" title="Run now"><Play size={12} /></button>
+                    <button type="button" onClick={() => onToggleScheduledTask?.(task.id, task.enabled === false)} className="rounded p-1 hover:bg-[color:var(--bg-primary)]" title={task.enabled === false ? 'Enable' : 'Pause'}><PauseCircle size={12} /></button>
+                    <button type="button" onClick={() => onDeleteScheduledTask?.(task.id)} className="rounded p-1 text-[color:var(--error)] hover:bg-[color:var(--bg-primary)]" title="Delete"><Trash2 size={12} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

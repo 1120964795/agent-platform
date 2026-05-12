@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ExternalLink, FileText, Presentation, RefreshCw, Trash2, X } from 'lucide-react'
-import { deleteArtifact, getConfig, getRuntimeStatus, listArtifacts, openFile, setConfig } from '../lib/api.js'
+import { deleteArtifact, deleteScheduledTask, getConfig, getRuntimeStatus, listArtifacts, listScheduledTasks, openFile, runScheduledTaskNow, setConfig, updateScheduledTask } from '../lib/api.js'
 
 const DEFAULT_FORM = {
   deepseekApiKey: '',
@@ -22,6 +22,7 @@ const DEFAULT_FORM = {
 
 const TABS = [
   ['artifacts', 'Artifacts'],
+  ['scheduledTasks', 'Scheduled Tasks'],
   ['models', 'Models'],
   ['runtime', 'Runtime'],
   ['safety', 'Safety'],
@@ -148,6 +149,7 @@ export default function SettingsPage({ onClose, initialTab = 'models' }) {
   const [bridges, setBridges] = useState({})
   const [artifacts, setArtifacts] = useState([])
   const [artifactsLoading, setArtifactsLoading] = useState(false)
+  const [scheduledTasks, setScheduledTasks] = useState([])
   const [restartingBridge, setRestartingBridge] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -180,12 +182,21 @@ export default function SettingsPage({ onClose, initialTab = 'models' }) {
     }
   }
 
+  async function refreshScheduledTasks() {
+    try {
+      const result = await listScheduledTasks()
+      setScheduledTasks(result.tasks || [])
+    } catch (error) {
+      setMessage(`Scheduled task refresh failed: ${error.message}`)
+    }
+  }
+
   useEffect(() => {
     let ignored = false
     async function load() {
       try {
         const bridgeStatus = window.electronAPI?.invoke?.('bridge:status') || Promise.resolve({ bridges: {} })
-        const [configResult, runtimeResult, bridgeResult, artifactsResult] = await Promise.allSettled([getConfig(), getRuntimeStatus(), bridgeStatus, listArtifacts()])
+        const [configResult, runtimeResult, bridgeResult, artifactsResult, scheduledResult] = await Promise.allSettled([getConfig(), getRuntimeStatus(), bridgeStatus, listArtifacts(), listScheduledTasks()])
         if (ignored) return
         if (configResult.status === 'fulfilled') applyConfig(configResult.value.config || {})
         if (runtimeResult.status === 'fulfilled') setRuntime(runtimeResult.value)
@@ -194,6 +205,7 @@ export default function SettingsPage({ onClose, initialTab = 'models' }) {
           const items = Array.isArray(artifactsResult.value?.items) ? artifactsResult.value.items : []
           setArtifacts(items)
         }
+        if (scheduledResult.status === 'fulfilled') setScheduledTasks(scheduledResult.value.tasks || [])
       } catch {}
     }
     load()
@@ -263,6 +275,38 @@ export default function SettingsPage({ onClose, initialTab = 'models' }) {
       await deleteArtifact(artifact.id)
       await refreshArtifacts()
       setMessage('Artifact deleted')
+    } catch (error) {
+      setMessage(`Delete failed: ${error.message}`)
+    }
+  }
+
+  async function toggleScheduledTask(task) {
+    try {
+      const result = await updateScheduledTask(task.id, { enabled: task.enabled === false })
+      setScheduledTasks(current => current.map(item => item.id === task.id ? result.task : item))
+      window.dispatchEvent(new CustomEvent('aionui:scheduled-tasks-changed'))
+    } catch (error) {
+      setMessage(`Scheduled task update failed: ${error.message}`)
+    }
+  }
+
+  async function runScheduledTask(task) {
+    setMessage('')
+    try {
+      const result = await runScheduledTaskNow(task.id)
+      await refreshScheduledTasks()
+      setMessage(result.ok ? `Started ${task.name}` : 'Run started')
+    } catch (error) {
+      setMessage(`Run failed: ${error.message}`)
+    }
+  }
+
+  async function removeScheduledTask(task) {
+    try {
+      await deleteScheduledTask(task.id)
+      await refreshScheduledTasks()
+      window.dispatchEvent(new CustomEvent('aionui:scheduled-tasks-changed'))
+      setMessage('Scheduled task deleted')
     } catch (error) {
       setMessage(`Delete failed: ${error.message}`)
     }
@@ -364,6 +408,42 @@ export default function SettingsPage({ onClose, initialTab = 'models' }) {
                         <Trash2 size={14} />
                       </button>
                     </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab === 'scheduledTasks' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-medium">Scheduled Tasks</h3>
+                  <p className="text-xs text-[color:var(--text-muted)]">Plugin-created tasks with full-trust preauthorization.</p>
+                </div>
+                <button type="button" onClick={refreshScheduledTasks} className="h-9 rounded-md border border-[color:var(--border)] px-3 text-sm hover:bg-[color:var(--bg-tertiary)]">Refresh</button>
+              </div>
+              {scheduledTasks.length === 0 && (
+                <div className="rounded-md border border-dashed border-[color:var(--border)] p-6 text-center text-sm text-[color:var(--text-muted)]">
+                  No scheduled tasks yet. Use the plugin menu in chat to create one.
+                </div>
+              )}
+              <div className="space-y-2">
+                {scheduledTasks.map((task) => (
+                  <article key={task.id} className="rounded-md border border-[color:var(--border)] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">{task.name}</div>
+                        <div className="mt-1 text-xs text-[color:var(--text-muted)]">{task.schedule?.human || 'No schedule'} - next {task.nextRunAt || 'unknown'}</div>
+                        <div className="mt-2 inline-flex rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] text-amber-800">已预授权</div>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button type="button" onClick={() => runScheduledTask(task)} className="h-8 rounded-md border border-[color:var(--border)] px-2 text-xs hover:bg-[color:var(--bg-tertiary)]">Run now</button>
+                        <button type="button" onClick={() => toggleScheduledTask(task)} className="h-8 rounded-md border border-[color:var(--border)] px-2 text-xs hover:bg-[color:var(--bg-tertiary)]">{task.enabled === false ? 'Enable' : 'Pause'}</button>
+                        <button type="button" onClick={() => removeScheduledTask(task)} className="h-8 rounded-md border border-[color:var(--border)] px-2 text-xs text-red-500 hover:bg-red-50">Delete</button>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-[color:var(--text-muted)]">Last status: {task.lastStatus || 'never-run'} - Windows: {task.windows?.registered ? 'registered' : 'not registered'}</div>
                   </article>
                 ))}
               </div>

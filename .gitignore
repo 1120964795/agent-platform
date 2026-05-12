@@ -20,3 +20,6 @@ midscene_run/log
 
 # Worktree isolation
 .worktrees/
+
+# Superpowers brainstorming previews and local state
+.superpowers/

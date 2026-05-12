@@ -1,5 +1,5 @@
 import { useReducer, useCallback, useRef, useEffect, useState } from 'react'
-import { abortChat, api, cancelAction } from '../lib/api.js'
+import { abortChat, api, cancelAction, createScheduledTask, draftScheduledTask } from '../lib/api.js'
 
 function uid() {
   return Math.random().toString(36).slice(2, 10)
@@ -25,6 +25,15 @@ function reducer(state, action) {
         messages: state.messages.map((message) => (
           message.type === 'confirmation' && message.confirmation?.callId === action.callId
             ? { ...message, confirmationStatus: action.status }
+            : message
+        ))
+      }
+    case 'UPDATE_SCHEDULE_DRAFT':
+      return {
+        ...state,
+        messages: state.messages.map((message) => (
+          message.type === 'schedule_draft_confirmation' && message.id === action.id
+            ? { ...message, scheduleDraftStatus: action.status }
             : message
         ))
       }
@@ -75,6 +84,17 @@ function formatConfirmationContent(pending) {
     `风险原因: ${pending.reason || 'high risk operation'}`,
     '参数:',
     args
+  ].join('\n')
+}
+
+function formatScheduleDraftContent(draft) {
+  return [
+    '定时任务确认',
+    `名称: ${draft.name}`,
+    `计划: ${draft.schedule?.human || 'No schedule'}`,
+    `下次运行: ${draft.nextRunAt || 'unknown'}`,
+    '',
+    draft.preauthorizationWarning || '确认后，后续定时运行将按 full-trust 预授权执行。'
   ].join('\n')
 }
 
@@ -168,6 +188,7 @@ export function useChat(conversationId) {
   const [agentRunning, setAgentRunning] = useState(false)
   const [pendingConfirmation, setPendingConfirmation] = useState(null)
   const [pendingDesktopAsk, setPendingDesktopAsk] = useState(null)
+  const [pendingScheduleDraft, setPendingScheduleDraft] = useState(null)
 
   useEffect(() => {
     if (!conversationId) return undefined
@@ -183,6 +204,7 @@ export function useChat(conversationId) {
     setAgentRunning(false)
     setPendingConfirmation(null)
     setPendingDesktopAsk(null)
+    setPendingScheduleDraft(null)
     dispatch({ type: 'CLEAR' })
 
     async function loadConversation() {
@@ -204,6 +226,7 @@ export function useChat(conversationId) {
       abortRef.current = null
       setPendingConfirmation(null)
       setPendingDesktopAsk(null)
+      setPendingScheduleDraft(null)
     }
   }, [conversationId])
 
@@ -380,12 +403,71 @@ export function useChat(conversationId) {
     })
   }, [pendingConfirmation])
 
+  const createScheduledTaskDraft = useCallback((text) => {
+    const convId = conversationIdRef.current
+    if (!convId) return
+    const userMessage = { id: uid(), role: 'user', content: text }
+    dispatch({ type: 'ADD', msg: userMessage })
+    draftScheduledTask(text).then((result) => {
+      const messageId = `schedule-draft-${uid()}`
+      const draftMessage = {
+        id: messageId,
+        role: 'assistant',
+        type: 'schedule_draft_confirmation',
+        content: formatScheduleDraftContent(result.draft),
+        scheduleDraft: result.draft,
+        scheduleDraftStatus: 'pending'
+      }
+      setPendingScheduleDraft({ draft: result.draft, messageId })
+      dispatch({ type: 'ADD', msg: draftMessage })
+      const history = [...state.messages, userMessage, draftMessage]
+        .filter((message) => message.role === 'user' || message.role === 'assistant')
+        .map((message) => ({ role: message.role, content: message.content }))
+      saveConversation(convId, history)
+    }).catch((error) => {
+      const assistantMessage = { id: uid(), role: 'assistant', content: `[Scheduled task draft error] ${error.message}` }
+      dispatch({ type: 'ADD', msg: assistantMessage })
+      const history = [...state.messages, userMessage, assistantMessage]
+        .filter((message) => message.role === 'user' || message.role === 'assistant')
+        .map((message) => ({ role: message.role, content: message.content }))
+      saveConversation(convId, history)
+    })
+  }, [state.messages, saveConversation])
+
+  const respondToScheduleDraft = useCallback((approved) => {
+    const pending = pendingScheduleDraft
+    const convId = conversationIdRef.current
+    if (!pending || !convId) return
+    if (!approved) {
+      dispatch({ type: 'UPDATE_SCHEDULE_DRAFT', id: pending.messageId, status: 'rejected' })
+      setPendingScheduleDraft(null)
+      dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', content: '定时任务已取消。' } })
+      return
+    }
+
+    dispatch({ type: 'UPDATE_SCHEDULE_DRAFT', id: pending.messageId, status: 'confirmed' })
+    createScheduledTask(pending.draft).then((result) => {
+      setPendingScheduleDraft(null)
+      window.dispatchEvent(new CustomEvent('aionui:scheduled-tasks-changed'))
+      const assistantMessage = {
+        id: uid(),
+        role: 'assistant',
+        content: `定时任务已创建: ${result.task.name}\n计划: ${result.task.schedule?.human || 'No schedule'}`
+      }
+      dispatch({ type: 'ADD', msg: assistantMessage })
+    }).catch((error) => {
+      dispatch({ type: 'UPDATE_SCHEDULE_DRAFT', id: pending.messageId, status: 'pending' })
+      dispatch({ type: 'ADD', msg: { id: uid(), role: 'assistant', content: `[Scheduled task create error] ${error.message}` } })
+    })
+  }, [pendingScheduleDraft])
+
   const handleAbort = useCallback(() => {
     const convId = conversationIdRef.current
     abortRef.current?.()
     if (convId) abortChat(convId).catch((error) => console.error('[chat] 取消请求失败:', error))
     setPendingConfirmation(null)
     setPendingDesktopAsk(null)
+    setPendingScheduleDraft(null)
     setAgentRunning(false)
   }, [])
 
@@ -415,5 +497,5 @@ export function useChat(conversationId) {
   }, [])
   const clear = useCallback(() => dispatch({ type: 'CLEAR' }), [])
 
-  return { ...state, agentRunning, pendingConfirmation, pendingDesktopAsk, sendUserMessage, respondToConfirmation, handleAbort, sendCommand, addCard, updateCard, addFileCard, clear }
+  return { ...state, agentRunning, pendingConfirmation, pendingDesktopAsk, pendingScheduleDraft, sendUserMessage, respondToConfirmation, createScheduledTaskDraft, respondToScheduleDraft, handleAbort, sendCommand, addCard, updateCard, addFileCard, clear }
 }

@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest'
-import { api, approveAction, bootstrapRuntime, deleteArtifact, deleteConversation, getRuntimeStatus, listActions, listAuditEvents, listConversations, listRunOutputs, renameConversation } from './api.js'
+import { api, approveAction, bootstrapRuntime, createScheduledTask, deleteArtifact, deleteConversation, deleteScheduledTask, draftScheduledTask, getRuntimeStatus, getScheduledTaskStatus, listActions, listAuditEvents, listConversations, listRunOutputs, listScheduledTasks, renameConversation, runScheduledTaskNow, updateScheduledTask } from './api.js'
 
 beforeEach(() => {
   global.window = {
@@ -42,6 +42,26 @@ test('maps conversation helpers to IPC channels', async () => {
 test('deleteArtifact invokes artifacts delete channel', async () => {
   await deleteArtifact('artifact-1')
   expect(window.electronAPI.invoke).toHaveBeenCalledWith('artifacts:delete', { id: 'artifact-1' })
+})
+
+test('maps scheduled task helpers to IPC channels', async () => {
+  const draft = { prompt: 'daily at 8', schedule: { kind: 'daily', hour: 8, minute: 0 } }
+
+  await listScheduledTasks()
+  await draftScheduledTask('daily at 8')
+  await createScheduledTask(draft)
+  await updateScheduledTask('sch-1', { enabled: false })
+  await deleteScheduledTask('sch-1')
+  await runScheduledTaskNow('sch-1')
+  await getScheduledTaskStatus('sch-1')
+
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('scheduledTasks:list', undefined)
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('scheduledTasks:draft', { message: 'daily at 8' })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('scheduledTasks:create', { draft })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('scheduledTasks:update', { id: 'sch-1', patch: { enabled: false } })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('scheduledTasks:delete', { id: 'sch-1' })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('scheduledTasks:runNow', { id: 'sch-1' })
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('scheduledTasks:status', { id: 'sch-1' })
 })
 
 test('reports missing Electron IPC through onError instead of throwing', () => {

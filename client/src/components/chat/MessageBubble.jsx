@@ -1,4 +1,4 @@
-export default function MessageBubble({ message, role, content, streaming, onRespondConfirmation }) {
+export default function MessageBubble({ message, role, content, streaming, onRespondConfirmation, onRespondScheduleDraft }) {
   const isToolProgressStream = message?.type === 'tool_progress' || message?.type?.startsWith('tool_')
 
   if (message?.type === 'confirmation') {
@@ -15,6 +15,26 @@ export default function MessageBubble({ message, role, content, streaming, onRes
             <button type="button" disabled={disabled} onClick={() => onRespondConfirmation?.(false)} className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] px-3 py-1 text-xs disabled:opacity-60">
               <span className="h-3 w-3 rounded-full border border-current" />
               取消
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (message?.type === 'schedule_draft_confirmation') {
+    const disabled = message.scheduleDraftStatus !== 'pending'
+    return (
+      <div className="flex justify-start mb-4">
+        <div className="max-w-[75%] px-4 py-3 rounded-md text-sm whitespace-pre-wrap break-words bg-[color:var(--bg-secondary)] text-[color:var(--text-primary)] border border-[color:var(--border)]">
+          <div className="text-xs font-medium text-[color:var(--text-muted)]">Scheduled Task</div>
+          <div className="mt-2">{content}</div>
+          <div className="mt-3 flex gap-2">
+            <button type="button" disabled={disabled} onClick={() => onRespondScheduleDraft?.(true)} className="rounded-md border border-[color:var(--accent)] px-3 py-1 text-xs disabled:opacity-60">
+              Confirm full trust
+            </button>
+            <button type="button" disabled={disabled} onClick={() => onRespondScheduleDraft?.(false)} className="rounded-md border border-[color:var(--border)] px-3 py-1 text-xs disabled:opacity-60">
+              Cancel
             </button>
           </div>
         </div>

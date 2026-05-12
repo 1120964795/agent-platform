@@ -5,7 +5,7 @@ import WordCard from '../cards/WordCard.jsx'
 import PptCard from '../cards/PptCard.jsx'
 import FileCard from '../cards/FileCard.jsx'
 
-export default function MessageList({ messages, onRespondConfirmation }) {
+export default function MessageList({ messages, onRespondConfirmation, onRespondScheduleDraft }) {
   const endRef = useRef(null)
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export default function MessageList({ messages, onRespondConfirmation }) {
       )}
       {messages.map((message) => {
         if (message.role === 'user' || message.role === 'assistant') {
-          return <MessageBubble key={message.id} message={message} role={message.role} content={message.content} streaming={message.streaming} onRespondConfirmation={onRespondConfirmation} />
+          return <MessageBubble key={message.id} message={message} role={message.role} content={message.content} streaming={message.streaming} onRespondConfirmation={onRespondConfirmation} onRespondScheduleDraft={onRespondScheduleDraft} />
         }
         if (message.role === 'skill') {
           return <SkillBadge key={message.id} name={message.skillName} />

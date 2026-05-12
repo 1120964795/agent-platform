@@ -9,11 +9,14 @@ const { store } = require('./store')
 const pythonBootstrap = require('./services/pythonBootstrap')
 const { installBrowserRuntime } = require('./services/pythonRuntimeInstaller')
 const { createCursorOverlayController, setDesktopCursorOverlay } = require('./services/desktopCursorOverlay')
+const { createScheduler } = require('./services/scheduledTasks/scheduler')
+const { parseScheduledTaskArg, createConversationOpener } = require('./services/scheduledTasks/startup')
 
 const isDev = !app.isPackaged
 const installBrowserRuntimeOnly = process.argv.includes('--install-browser-runtime')
 let mainWindow = null
 let supervisor = null
+let scheduledTaskScheduler = null
 
 const rootDir = isDev ? path.join(__dirname, '..') : process.resourcesPath
 const devUrl = process.env.AGENTDEV_DEV_SERVER_URL || 'http://localhost:5173'
@@ -105,12 +108,26 @@ if (installBrowserRuntimeOnly) {
 } else {
   app.whenReady().then(async () => {
     setDesktopCursorOverlay(createCursorOverlayController({ BrowserWindow, screen }))
-    registerAll(ipcMain)
+    scheduledTaskScheduler = createScheduler()
+    registerAll(ipcMain, {
+      scheduler: scheduledTaskScheduler,
+      scheduledTaskExecutablePath: process.execPath,
+      scheduledTaskAppPath: isDev ? rootDir : ''
+    })
     supervisor = createSupervisor()
     setSupervisor(supervisor)
     setBridgeContext({ pythonBootstrap, supervisor })
     supervisor.start().catch((err) => console.error('[bridges] start failed', err))
     createWindow()
+    scheduledTaskScheduler.init({ openConversation: createConversationOpener(() => mainWindow) })
+    const startupTaskId = parseScheduledTaskArg()
+    if (startupTaskId) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        scheduledTaskScheduler.runNow(startupTaskId, 'windows-task-scheduler').catch((error) => {
+          console.error('[scheduled-tasks] startup run failed', error)
+        })
+      })
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -120,6 +137,7 @@ if (installBrowserRuntimeOnly) {
 
 app.on('before-quit', () => {
   if (supervisor) try { supervisor.stop() } catch {}
+  if (scheduledTaskScheduler) try { scheduledTaskScheduler.stop() } catch {}
 })
 
 app.on('window-all-closed', () => {

@@ -40,6 +40,27 @@ Open Settings -> Artifacts to view generated Word, PowerPoint, and file outputs.
 
 Word and PowerPoint outputs are registered with artifact metadata so the UI can list them consistently.
 
+## Scheduled Tasks
+
+Use `+ -> Plugins -> 定时任务` in the chat input, then describe the task in one message, for example `每天 8 点检查 https://example.com 并总结变化`.
+
+One-time reminders are also supported. Examples:
+
+- `今天晚上8点提醒我`
+- `今晚8点提醒我`
+- `明天上午9点提醒我`
+- `明天下午3:30提醒我`
+- `2026-05-13 20:30 提醒我`
+- `5月13日20点提醒我`
+
+One-time tasks automatically disable after they run. They remain visible in Settings and keep their dedicated conversation history.
+
+AionUi shows a task draft before saving. Confirming the draft fully preauthorizes future runs, including high-risk tool calls. Future scheduled runs do not ask again for confirmation, but AionUi still blocks hard-forbidden operations and records run history.
+
+Each scheduled task owns one dedicated conversation. The sidebar Scheduled Tasks section opens that conversation. Settings -> Scheduled Tasks provides pause, run now, delete, and status controls.
+
+On Windows, AionUi registers tasks through Windows Task Scheduler so a due task can relaunch AionUi after the app has fully exited.
+
 ## Safety
 
 Risk levels:

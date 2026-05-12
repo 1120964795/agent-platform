@@ -222,6 +222,47 @@ describe('unified chat UI wiring', () => {
     expect(source).toContain('onPluginModeChange')
   })
 
+  test('scheduled task plugin starts draft confirmation flow without listing tasks in plugin menu', () => {
+    const input = readProjectFile('client/src/components/chat/InputBar.jsx')
+    const modelSelector = readProjectFile('client/src/components/chat/ModelSelector.jsx')
+    const chatArea = readProjectFile('client/src/components/chat/ChatArea.jsx')
+    const messageList = readProjectFile('client/src/components/chat/MessageList.jsx')
+    const messageBubble = readProjectFile('client/src/components/chat/MessageBubble.jsx')
+    const useChat = readProjectFile('client/src/hooks/useChat.js')
+
+    expect(input).toContain("mode: 'schedule'")
+    expect(input).toContain('定时任务')
+    expect(input).not.toContain('scheduledTasks.map')
+    expect(modelSelector).toContain('SCHEDULE_OPTION')
+    expect(modelSelector).toContain("pluginMode === 'schedule'")
+    expect(chatArea).toContain("pluginMode === 'schedule'")
+    expect(chatArea).toContain('createScheduledTaskDraft')
+    expect(useChat).toContain('pendingScheduleDraft')
+    expect(useChat).toContain('draftScheduledTask')
+    expect(useChat).toContain('createScheduledTask')
+    expect(messageList).toContain('onRespondScheduleDraft')
+    expect(messageBubble).toContain('schedule_draft_confirmation')
+    expect(messageBubble).toContain('Confirm full trust')
+  })
+
+  test('scheduled tasks are managed from sidebar and settings, not plugin menu', () => {
+    const layout = readProjectFile('client/src/components/layout/Layout.jsx')
+    const sidebar = readProjectFile('client/src/components/layout/Sidebar.jsx')
+    const settings = readProjectFile('client/src/pages/SettingsPage.jsx')
+    const hook = readProjectFile('client/src/hooks/useScheduledTasks.js')
+    const input = readProjectFile('client/src/components/chat/InputBar.jsx')
+
+    expect(layout).toContain('useScheduledTasks')
+    expect(layout).toContain('onOpenConversation')
+    expect(sidebar).toContain('scheduledTasks')
+    expect(sidebar).toContain('定时任务')
+    expect(settings).toContain("['scheduledTasks', 'Scheduled Tasks']")
+    expect(settings).toContain('runScheduledTaskNow')
+    expect(settings).toContain('已预授权')
+    expect(hook).toContain('listScheduledTasks')
+    expect(input).not.toContain('scheduledTasks.map')
+  })
+
   test('ModelSelector can display Browser Use and Desktop Use model chips for plugin modes', () => {
     const source = readProjectFile('client/src/components/chat/ModelSelector.jsx')
 

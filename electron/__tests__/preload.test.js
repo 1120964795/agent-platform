@@ -11,6 +11,9 @@ test('createElectronAPI exposes invoke and event subscription helpers', async ()
     on: vi.fn((event, handler) => handlers.set(event, handler)),
     off: vi.fn((event, handler) => {
       if (handlers.get(event) === handler) handlers.delete(event)
+    }),
+    removeListener: vi.fn((event, handler) => {
+      if (handlers.get(event) === handler) handlers.delete(event)
     })
   }
 
@@ -28,4 +31,14 @@ test('createElectronAPI exposes invoke and event subscription helpers', async ()
   expect(received).toEqual([{ text: 'hello' }])
   off()
   expect(ipc.off).toHaveBeenCalledTimes(1)
+
+  const opened = []
+  const offOpen = api.onOpenConversation((payload) => opened.push(payload))
+  handlers.get('app:open-conversation')({}, { conversationId: 'conv-task' })
+  expect(opened).toEqual([{ conversationId: 'conv-task' }])
+  offOpen()
+  expect(ipc.removeListener).toHaveBeenCalledTimes(1)
+
+  await expect(api.scheduledTasks.list()).resolves.toEqual({ channel: 'scheduledTasks:list', payload: undefined })
+  await expect(api.scheduledTasks.runNow({ id: 'sch-1' })).resolves.toEqual({ channel: 'scheduledTasks:runNow', payload: { id: 'sch-1' } })
 })

@@ -187,7 +187,7 @@ function summarizeDesktopEvent(event = {}) {
   return `Computer Use: ${event.type || 'event'}`
 }
 
-async function runTurn({ messages, model, signal, onEvent, onStreamEvent, requestApproval, forceTool, forcedSkill, convId, waitForDesktopUser }, deps = {}) {
+async function runTurn({ messages, model, signal, onEvent, onStreamEvent, requestApproval, forceTool, forcedSkill, convId, waitForDesktopUser, preauthorized = false }, deps = {}) {
   const { model: selectedModel, chat } = getProvider(model, deps)
   const tools = deps.tools || require('../tools')
   const policy = deps.policy || require('../security/toolPolicy')
@@ -223,7 +223,13 @@ async function runTurn({ messages, model, signal, onEvent, onStreamEvent, reques
       summary: `准备调用 ${call.name}`,
     })
 
-    if (decision.requiresApproval) {
+    if (decision.requiresApproval && preauthorized) {
+      emitStream('approval_resolved', {
+        tool: call.name,
+        status: 'preauthorized',
+        summary: `Scheduled task preauthorization allowed ${call.name}.`
+      })
+    } else if (decision.requiresApproval) {
       if (!requestApproval) {
         history.push({ role: 'tool', tool_call_id: call.id, content: `POLICY_BLOCKED: 需要用户审批但审批回调未提供 (${decision.reason})` })
         onEvent?.('tool_blocked', { call, reason: '审批回调缺失' })

@@ -177,6 +177,33 @@ test('medium-risk tool executes directly without approval', async () => {
   expect(tools.execute).toHaveBeenCalledWith('run_shell_command', { command: 'echo hi' }, expect.objectContaining({ skipInternalConfirm: true }))
 })
 
+test('preauthorized scheduled run executes approval-required tools without prompting', async () => {
+  const deepseek = mockDeepseek([
+    {
+      content: null,
+      assistant_message: { role: 'assistant', content: null, tool_calls: [{ id: 'c1', type: 'function', function: { name: 'run_shell_command', arguments: '{"command":"npm install left-pad"}' } }] },
+      tool_calls: [{ id: 'c1', name: 'run_shell_command', args: { command: 'npm install left-pad' }, raw: {} }]
+    },
+    { content: 'Installed.', assistant_message: { role: 'assistant', content: 'Installed.' }, tool_calls: [] }
+  ])
+  const tools = mockTools({ run_shell_command: 'installed' })
+  const policy = mockPolicy({ run_shell_command: { risk: 'high', reason: 'install', allowed: true, requiresApproval: true } })
+  const requestApproval = vi.fn(async () => false)
+
+  const result = await runTurn(
+    {
+      messages: [{ role: 'user', content: 'install package' }],
+      preauthorized: true,
+      requestApproval
+    },
+    { deepseek, tools, policy }
+  )
+
+  expect(requestApproval).not.toHaveBeenCalled()
+  expect(tools.execute).toHaveBeenCalledWith('run_shell_command', { command: 'npm install left-pad' }, expect.objectContaining({ skipInternalConfirm: true }))
+  expect(result.finalText).toBe('Installed.')
+})
+
 test('signal aborted mid-invoke → returns cancelled, no further model calls', async () => {
   const controller = new AbortController()
   let callCount = 0

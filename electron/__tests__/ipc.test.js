@@ -62,7 +62,13 @@ test('registerAll registers core IPC channels', () => {
     'dialog:selectDirectory',
     'shell:openPath',
     'app:getPaths',
-    'app:open-external'
+    'app:open-external',
+    'scheduledTasks:list',
+    'scheduledTasks:draft',
+    'scheduledTasks:create',
+    'scheduledTasks:update',
+    'scheduledTasks:delete',
+    'scheduledTasks:runNow'
   ]))
 })
 

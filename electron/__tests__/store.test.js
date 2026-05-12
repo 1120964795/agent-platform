@@ -106,3 +106,30 @@ test('getMaskedConfig masks Desktop-Use API key', () => {
   store.setConfig({ desktopUseApiKey: 'sk-ai-v1-desktop-use-key' })
   expect(store.getMaskedConfig().desktopUseApiKey).toBe('sk-ai***-key')
 })
+
+test('scheduled task history remains capped at 20 entries', () => {
+  const task = {
+    id: 'sch-history',
+    name: 'History task',
+    prompt: 'run',
+    schedule: { kind: 'daily', hour: 8, minute: 0, timezone: 'Asia/Shanghai', human: '每天 08:00' },
+    enabled: true,
+    preauthorized: true,
+    conversationId: 'conv-history',
+    history: []
+  }
+  store.upsertScheduledTask(task)
+
+  for (let i = 0; i < 25; i += 1) {
+    store.appendTaskHistory('sch-history', {
+      runId: `run-${i}`,
+      runAt: `2026-05-12T00:${String(i).padStart(2, '0')}:00.000Z`,
+      status: 'success'
+    })
+  }
+
+  const saved = store.listScheduledTasks().find((item) => item.id === 'sch-history')
+  expect(saved.history).toHaveLength(20)
+  expect(saved.history[0].runId).toBe('run-24')
+  expect(saved.lastRun).toBe('2026-05-12T00:24:00.000Z')
+})

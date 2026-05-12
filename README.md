@@ -16,6 +16,7 @@ The model proposes actions. AionUi validates and classifies them. The user appro
 - Unified chat surface with DeepSeek text reasoning.
 - Browser Use bridge for browser tasks, snapshots, navigation, and web interaction.
 - Desktop Use bridge for real desktop observation and input with confirmation controls.
+- Scheduled Tasks plugin for natural-language task creation, one-time full-trust confirmation, Windows Task Scheduler wake-up, and task-owned chat history.
 - Settings pages for API keys, runtime diagnostics, safety policy, and generated artifacts.
 - Artifacts list for generated Word, PowerPoint, and file outputs with open/delete actions.
 - Browser Use dependency install and repair through the app-managed Python runtime setup.
@@ -92,6 +93,7 @@ Open Settings inside the app:
 - Add Desktop Use endpoint, model, and API key, or enable Browser Use key fallback.
 - Review runtime diagnostics for Browser Use and Desktop Use bridges.
 - Open Settings -> Artifacts to inspect generated Word, PowerPoint, and file outputs.
+- Open Settings -> Scheduled Tasks to pause, run, delete, and inspect preauthorized scheduled tasks.
 - Keep dry-run enabled when external runtime settings are not available.
 
 ## Browser Use Runtime

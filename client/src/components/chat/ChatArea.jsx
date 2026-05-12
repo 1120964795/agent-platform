@@ -8,7 +8,7 @@ import InputBar from './InputBar.jsx'
 import { loadModel } from './ModelSelector.jsx'
 
 export default function ChatArea({ conversationId }) {
-  const { messages, streaming, agentRunning, pendingConfirmation, sendUserMessage, respondToConfirmation, handleAbort, updateCard, addFileCard } = useChat(conversationId)
+  const { messages, streaming, agentRunning, pendingConfirmation, pendingScheduleDraft, sendUserMessage, respondToConfirmation, createScheduledTaskDraft, respondToScheduleDraft, handleAbort, updateCard, addFileCard } = useChat(conversationId)
   const [selectedModel, setSelectedModel] = useState(loadModel)
   const [pluginMode, setPluginMode] = useState(null)
   const [skills, setSkills] = useState([])
@@ -30,6 +30,11 @@ export default function ChatArea({ conversationId }) {
   function handleSend(text) {
     const parsed = parseSkillCommandLine(text, skills)
     const messageText = parsed?.message || text
+    if (pluginMode === 'schedule') {
+      createScheduledTaskDraft(messageText)
+      setPluginMode(null)
+      return
+    }
     const wantsDesktop = pluginMode === 'desktop' && shouldRouteToDesktopTask(messageText)
     const nextPluginMode = wantsDesktop ? 'desktop' : (pluginMode === 'browser' ? 'browser' : null)
     sendUserMessage(messageText, nextPluginMode === 'browser' ? 'browser-use' : selectedModel, {
@@ -44,12 +49,13 @@ export default function ChatArea({ conversationId }) {
       <MessageList
         messages={messages}
         onRespondConfirmation={respondToConfirmation}
+        onRespondScheduleDraft={respondToScheduleDraft}
         onUpdateCard={updateCard}
         onFileGenerated={addFileCard}
       />
       <InputBar
         onSend={handleSend}
-        disabled={!pendingConfirmation && (streaming || agentRunning)}
+        disabled={!pendingConfirmation && !pendingScheduleDraft && (streaming || agentRunning)}
         agentRunning={agentRunning}
         pendingConfirmation={pendingConfirmation}
         onCancel={handleAbort}

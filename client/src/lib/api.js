@@ -162,6 +162,13 @@ export function openRunOutput(filePath) { return invoke('outputs:open', { path: 
 export function listConversations(search) { return invoke('conversations:list', search ? { search } : undefined) }
 export function deleteConversation(id) { return invoke('conversations:delete', { id }) }
 export function renameConversation(id, title) { return invoke('conversations:rename', { id, title }) }
+export function listScheduledTasks() { return invoke('scheduledTasks:list') }
+export function draftScheduledTask(message) { return invoke('scheduledTasks:draft', { message }) }
+export function createScheduledTask(draft) { return invoke('scheduledTasks:create', { draft }) }
+export function updateScheduledTask(id, patch) { return invoke('scheduledTasks:update', { id, patch }) }
+export function deleteScheduledTask(id) { return invoke('scheduledTasks:delete', { id }) }
+export function runScheduledTaskNow(id) { return invoke('scheduledTasks:runNow', { id }) }
+export function getScheduledTaskStatus(id) { return invoke('scheduledTasks:status', { id }) }
 export function approveChatTool(convId, callId) { return invoke('chat:approve-tool', { convId, callId, approved: true }) }
 export function denyChatTool(convId, callId) { return invoke('chat:approve-tool', { convId, callId, approved: false }) }
 export function abortChat(convId) { return invoke('chat:abort', { convId }) }

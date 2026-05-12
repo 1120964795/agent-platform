@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, ChevronRight, Grid2X2, Globe2, Monitor, Paperclip, Plus, Send, Sparkles, Square } from 'lucide-react'
+import { CalendarClock, Check, ChevronRight, Grid2X2, Globe2, Monitor, Paperclip, Plus, Send, Sparkles, Square } from 'lucide-react'
 import { useCommand } from '../../hooks/useCommand.js'
 import { listSkills } from '../../lib/api.js'
 import CommandPalette from './CommandPalette.jsx'
@@ -16,6 +16,7 @@ const PLUGIN_ITEMS = [
   { name: 'Presentations' },
   { name: '浏览器', description: 'Browser Use · openai/gpt-5.5', mode: 'browser' },
   { name: 'Computer Use', description: 'Desktop Use · openai/gpt-5.5', mode: 'desktop' },
+  { name: '定时任务', description: 'Schedule · full trust after confirmation', mode: 'schedule' },
   { name: 'superpowers' },
   { name: 'Superpowers' },
   { name: 'GitHub' },
@@ -164,7 +165,9 @@ export default function InputBar({ onSend, disabled, agentRunning, pendingConfir
                       ? <Globe2 size={16} className="text-[color:var(--accent)]" />
                       : (plugin.mode === 'desktop'
                         ? <Monitor size={16} className="text-[color:var(--accent)]" />
-                        : <Sparkles size={16} className="text-[color:var(--text-muted)]" />)}
+                        : (plugin.mode === 'schedule'
+                          ? <CalendarClock size={16} className="text-[color:var(--accent)]" />
+                          : <Sparkles size={16} className="text-[color:var(--text-muted)]" />))}
                     <span className="flex min-w-0 flex-col">
                       <span>{plugin.name}</span>
                       {plugin.description && <span className="truncate text-xs text-[color:var(--text-muted)]">{plugin.description}</span>}

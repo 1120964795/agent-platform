@@ -24,6 +24,11 @@ function createElectronAPI(ipc = ipcRenderer) {
       ipc.on('chat:stream', listener)
       return () => ipc.removeListener('chat:stream', listener)
     },
+    onOpenConversation: (handler) => {
+      const wrapped = (_event, payload) => handler(payload)
+      ipc.on('app:open-conversation', wrapped)
+      return () => ipc.removeListener('app:open-conversation', wrapped)
+    },
     selectFile: (options) => ipc.invoke('dialog:selectFile', options),
     selectDirectory: () => ipc.invoke('dialog:selectDirectory'),
     openPath: (filePath) => ipc.invoke('shell:openPath', filePath),
@@ -51,6 +56,15 @@ function createElectronAPI(ipc = ipcRenderer) {
       list: (payload) => ipc.invoke('outputs:list', payload),
       open: (payload) => ipc.invoke('outputs:open', payload),
       export: (payload) => ipc.invoke('outputs:export', payload)
+    },
+    scheduledTasks: {
+      list: () => ipc.invoke('scheduledTasks:list'),
+      draft: (payload) => ipc.invoke('scheduledTasks:draft', payload),
+      create: (payload) => ipc.invoke('scheduledTasks:create', payload),
+      update: (payload) => ipc.invoke('scheduledTasks:update', payload),
+      delete: (payload) => ipc.invoke('scheduledTasks:delete', payload),
+      runNow: (payload) => ipc.invoke('scheduledTasks:runNow', payload),
+      status: (payload) => ipc.invoke('scheduledTasks:status', payload)
     },
     agent: {
       runTurn: (payload) => ipc.invoke('agent:run-turn', payload),

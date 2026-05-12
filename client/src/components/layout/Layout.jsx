@@ -1,9 +1,10 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Sidebar from './Sidebar.jsx'
 import MainArea from './MainArea.jsx'
 import BridgeStatusBar from '../BridgeStatusBar.jsx'
 import SettingsPage from '../../pages/SettingsPage.jsx'
 import { useConversations } from '../../hooks/useConversations.js'
+import { useScheduledTasks } from '../../hooks/useScheduledTasks.js'
 
 const ACTIVE_CONVERSATION_KEY = 'agentdev-active-conversation-id'
 
@@ -26,6 +27,7 @@ export default function Layout() {
   const [settingsInitialTab, setSettingsInitialTab] = useState('models')
   const [conversationId, setConversationId] = useState(getInitialConversationId)
   const { conversations, refresh, remove, rename } = useConversations()
+  const { scheduledTasks, setEnabled, removeScheduledTask, runNow } = useScheduledTasks()
 
   const openSettings = useCallback((initialTab = 'models') => {
     setSettingsInitialTab(initialTab)
@@ -43,6 +45,13 @@ export default function Layout() {
     localStorage.setItem(ACTIVE_CONVERSATION_KEY, id)
     setConversationId(id)
   }, [])
+
+  useEffect(() => {
+    const unsubscribe = window.electronAPI?.onOpenConversation?.((payload) => {
+      if (payload?.conversationId) handleSelectConversation(payload.conversationId)
+    })
+    return () => unsubscribe?.()
+  }, [handleSelectConversation])
 
   const handleDelete = useCallback(async (id) => {
     await remove(id)
@@ -63,6 +72,12 @@ export default function Layout() {
           onRename={rename}
           onSearch={refresh}
           onOpenSettings={() => openSettings('models')}
+          scheduledTasks={scheduledTasks}
+          onSelectScheduledTask={(task) => handleSelectConversation(task.conversationId)}
+          onToggleScheduledTask={setEnabled}
+          onDeleteScheduledTask={removeScheduledTask}
+          onRunScheduledTask={runNow}
+          onOpenScheduledTaskSettings={() => openSettings('scheduledTasks')}
         />
         <MainArea conversationId={conversationId} />
       </div>

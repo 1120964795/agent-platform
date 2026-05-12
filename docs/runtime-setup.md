@@ -49,6 +49,14 @@ Desktop Use can pause with `ask_user` when login, permission, ambiguity, or low 
 
 Dry-run is enabled by default. It simulates tool execution for demos when external runtimes are unavailable.
 
+## Windows Scheduled Tasks
+
+Scheduled tasks use Windows Task Scheduler entries named under `\AionUi\ScheduledTasks\`. The entry launches AionUi with `--run-scheduled-task <task-id>` and stores no API keys or secrets.
+
+In development, Windows tasks launch Electron with the project root path before `--run-scheduled-task <task-id>`. In packaged builds, they launch `AionUi.exe` directly. This avoids Electron treating the task id as the app path when Task Scheduler starts from `C:\Windows\System32`.
+
+If registration fails, open Settings -> Scheduled Tasks and use the task status to retry, pause, delete, or inspect the error. Scheduled task runs still use AionUi policy checks: full-trust preauthorization bypasses repeated high-risk prompts, while blocked operations remain blocked.
+
 ## Troubleshooting
 
 - Browser Use repair fails: open Settings -> Runtime and run repair again after confirming Python 3.11+ is installed.

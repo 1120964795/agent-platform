@@ -20,6 +20,13 @@ const DESKTOP_USE_OPTION = {
   model: 'openai/gpt-5.5',
 }
 
+const SCHEDULE_OPTION = {
+  id: 'scheduled-task',
+  label: 'Scheduled Task',
+  provider: 'scheduled-task',
+  model: 'full trust',
+}
+
 const STORAGE_KEY = 'agentdev-selected-model'
 
 function loadModel() {
@@ -38,8 +45,10 @@ export default function ModelSelector({ value, onChange, pluginMode }) {
     ? BROWSER_USE_OPTION
     : pluginMode === 'desktop'
       ? DESKTOP_USE_OPTION
+      : pluginMode === 'schedule'
+        ? SCHEDULE_OPTION
       : MODEL_OPTIONS.find(o => o.id === value) || MODEL_OPTIONS[0]
-  const pluginActive = pluginMode === 'browser' || pluginMode === 'desktop'
+  const pluginActive = pluginMode === 'browser' || pluginMode === 'desktop' || pluginMode === 'schedule'
 
   useEffect(() => {
     function handleClick(e) {
@@ -81,4 +90,4 @@ export default function ModelSelector({ value, onChange, pluginMode }) {
   )
 }
 
-export { MODEL_OPTIONS, STORAGE_KEY, loadModel }
+export { MODEL_OPTIONS, STORAGE_KEY, SCHEDULE_OPTION, loadModel }
