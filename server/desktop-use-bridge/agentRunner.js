@@ -1,6 +1,7 @@
 const { createPlanner, normalizeAction, ALLOWED_ACTION_TYPES } = require('./planner')
 
 const LOW_CONFIDENCE_THRESHOLD = 0.55
+const DEFAULT_DESKTOP_TASK_MAX_STEPS = 30
 const POINTER_ACTIONS = new Set(['click', 'drag', 'scroll'])
 
 function emit(onEvent, event) {
@@ -112,7 +113,7 @@ function createAgentRunner({ driver, planner = createPlanner() } = {}) {
   return {
     ready: () => Boolean(driver && planner),
 
-    async runTask({ goal, maxSteps = 12, onEvent, waitForUser } = {}) {
+    async runTask({ goal, maxSteps = DEFAULT_DESKTOP_TASK_MAX_STEPS, onEvent, waitForUser } = {}) {
       cancelled = false
       const steps = []
       const userReplies = []

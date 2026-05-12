@@ -10,7 +10,12 @@ describe('desktop-use translator', () => {
     expect(classify({ type: 'desktop.hotkey', payload: { keys: ['CTRL', 'L'] } })).toEqual({ backend: 'hotkey', keys: ['CTRL', 'L'] })
     expect(classify({ type: 'desktop.scroll', payload: { x: 100, y: 200, direction: 'down', amount: 5 } })).toEqual({ backend: 'scroll', x: 100, y: 200, direction: 'down', amount: 5 })
     expect(classify({ type: 'desktop.wait', payload: { ms: 250 } })).toEqual({ backend: 'wait', ms: 250 })
-    expect(classify({ type: 'desktop.task', payload: { goal: 'Open Notepad' } })).toEqual({ backend: 'task', goal: 'Open Notepad', maxSteps: 12 })
+    expect(classify({ type: 'desktop.task', payload: { goal: 'Open Notepad' } })).toEqual({ backend: 'task', goal: 'Open Notepad', maxSteps: 30 })
+  })
+
+  test('classifies explicit desktop task max steps from camel or snake case', () => {
+    expect(classify({ type: 'desktop.task', payload: { goal: 'Open Notepad', maxSteps: 8 } })).toEqual({ backend: 'task', goal: 'Open Notepad', maxSteps: 8 })
+    expect(classify({ type: 'desktop.task', payload: { goal: 'Open Notepad', max_steps: 9 } })).toEqual({ backend: 'task', goal: 'Open Notepad', maxSteps: 9 })
   })
 
   test('rejects click without coordinates or target', () => {

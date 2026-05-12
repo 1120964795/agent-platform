@@ -1,3 +1,5 @@
+const DEFAULT_DESKTOP_TASK_MAX_STEPS = 30
+
 function num(value, fallback = 0) {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
@@ -68,7 +70,11 @@ function classify(action = {}) {
   if (type === 'desktop.task') {
     const goal = nonEmpty(payload.goal)
     if (!goal) return { backend: 'invalid', reason: 'desktop.task requires goal' }
-    return { backend: 'task', goal, maxSteps: Math.max(1, num(payload.maxSteps, 12)) }
+    return {
+      backend: 'task',
+      goal,
+      maxSteps: Math.max(1, num(payload.maxSteps ?? payload.max_steps, DEFAULT_DESKTOP_TASK_MAX_STEPS))
+    }
   }
 
   return { backend: 'invalid', reason: `Unsupported ${type || 'desktop action'}` }

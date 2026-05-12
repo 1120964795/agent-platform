@@ -31,6 +31,19 @@ describe('desktop agent runner', () => {
     expect(events.some(event => event.type === 'cursor.click')).toBe(true)
   })
 
+  test('uses 30 max steps by default', async () => {
+    const driver = createDriver()
+    const planner = { nextAction: vi.fn(async () => ({ type: 'done', summary: 'done' })) }
+    const events = []
+    const runner = createAgentRunner({ driver, planner })
+
+    const result = await runner.runTask({ goal: 'default budget', onEvent: event => events.push(event) })
+
+    expect(result.ok).toBe(true)
+    expect(planner.nextAction).toHaveBeenCalledWith(expect.objectContaining({ maxSteps: 30 }))
+    expect(events[0]).toEqual(expect.objectContaining({ type: 'task_started', maxSteps: 30 }))
+  })
+
   test('fails safely after retrying unsupported planner actions once', async () => {
     const driver = createDriver()
     const planner = { nextAction: vi.fn(async () => ({ action: 'deleteEverything' })) }
