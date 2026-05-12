@@ -13,9 +13,9 @@ function timestamp() {
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
 }
 
-async function generatePptx({ title, slides }) {
+async function generatePptx({ title, slides, artifactPlan }) {
   const pres = new PptxGenJS()
-  pres.layout = 'LAYOUT_16X9'
+  pres.layout = 'LAYOUT_WIDE'
   pres.title = title
   pres.company = 'AionUi'
 
@@ -62,7 +62,8 @@ async function generatePptx({ title, slides }) {
     })
   }
 
-  const filename = `ppt_${timestamp()}_${sanitizeFilename(title)}.pptx`
+  const filenameStem = artifactPlan?.filenameStem || title
+  const filename = `ppt_${timestamp()}_${sanitizeFilename(filenameStem)}.pptx`
   const fullPath = path.join(store.GENERATED_DIR, filename)
   fs.mkdirSync(path.dirname(fullPath), { recursive: true })
   await pres.writeFile({ fileName: fullPath })

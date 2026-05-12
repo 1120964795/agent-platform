@@ -13,7 +13,7 @@ function timestamp() {
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
 }
 
-async function generateDocx({ title, sections }) {
+async function generateDocx({ title, sections, artifactPlan }) {
   const children = []
 
   children.push(new Paragraph({
@@ -45,7 +45,8 @@ async function generateDocx({ title, sections }) {
   })
 
   const buffer = await Packer.toBuffer(doc)
-  const filename = `word_${timestamp()}_${sanitizeFilename(title)}.docx`
+  const filenameStem = artifactPlan?.filenameStem || title
+  const filename = `word_${timestamp()}_${sanitizeFilename(filenameStem)}.docx`
   const fullPath = path.join(store.GENERATED_DIR, filename)
   fs.mkdirSync(path.dirname(fullPath), { recursive: true })
   fs.writeFileSync(fullPath, buffer)

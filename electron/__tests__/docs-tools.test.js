@@ -23,4 +23,24 @@ test('generate_docx creates a file and stores artifact metadata', async () => {
   expect(result.bytes_written).toBeGreaterThan(0)
   expect(fs.existsSync(outPath)).toBe(true)
   expect(store.listArtifacts()[0].path).toBe(outPath)
+  expect(store.listArtifacts()[0].metadata.officePlan.kind).toBe('word')
+  expect(store.listArtifacts()[0].metadata.officePlan.qualityChecks).toContain('artifact-registration')
+})
+
+test('generate_pptx creates a file and stores artifact planning metadata', async () => {
+  const outPath = path.join(TMP, 'out', 'slides.pptx')
+  const result = await execute('generate_pptx', {
+    slides: [
+      { title: 'Pitch', bullets: ['Context', 'Evidence'] },
+      { title: 'Next steps', bullets: ['Ship', 'Verify'] }
+    ],
+    out_path: outPath
+  })
+
+  expect(result.path).toBe(outPath)
+  expect(result.bytes_written).toBeGreaterThan(0)
+  expect(fs.existsSync(outPath)).toBe(true)
+  expect(store.listArtifacts()[0].path).toBe(outPath)
+  expect(store.listArtifacts()[0].metadata.officePlan.kind).toBe('ppt')
+  expect(store.listArtifacts()[0].metadata.officePlan.qualityChecks).toContain('one-job-per-slide')
 })
