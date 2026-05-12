@@ -129,4 +129,7 @@ Current targeted verification:
 | `npm.cmd test -- client/src/components/chat/unified-chat-ui.test.js client/src/lib/api.test.js` | PASS | Settings Artifacts, Welcome setup, and renderer API coverage |
 | `npm.cmd test -- client/src/components/chat/unified-chat-ui.test.js electron/__tests__/chat.test.js electron/__tests__/chat-confirmation.test.js electron/__tests__/agent-loop.test.js` | PASS | Chat, confirmation, stream compatibility, and agent loop coverage |
 | `npm.cmd test -- electron/__tests__/office-artifact-planner.test.js electron/__tests__/docs-tools.test.js electron/__tests__/ipc.test.js` | PASS | Office artifact planning, DOCX/PPTX artifact metadata, and IPC coverage |
-| `npm.cmd run build:client` | BLOCKED | Local `client/node_modules` is missing `@vitejs/plugin-react`; `client/package.json` declares it, so dependency installation is required before build verification |
+| `npm.cmd test` | PASS | Full suite: 44 test files, 364 tests |
+| `npm.cmd --prefix client install` | PASS | Installed client dependencies required by Vite build |
+| `npm.cmd run build:client` | PASS | Vite production build completed |
+| `npm.cmd run electron:build` | PASS | Initial sandboxed run hit npm cache `EPERM`; rerun without sandbox completed and generated `dist-electron\AionUi Setup 0.1.0.exe` |
