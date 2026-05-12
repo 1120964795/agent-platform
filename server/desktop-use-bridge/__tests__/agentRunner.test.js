@@ -31,16 +31,53 @@ describe('desktop agent runner', () => {
     expect(events.some(event => event.type === 'cursor.click')).toBe(true)
   })
 
-  test('fails safely for unsupported planner action', async () => {
+  test('fails safely after retrying unsupported planner actions once', async () => {
     const driver = createDriver()
-    const planner = { nextAction: vi.fn(async () => ({ type: 'deleteEverything' })) }
+    const planner = { nextAction: vi.fn(async () => ({ action: 'deleteEverything' })) }
+    const events = []
     const runner = createAgentRunner({ driver, planner })
 
-    const result = await runner.runTask({ goal: 'bad action', maxSteps: 1 })
+    const result = await runner.runTask({ goal: 'bad action', maxSteps: 1, onEvent: event => events.push(event) })
 
     expect(result.ok).toBe(false)
     expect(result.error.code).toBe('UNSUPPORTED_PLANNER_ACTION')
+    expect(result.error.allowedActions).toContain('click')
+    expect(result.error.rawAction).toEqual({ action: 'deleteEverything' })
+    expect(result.error.retryAttempted).toBe(true)
+    expect(planner.nextAction).toHaveBeenCalledTimes(2)
+    expect(planner.nextAction.mock.calls[1][0].correction).toEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_PLANNER_ACTION',
+      invalidActionName: 'deleteeverything',
+      rawAction: { action: 'deleteEverything' }
+    }))
+    expect(events.some(event => event.type === 'planner_correction')).toBe(true)
     expect(driver.click).not.toHaveBeenCalled()
+  })
+
+  test('retries unsupported planner action and executes valid replacement', async () => {
+    const driver = createDriver()
+    const planner = {
+      nextAction: vi.fn()
+        .mockResolvedValueOnce({ action: 'open_app', app: 'QQ', reason: 'Need QQ' })
+        .mockResolvedValueOnce({ action: 'click', x: 10, y: 20, confidence: 0.9, reason: 'Click visible QQ result' })
+        .mockResolvedValueOnce({ action: 'done', summary: 'opened QQ' })
+    }
+    const events = []
+    const runner = createAgentRunner({ driver, planner })
+
+    const result = await runner.runTask({ goal: 'open QQ', maxSteps: 4, onEvent: event => events.push(event) })
+
+    expect(result.ok).toBe(true)
+    expect(result.summary).toBe('opened QQ')
+    expect(driver.click).toHaveBeenCalledWith({ x: 10, y: 20, button: 'left' })
+    expect(planner.nextAction.mock.calls[1][0].correction).toEqual(expect.objectContaining({
+      invalidActionName: 'open_app',
+      rawAction: { action: 'open_app', app: 'QQ', reason: 'Need QQ' }
+    }))
+    expect(events.find(event => event.type === 'planner_correction')).toEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_PLANNER_ACTION',
+      rawAction: { action: 'open_app', app: 'QQ', reason: 'Need QQ' }
+    }))
   })
 
   test('emits observe plan action verify and terminal events in order', async () => {

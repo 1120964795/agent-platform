@@ -1,4 +1,4 @@
-const { createPlanner, normalizeAction } = require('./planner')
+const { createPlanner, normalizeAction, ALLOWED_ACTION_TYPES } = require('./planner')
 
 const LOW_CONFIDENCE_THRESHOLD = 0.55
 const POINTER_ACTIONS = new Set(['click', 'drag', 'scroll'])
@@ -7,15 +7,30 @@ function emit(onEvent, event) {
   onEvent?.({ ts: Date.now(), ...event })
 }
 
-function unsupportedAction(action) {
+function unsupportedActionName(action) {
+  const raw = action?.raw || action
+  const name = action?.unsupportedAction || raw?.action || raw?.type || action?.type || 'unknown'
+  return String(name || 'unknown')
+}
+
+function buildUnsupportedError(action, options = {}) {
+  const name = unsupportedActionName(action)
+  return {
+    code: 'UNSUPPORTED_PLANNER_ACTION',
+    message: `Unsupported planner action: ${name}`,
+    invalidActionName: name,
+    allowedActions: ALLOWED_ACTION_TYPES,
+    rawAction: action?.raw || action,
+    retryAttempted: Boolean(options.retryAttempted)
+  }
+}
+
+function unsupportedAction(action, options = {}) {
   return {
     ok: false,
     summary: 'Desktop planner returned an unsupported action.',
     steps: [],
-    error: {
-      code: 'UNSUPPORTED_PLANNER_ACTION',
-      message: `Unsupported planner action: ${action?.type || 'unknown'}`
-    }
+    error: buildUnsupportedError(action, options)
   }
 }
 
@@ -29,6 +44,10 @@ function finitePair(point) {
 
 function isLowConfidence(action) {
   return POINTER_ACTIONS.has(action.type) && Number(action.confidence) < LOW_CONFIDENCE_THRESHOLD
+}
+
+function normalizePlannerResult(plannedRaw) {
+  return plannedRaw?.type === 'unsupported' ? plannedRaw : normalizeAction(plannedRaw)
 }
 
 function createAgentRunner({ driver, planner = createPlanner() } = {}) {
@@ -109,11 +128,29 @@ function createAgentRunner({ driver, planner = createPlanner() } = {}) {
         emit(onEvent, { type: 'observe', step, screen: observation?.screen || null })
         emit(onEvent, { type: 'task.observe', step, screen: observation?.screen || null })
 
-        const plannedRaw = await planner.nextAction({ goal, step, maxSteps, observation: observation || {}, steps, userReplies })
-        const action = plannedRaw?.type === 'unsupported' ? plannedRaw : normalizeAction(plannedRaw)
+        const planInput = { goal, step, maxSteps, observation: observation || {}, steps, userReplies }
+        let action = normalizePlannerResult(await planner.nextAction(planInput))
         steps.push({ type: 'plan', action })
         emit(onEvent, { type: 'plan', step, action, summary: action.userVisibleSummary || action.reason || action.summary || action.type })
         emit(onEvent, { type: 'task.plan', step, action })
+
+        if (action.type === 'unsupported') {
+          const correction = buildUnsupportedError(action, { retryAttempted: false })
+          emit(onEvent, {
+            type: 'planner_correction',
+            step,
+            code: correction.code,
+            message: correction.message,
+            allowedActions: correction.allowedActions,
+            rawAction: correction.rawAction
+          })
+          steps.push({ type: 'planner_correction', ok: false, error: correction })
+
+          action = normalizePlannerResult(await planner.nextAction({ ...planInput, correction }))
+          steps.push({ type: 'plan', action, correction: true })
+          emit(onEvent, { type: 'plan', step, action, correction: true, summary: action.userVisibleSummary || action.reason || action.summary || action.type })
+          emit(onEvent, { type: 'task.plan', step, action, correction: true })
+        }
 
         if (action.type === 'done') {
           emit(onEvent, { type: 'done', summary: action.summary })
@@ -125,7 +162,7 @@ function createAgentRunner({ driver, planner = createPlanner() } = {}) {
           return { ok: false, summary: action.summary, steps, error }
         }
         if (action.type === 'unsupported') {
-          const result = { ...unsupportedAction(action.raw), steps }
+          const result = { ...unsupportedAction(action, { retryAttempted: true }), steps }
           emit(onEvent, { type: 'fail', code: result.error.code, summary: result.summary })
           return result
         }
