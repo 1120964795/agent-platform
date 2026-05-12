@@ -73,6 +73,7 @@ const DEFAULT_DATA = {
   version: 1,
   conversations: [],
   artifacts: [],
+  deletedArtifacts: [],
   scheduledTasks: []
 }
 
@@ -84,6 +85,29 @@ function stripDeprecatedConfigKeys(config = {}) {
   const next = { ...config }
   for (const key of DEPRECATED_CONFIG_KEYS) delete next[key]
   return next
+}
+
+function ensureDataShape(data) {
+  const next = data && typeof data === 'object' ? data : clone(DEFAULT_DATA)
+  if (!Array.isArray(next.conversations)) next.conversations = []
+  if (!Array.isArray(next.artifacts)) next.artifacts = []
+  if (!Array.isArray(next.deletedArtifacts)) next.deletedArtifacts = []
+  if (!Array.isArray(next.scheduledTasks)) next.scheduledTasks = []
+  return next
+}
+
+function artifactFileExists(artifact) {
+  if (!artifact?.path) return false
+  try {
+    const filePath = path.resolve(String(artifact.path))
+    return fs.existsSync(filePath) && fs.statSync(filePath).isFile()
+  } catch {
+    return false
+  }
+}
+
+function canRestoreDeletedArtifact(artifact) {
+  return artifact?.deleteInfo?.status === 'system-trash'
 }
 
 function ensureDirs() {
@@ -167,11 +191,11 @@ const store = {
   },
 
   getData() {
-    return readJson(DATA_PATH, DEFAULT_DATA)
+    return ensureDataShape(readJson(DATA_PATH, DEFAULT_DATA))
   },
 
   saveData(data) {
-    writeJson(DATA_PATH, data)
+    writeJson(DATA_PATH, ensureDataShape(data))
   },
 
   upsertConversation(conversation) {
@@ -200,13 +224,46 @@ const store = {
 
   addArtifact(artifact) {
     const data = this.getData()
+    data.deletedArtifacts = data.deletedArtifacts.filter((item) => item.id !== artifact.id)
     data.artifacts.unshift(artifact)
     this.saveData(data)
     return artifact
   },
 
   listArtifacts() {
-    return this.getData().artifacts
+    const data = this.getData()
+    const activeIds = new Set(data.artifacts.map((item) => item.id))
+    const stillDeleted = []
+    const restored = []
+
+    for (const deleted of data.deletedArtifacts) {
+      if (!deleted?.id || activeIds.has(deleted.id)) continue
+      if (canRestoreDeletedArtifact(deleted) && artifactFileExists(deleted)) {
+        const { deletedAt, deleteInfo, ...artifact } = deleted
+        data.artifacts.unshift(artifact)
+        activeIds.add(artifact.id)
+        restored.push(artifact)
+      } else {
+        stillDeleted.push(deleted)
+      }
+    }
+
+    if (restored.length || stillDeleted.length !== data.deletedArtifacts.length) {
+      data.deletedArtifacts = stillDeleted
+      this.saveData(data)
+    }
+    return data.artifacts
+  },
+
+  deleteArtifact(id, deleteInfo = {}) {
+    const data = this.getData()
+    const index = data.artifacts.findIndex((item) => item.id === id)
+    if (index === -1) return null
+    const [artifact] = data.artifacts.splice(index, 1)
+    data.deletedArtifacts = data.deletedArtifacts.filter((item) => item.id !== id)
+    data.deletedArtifacts.unshift({ ...artifact, deletedAt: new Date().toISOString(), deleteInfo })
+    this.saveData(data)
+    return artifact
   },
 
   listScheduledTasks() {

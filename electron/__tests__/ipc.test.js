@@ -23,6 +23,7 @@ require.cache[require.resolve('electron')] = {
 
 const { registerAll } = require('../ipc')
 const { store } = require('../store')
+const artifacts = require('../ipc/artifacts')
 
 function createIpcMain() {
   const handlers = new Map()
@@ -140,6 +141,41 @@ test('config handlers persist Desktop-Use settings and mask key', async () => {
   expect(store.getConfig().desktopUseModel).toBe('openai/gpt-5.5')
   expect(store.getConfig().desktopUseGroundingBackend).toBe('uitars')
   expect(store.getConfig().desktopUseAllowBrowserFallback).toBe(false)
+})
+
+test('artifacts:delete removes active artifact and records deletion metadata', async () => {
+  const ipcMain = createIpcMain()
+  artifacts.register(ipcMain)
+  store.addArtifact({ id: 'artifact-1', type: 'word', title: 'Report', path: path.join(store.GENERATED_DIR, 'report.docx') })
+
+  const deleted = await ipcMain.handlers.get('artifacts:delete')({}, { id: 'artifact-1' })
+
+  expect(deleted.ok).toBe(true)
+  expect(store.listArtifacts().some((item) => item.id === 'artifact-1')).toBe(false)
+  expect(store.getData().deletedArtifacts[0].id).toBe('artifact-1')
+})
+
+test('deleted artifact is restored to active list when system-trash item still exists', () => {
+  const filePath = path.join(store.GENERATED_DIR, 'restore.docx')
+  fs.mkdirSync(path.dirname(filePath), { recursive: true })
+  fs.writeFileSync(filePath, 'x')
+  store.saveData({
+    version: 1,
+    conversations: [],
+    artifacts: [],
+    deletedArtifacts: [{
+      id: 'artifact-restore',
+      type: 'word',
+      title: 'Restorable',
+      path: filePath,
+      deletedAt: new Date().toISOString(),
+      deleteInfo: { status: 'system-trash' }
+    }],
+    scheduledTasks: []
+  })
+
+  expect(store.listArtifacts().map((item) => item.id)).toContain('artifact-restore')
+  expect(store.getData().deletedArtifacts).toEqual([])
 })
 
 test('conversation upsert and get handlers round trip data', async () => {

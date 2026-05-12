@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest'
-import { api, approveAction, bootstrapRuntime, deleteConversation, getRuntimeStatus, listActions, listAuditEvents, listConversations, listRunOutputs, renameConversation } from './api.js'
+import { api, approveAction, bootstrapRuntime, deleteArtifact, deleteConversation, getRuntimeStatus, listActions, listAuditEvents, listConversations, listRunOutputs, renameConversation } from './api.js'
 
 beforeEach(() => {
   global.window = {
@@ -37,6 +37,11 @@ test('maps conversation helpers to IPC channels', async () => {
   expect(window.electronAPI.invoke).toHaveBeenCalledWith('conversations:rename', { id: 'conv-1', title: 'Renamed' })
   expect(window.electronAPI.invoke).toHaveBeenCalledWith('conversations:delete', { id: 'conv-2' })
   expect(window.electronAPI.invoke).toHaveBeenCalledWith('conversations:list', undefined)
+})
+
+test('deleteArtifact invokes artifacts delete channel', async () => {
+  await deleteArtifact('artifact-1')
+  expect(window.electronAPI.invoke).toHaveBeenCalledWith('artifacts:delete', { id: 'artifact-1' })
 })
 
 test('reports missing Electron IPC through onError instead of throwing', () => {
