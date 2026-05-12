@@ -76,7 +76,51 @@ export default function AuthPage({ needsSetup = false, onLogin }) {
           </div>
 
           <div className="stage">
-            {/* Möbius SVG inserted in Task 5 */}
+            <svg className="loop-svg" viewBox="0 0 600 320" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <linearGradient id="frontFace" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.98" />
+                  <stop offset="50%"  stopColor="#dbeafe" stopOpacity="0.95" />
+                  <stop offset="100%" stopColor="#93c5fd" stopOpacity="0.85" />
+                </linearGradient>
+                <linearGradient id="backFace" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%"   stopColor="#475569" stopOpacity="0.95" />
+                  <stop offset="50%"  stopColor="#334155" stopOpacity="0.95" />
+                  <stop offset="100%" stopColor="#1e293b" stopOpacity="0.95" />
+                </linearGradient>
+                <radialGradient id="haloGrad" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%"   stopColor="#a78bfa" stopOpacity="0.32" />
+                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                </radialGradient>
+                <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="5" />
+                </filter>
+                <filter id="groundBlur" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="7" />
+                </filter>
+                <path id="strandA" d="M 530,160 C 530,40 380,40 300,160 C 220,280 70,280 70,160" />
+                <path id="strandB" d="M 70,160 C 70,40 220,40 300,160 C 380,280 530,280 530,160" />
+              </defs>
+
+              {/* Atmospheric halo */}
+              <ellipse cx="300" cy="160" rx="270" ry="130" fill="url(#haloGrad)" />
+              {/* Ground shadow */}
+              <ellipse cx="300" cy="295" rx="230" ry="14" fill="#000" opacity="0.4" filter="url(#groundBlur)" />
+
+              {/* BACK strand (dark face — the strip's "other side") */}
+              <use href="#strandA" fill="none" stroke="url(#backFace)" strokeWidth="48" strokeLinecap="round" />
+              <use href="#strandA" fill="none" stroke="rgba(5,8,22,0.65)" strokeWidth="1.5" transform="translate(0,23)" />
+              <use href="#strandA" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1" transform="translate(0,-23)" />
+
+              {/* Cast shadow from front strand onto back strand */}
+              <use href="#strandB" fill="none" stroke="rgba(5,8,22,0.55)" strokeWidth="54" strokeLinecap="round"
+                   transform="translate(4,8)" filter="url(#softShadow)" opacity="0.85" />
+
+              {/* FRONT strand (light face — near side of the strip) */}
+              <use href="#strandB" fill="none" stroke="url(#frontFace)" strokeWidth="48" strokeLinecap="round" />
+              <use href="#strandB" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" transform="translate(0,-23)" />
+              <use href="#strandB" fill="none" stroke="rgba(15,23,42,0.45)" strokeWidth="1.5" transform="translate(0,23)" />
+            </svg>
           </div>
 
           <div className="tagline">
@@ -284,6 +328,12 @@ function AuthStyles() {
         align-items: center;
         justify-content: center;
         min-height: 0;
+      }
+
+      .loop-svg {
+        width: 100%;
+        height: 100%;
+        overflow: visible;
       }
 
       .tagline { position: relative; text-align: left; }
