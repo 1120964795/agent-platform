@@ -57,7 +57,19 @@ export default function AuthPage({ needsSetup = false, onLogin }) {
     <div className="auth-page">
       {/* ════════ LEFT PANEL ════════ */}
       <div className="auth-left">
-        {/* Left panel will be rebuilt in Tasks 3-7: aurora bg + stars + Möbius strip + tagline */}
+        <div className="aurora" />
+        <div className="stars">
+          <i style={{ top: '12%', left: '24%', animationDelay: '0s' }} />
+          <i style={{ top: '30%', left: '80%', animationDelay: '0.8s' }} />
+          <i style={{ top: '58%', left: '12%', animationDelay: '1.5s' }} />
+          <i style={{ top: '80%', left: '62%', animationDelay: '2.2s' }} />
+          <i style={{ top: '8%',  left: '60%', animationDelay: '0.4s' }} />
+          <i style={{ top: '42%', left: '46%', animationDelay: '1.8s' }} />
+          <i style={{ top: '72%', left: '88%', animationDelay: '0.3s' }} />
+          <i style={{ top: '22%', left: '6%',  animationDelay: '1.1s' }} />
+          <i style={{ top: '88%', left: '30%', animationDelay: '0.6s' }} />
+        </div>
+        {/* Möbius strip + tagline added in later tasks */}
       </div>
 
       {/* ════════ RIGHT PANEL ════════ */}
@@ -186,6 +198,44 @@ function AuthStyles() {
           radial-gradient(ellipse 50% 50% at 30% 90%, rgba(219,234,254,0.6) 0%, transparent 60%),
           linear-gradient(135deg, #f0f6ff 0%, #e8eeff 40%, #f0f4ff 70%, #f4f7fc 100%);
       }
+      .auth-left {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        padding: 28px 32px;
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(180deg, #050816 0%, #0a1124 60%, #08102a 100%);
+      }
+
+      .aurora {
+        position: absolute; inset: 0;
+        background:
+          radial-gradient(ellipse 50% 40% at 20% 25%, rgba(99,102,241,0.45) 0%, transparent 60%),
+          radial-gradient(ellipse 45% 50% at 80% 75%, rgba(59,130,246,0.40) 0%, transparent 60%),
+          radial-gradient(ellipse 40% 40% at 70% 20%, rgba(168,85,247,0.32) 0%, transparent 60%);
+        background-size: 140% 140%, 160% 160%, 130% 130%;
+        animation: auroraDrift 18s ease-in-out infinite alternate;
+        pointer-events: none;
+      }
+      @keyframes auroraDrift {
+        0%   { background-position: 0% 0%, 100% 100%, 100% 0%; }
+        100% { background-position: 100% 100%, 0% 0%, 0% 100%; }
+      }
+
+      .stars { position: absolute; inset: 0; pointer-events: none; }
+      .stars i {
+        position: absolute;
+        width: 2px; height: 2px;
+        border-radius: 50%;
+        background: #cbd5e1;
+        animation: twinkle 3.2s ease-in-out infinite alternate;
+      }
+      @keyframes twinkle {
+        0%, 100% { opacity: 0.15; }
+        50%      { opacity: 1; }
+      }
+
       /* Right panel */
       .auth-right {
         width: 500px; flex-shrink: 0;
