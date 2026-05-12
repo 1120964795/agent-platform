@@ -12,11 +12,13 @@
     "setup": "npm install && npm --prefix client install",
     "build:client": "npm --prefix client run build",
     "build:bridges": "node scripts/prepare-bridges.js",
-    "electron:dev": "concurrently -n client,electron -c magenta,yellow \"npm --prefix client run dev\" \"node -e \\\"setTimeout(function(){require('child_process').execSync('electron .',{stdio:'inherit'});},3000)\\\"\"",
-    "electron:build": "npm run build:client && npm run build:bridges && electron-builder --win",
-    "postinstall": "electron-rebuild",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "rebuild:native:node": "npm rebuild better-sqlite3",
+    "rebuild:native:electron": "electron-rebuild -f -w better-sqlite3",
+    "electron:dev": "npm run rebuild:native:electron && concurrently -n client,electron -c magenta,yellow \"npm --prefix client run dev\" \"node -e \\\"setTimeout(function(){require('child_process').execSync('electron .',{stdio:'inherit'});},3000)\\\"\"",
+    "electron:build": "npm run build:client && npm run build:bridges && npm run rebuild:native:electron && electron-builder --win",
+    "postinstall": "npm run rebuild:native:electron",
+    "test": "npm run rebuild:native:node && vitest run",
+    "test:watch": "npm run rebuild:native:node && vitest"
   },
   "devDependencies": {
     "@vitest/ui": "^4.1.4",
@@ -77,7 +79,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "include": "build/installer.nsh"
     }
   },
   "dependencies": {

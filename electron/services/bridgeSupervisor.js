@@ -4,6 +4,7 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const fetchImpl = global.fetch || ((...a) => import('node-fetch').then(({ default: f }) => f(...a)))
+const { buildPythonEnv, findCompatiblePython } = require('./pythonBootstrap')
 
 const RETRY_DELAYS = [1000, 2000, 4000]
 const CHILD_EXIT_TIMEOUT_MS = 1500
@@ -111,9 +112,11 @@ function buildDiagnostics(key, lastError) {
   try { config = require('../store').store.getConfig() } catch {}
   const missingConfig = []
   if (key === 'uitars') {
-    if (!config.doubaoVisionApiKey) missingConfig.push('doubaoVisionApiKey')
-    if (!config.doubaoVisionEndpoint) missingConfig.push('doubaoVisionEndpoint')
-    if (!config.doubaoVisionModel) missingConfig.push('doubaoVisionModel')
+    const allowBrowserFallback = shouldAllowDesktopBrowserFallback(config)
+    const hasFallbackKey = allowBrowserFallback && Boolean(config.browserUseApiKey)
+    if (!config.desktopUseApiKey && !hasFallbackKey) {
+      missingConfig.push(allowBrowserFallback ? 'desktopUseApiKey or browserUseApiKey' : 'desktopUseApiKey')
+    }
   }
   if (key === 'browserUse') {
     if (!config.browserUseApiKey) missingConfig.push('browserUseApiKey')
@@ -133,7 +136,7 @@ function buildDiagnostics(key, lastError) {
   const nextSteps = []
   if (missingConfig.length) nextSteps.push(`Configure missing settings: ${missingConfig.join(', ')}`)
   nextSteps.push(`Inspect stderr log: ${logs.stderrLog}`)
-  if (key === 'uitars') nextSteps.push('Check server/uitars-bridge dependencies and screen-control permissions.')
+  if (key === 'uitars') nextSteps.push('Check server/uitars-bridge dependencies and desktop screen-control permissions.')
   if (key === 'browserUse') nextSteps.push('Check Python, browser-use, and Playwright Chromium installation.')
   if (key === 'desktopUse') nextSteps.push('Check desktop-use dependencies and desktop screen-control permissions.')
   nextSteps.push(`Restart the ${cfg.name} bridge from Settings > Runtime.`)
@@ -174,12 +177,13 @@ function createSupervisor(opts = {}) {
 
   function buildEnv(key) {
     const config = require('../store').store.getConfig()
-    const env = { ...process.env }
+    const env = key === 'browserUse' ? buildPythonEnv(rootDir, process.env) : { ...process.env }
     if (key === 'uitars') {
-      env.UITARS_MODEL_PROVIDER = 'volcengine'
-      env.UITARS_MODEL_ENDPOINT = config.doubaoVisionEndpoint || ''
-      env.UITARS_MODEL_API_KEY = config.doubaoVisionApiKey || ''
-      env.UITARS_MODEL_NAME = config.doubaoVisionModel || ''
+      const desktopModel = resolveDesktopUseModelConfig(config)
+      env.UITARS_MODEL_PROVIDER = 'openai-compatible'
+      env.UITARS_MODEL_ENDPOINT = desktopModel.endpoint
+      env.UITARS_MODEL_API_KEY = desktopModel.apiKey
+      env.UITARS_MODEL_NAME = desktopModel.model
     }
     if (key === 'browserUse') {
       env.BROWSER_USE_MODEL_ENDPOINT = config.browserUseEndpoint || 'https://zenmux.ai/api/v1'
@@ -197,6 +201,11 @@ function createSupervisor(opts = {}) {
       env.DESKTOP_USE_GROUNDING_BACKEND = config.desktopUseGroundingBackend || 'manual-coordinate'
     }
     return env
+  }
+
+  function resolvePythonSpawn() {
+    const python = findCompatiblePython(process.env)
+    return python ? { command: python.command, args: python.args || [] } : { command: 'python', args: [] }
   }
 
   function snapshot() {
@@ -376,8 +385,9 @@ function createSupervisor(opts = {}) {
       stdio = buildStdio(key)
       try {
         const spawnOptions = { stdio, env: buildEnv(key), windowsHide: true }
+        const pythonSpawn = runtime === 'python' ? resolvePythonSpawn() : null
         child = runtime === 'python'
-          ? spawnImpl('python', ['-u', path.join(rootDir, cfg.dir, 'main.py'), String(cfg.port)], spawnOptions)
+          ? spawnImpl(pythonSpawn.command, [...pythonSpawn.args, '-u', path.join(rootDir, cfg.dir, 'main.py'), String(cfg.port)], spawnOptions)
           : spawnImpl('node', [path.join(rootDir, cfg.dir, 'index.js'), '--port', String(cfg.port)], spawnOptions)
         childErrorWatcher = watchChildError(child)
       } finally {

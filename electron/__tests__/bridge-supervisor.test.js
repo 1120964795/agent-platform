@@ -60,16 +60,19 @@ describe('bridgeSupervisor', () => {
     expect(calls).toHaveLength(3)
     expect(calls.every((call) => call.windowsHide === true)).toBe(true)
     const uitars = calls.find((c) => c.args.some((arg) => arg.includes('uitars-bridge')))
-    expect(uitars.env.UITARS_MODEL_PROVIDER).toBe('volcengine')
-    expect(uitars.env.UITARS_MODEL_ENDPOINT).toContain('volces.com')
-    const browserUse = calls.find((c) => c.cmd === 'python' && c.args.some((arg) => arg.includes('browser-use-bridge')))
+    expect(uitars.env.UITARS_MODEL_PROVIDER).toBe('openai-compatible')
+    expect(uitars.env.UITARS_MODEL_ENDPOINT).toBe('https://zenmux.ai/api/v1')
+    const browserUse = calls.find((c) => c.args.some((arg) => arg.includes('browser-use-bridge')))
     expect(browserUse).toBeDefined()
+    expect(browserUse.cmd).toBeTruthy()
     expect(browserUse.env.BROWSER_USE_MODEL_ENDPOINT).toBe('https://zenmux.ai/api/v1')
     expect(browserUse.env.BROWSER_USE_MODEL_API_KEY).toBe('')
     expect(browserUse.env.BROWSER_USE_MODEL_NAME).toBe('openai/gpt-5.5')
     expect(browserUse.env.BROWSER_USE_VISION_ENABLED).toBe('true')
     expect(browserUse.env.BROWSER_USE_HEADLESS).toBe('false')
     expect(browserUse.env.BROWSER_USE_KEEP_ALIVE).toBe('true')
+    expect(browserUse.env.PYTHONUTF8).toBe('1')
+    expect(browserUse.env.PYTHONIOENCODING).toBe('utf-8')
     const desktopUse = calls.find((c) => c.cmd === 'node' && c.args.some((arg) => arg.includes('desktop-use-bridge')))
     expect(desktopUse).toBeDefined()
     expect(desktopUse.args).toContain('8790')
@@ -171,7 +174,7 @@ describe('bridgeSupervisor', () => {
     }))
   }, 15000)
 
-  it('reports Browser-Use config fields separately from Doubao diagnostics', async () => {
+  it('reports Browser-Use config fields separately from desktop diagnostics', async () => {
     const sup = createSupervisor({
       spawnImpl: () => ({ on() {}, kill() {}, killed: false }),
       healthImpl: async () => ({ ok: false })

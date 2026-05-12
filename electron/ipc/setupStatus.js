@@ -27,9 +27,12 @@ async function computeSetupStatus({ storeRef = store } = {}) {
   try {
     if (typeof pythonBootstrap !== 'undefined' && pythonBootstrap) {
       const pyResult = await pythonBootstrap.detect()
-      deps.python = pyResult.available
-      deps.browserUse = pyResult.browserUseInstalled
-      deps.playwright = pyResult.playwrightInstalled
+      deps.python = Boolean(pyResult.available ?? pyResult.python)
+      deps.browserUse = Boolean(pyResult.browserUseInstalled ?? pyResult.browserUse)
+      deps.playwright = Boolean(pyResult.playwrightInstalled ?? pyResult.playwright)
+      deps.selenium = Boolean(pyResult.seleniumInstalled ?? pyResult.selenium)
+      deps.pythonDepsBundled = Boolean(pyResult.bundledDepsPath)
+      deps.pythonDepsInstalled = Boolean(pyResult.userDepsPath)
     }
   } catch {
     deps.python = false
@@ -44,8 +47,8 @@ async function computeSetupStatus({ storeRef = store } = {}) {
     deps.bridgesRunning = false
   }
 
-  const browserReady = deps.deepseekKey && deps.browserUseKey && deps.python !== false
-  const desktopReady = deps.deepseekKey && deps.desktopUseKey
+  const browserReady = Boolean(deps.deepseekKey && deps.browserUseKey && deps.python && deps.browserUse && deps.playwright && deps.selenium)
+  const desktopReady = Boolean(deps.deepseekKey && (deps.desktopUseKey || deps.browserUseKey))
 
   const tiers = {
     lite: {

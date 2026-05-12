@@ -34,19 +34,23 @@ describe('setup-status', () => {
   it('reports browser tier ready when browser key and python deps are available', async () => {
     const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k', browserUseApiKey: 'b', desktopUseApiKey: '' }) }
     setBridgeContext({
-      pythonBootstrap: { detect: async () => ({ available: true, browserUseInstalled: true, playwrightInstalled: true }) },
+      pythonBootstrap: { detect: async () => ({ available: true, browserUseInstalled: true, playwrightInstalled: true, seleniumInstalled: true, bundledDepsPath: 'bundled', userDepsPath: 'user' }) },
       supervisor: null
     })
     const status = await computeSetupStatus({ storeRef: fakeStore })
     expect(status.tiers.browser.ready).toBe(true)
     expect(status.deps.python).toBe(true)
     expect(status.deps.browserUse).toBe(true)
+    expect(status.deps.playwright).toBe(true)
+    expect(status.deps.selenium).toBe(true)
+    expect(status.deps.pythonDepsBundled).toBe(true)
+    expect(status.deps.pythonDepsInstalled).toBe(true)
   })
 
   it('reports browser tier not ready when python is missing', async () => {
     const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k', browserUseApiKey: 'b', desktopUseApiKey: '' }) }
     setBridgeContext({
-      pythonBootstrap: { detect: async () => ({ available: false, browserUseInstalled: false, playwrightInstalled: false }) },
+      pythonBootstrap: { detect: async () => ({ available: false, browserUseInstalled: false, playwrightInstalled: false, seleniumInstalled: false }) },
       supervisor: null
     })
     const status = await computeSetupStatus({ storeRef: fakeStore })

@@ -6,9 +6,12 @@ const { createSupervisor } = require('./services/bridgeSupervisor')
 const { setSupervisor } = require('./ipc/bridgeStatus')
 const { setBridgeContext } = require('./ipc/setupStatus')
 const { store } = require('./store')
+const pythonBootstrap = require('./services/pythonBootstrap')
+const { installBrowserRuntime } = require('./services/pythonRuntimeInstaller')
 const { createCursorOverlayController, setDesktopCursorOverlay } = require('./services/desktopCursorOverlay')
 
 const isDev = !app.isPackaged
+const installBrowserRuntimeOnly = process.argv.includes('--install-browser-runtime')
 let mainWindow = null
 let supervisor = null
 
@@ -18,7 +21,7 @@ const shouldOpenDevTools = isDev && process.env.AIONUI_OPEN_DEVTOOLS === '1'
 
 function renderLoadFailure(reason) {
   if (!mainWindow || mainWindow.isDestroyed()) return
-  const safeReason = String(reason || '未知错误').replace(/[<>&]/g, '')
+  const safeReason = String(reason || 'Unknown error').replace(/[<>&]/g, '')
   const html = `
     <!doctype html>
     <html>
@@ -35,12 +38,12 @@ function renderLoadFailure(reason) {
       </head>
       <body>
         <div class="wrap">
-          <h1>界面加载失败</h1>
+          <h1>Renderer failed to load</h1>
           <div class="card">
-            <p>渲染器无法加载。</p>
-            <p><strong>原因</strong></p>
+            <p>AionUi could not load the renderer.</p>
+            <p><strong>Reason</strong></p>
             <code>${safeReason}</code>
-            <p>开发环境请先启动 Vite 开发服务器；生产环境请重新构建前端包。</p>
+            <p>In development, make sure the Vite dev server is running. In production, make sure client/dist is packaged.</p>
           </div>
         </div>
       </body>
@@ -57,7 +60,7 @@ async function loadRenderer() {
 
   const indexPath = path.join(rootDir, 'client', 'dist', 'index.html')
   if (!fs.existsSync(indexPath)) {
-    throw new Error(`未找到渲染器包：${indexPath}`)
+    throw new Error(`Renderer bundle not found: ${indexPath}`)
   }
   await mainWindow.loadFile(indexPath)
 }
@@ -75,12 +78,11 @@ function createWindow() {
   })
 
   loadRenderer().catch((error) => {
-    renderLoadFailure(error?.message || '渲染器加载失败。')
+    renderLoadFailure(error?.message || 'Renderer load failed')
   })
 
   if (shouldOpenDevTools) mainWindow.webContents.openDevTools()
 
-  // First-run: auto-open welcome wizard
   const config = store.getConfig()
   if (!config.welcomeShown) {
     mainWindow.webContents.on('did-finish-load', () => {
@@ -89,19 +91,32 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(async () => {
-  setDesktopCursorOverlay(createCursorOverlayController({ BrowserWindow, screen }))
-  registerAll(ipcMain)
-  supervisor = createSupervisor()
-  setSupervisor(supervisor)
-  setBridgeContext({ pythonBootstrap: null, supervisor })
-  supervisor.start().catch((err) => console.error('[bridges] start failed', err))
-  createWindow()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+if (installBrowserRuntimeOnly) {
+  app.whenReady().then(() => {
+    try {
+      const result = installBrowserRuntime({ rootDir })
+      console.log('[browser-runtime] installed', result)
+      app.exit(0)
+    } catch (error) {
+      console.error('[browser-runtime] install failed', error)
+      app.exit(2)
+    }
   })
-})
+} else {
+  app.whenReady().then(async () => {
+    setDesktopCursorOverlay(createCursorOverlayController({ BrowserWindow, screen }))
+    registerAll(ipcMain)
+    supervisor = createSupervisor()
+    setSupervisor(supervisor)
+    setBridgeContext({ pythonBootstrap, supervisor })
+    supervisor.start().catch((err) => console.error('[bridges] start failed', err))
+    createWindow()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  })
+}
 
 app.on('before-quit', () => {
   if (supervisor) try { supervisor.stop() } catch {}
