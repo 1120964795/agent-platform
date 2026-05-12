@@ -5,17 +5,17 @@ import SkillsTab from './SkillsTab.jsx'
 import RulesTab from './RulesTab.jsx'
 
 const DEFAULT_FORM = {
-  qwenApiKey: '',
-  qwenBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  qwenPrimaryModel: 'qwen-max-latest',
-  qwenCodingModel: 'qwen3-coder-plus',
-  fallbackProvider: '',
   deepseekApiKey: '',
   deepseekBaseUrl: 'https://api.deepseek.com',
   fallbackModel: 'deepseek-chat',
-  doubaoVisionApiKey: '',
-  doubaoVisionEndpoint: 'https://ark.cn-beijing.volces.com/api/v3',
-  doubaoVisionModel: 'doubao-seed-1-6-vision-250815',
+  browserUseApiKey: '',
+  browserUseEndpoint: 'https://zenmux.ai/api/v1',
+  browserUseModel: 'openai/gpt-5.5',
+  desktopUseApiKey: '',
+  desktopUseEndpoint: 'https://zenmux.ai/api/v1',
+  desktopUseModel: 'openai/gpt-5.5',
+  desktopUseGroundingBackend: 'manual-coordinate',
+  desktopUseAllowBrowserFallback: true,
   dryRunEnabled: true,
   permissionMode: 'default',
   workspace_root: '',
@@ -23,11 +23,11 @@ const DEFAULT_FORM = {
 }
 
 const TABS = [
-  { id: 'models', label: '模型' },
-  { id: 'runtimes', label: '运行时' },
-  { id: 'safety', label: '安全' },
-  { id: 'skills', label: '技能' },
-  { id: 'rules', label: '偏好' }
+  { id: 'models', label: 'Models' },
+  { id: 'runtimes', label: 'Runtimes' },
+  { id: 'safety', label: 'Safety' },
+  { id: 'skills', label: 'Skills' },
+  { id: 'rules', label: 'Rules' }
 ]
 
 function BridgeStatusPanel() {
@@ -51,26 +51,28 @@ function BridgeStatusPanel() {
     setLoading(true)
     try {
       await window.electronAPI?.invoke('bridge:restart', { key })
-      // Re-poll after a short delay
       setTimeout(async () => {
         try {
           const result = await window.electronAPI?.invoke('bridge:status')
           if (result?.bridges) setBridges(result.bridges)
         } catch {}
       }, 2000)
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+    }
   }
 
   const entries = [
-    { key: 'browserUse', label: 'Browser-Use (浏览器自动化)', port: 8780, runtime: 'Python' },
-    { key: 'uitars', label: 'UI-TARS (桌面控制)', port: 8765, runtime: 'Node.js' },
+    { key: 'browserUse', label: 'Browser Use Bridge', port: 8780, runtime: 'Python' },
+    { key: 'desktopUse', fallbackKey: 'uitars', label: 'Desktop Use Bridge', port: 8790, runtime: 'Node.js/Python' },
   ]
 
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-semibold">Bridge 状态</h2>
-      {entries.map(({ key, label, port, runtime }) => {
-        const b = bridges[key] || {}
+      <h2 className="text-lg font-semibold">Bridge Status</h2>
+      {entries.map(({ key, fallbackKey, label, port, runtime }) => {
+        const bridgeKey = bridges[key] ? key : (fallbackKey || key)
+        const b = bridges[bridgeKey] || {}
         const running = b.state === 'running'
         const failed = b.state === 'failed'
         const color = running ? 'text-[color:var(--success)]' : failed ? 'text-red-500' : 'text-amber-500'
@@ -90,9 +92,9 @@ function BridgeStatusPanel() {
               <div className="mt-2 text-xs text-red-500">{b.lastError}</div>
             )}
             {failed && (
-              <button type="button" onClick={() => restart(key)} disabled={loading}
+              <button type="button" onClick={() => restart(bridgeKey)} disabled={loading}
                 className="mt-2 h-7 rounded-md border border-[color:var(--border)] px-3 text-xs hover:bg-[color:var(--bg-tertiary)]">
-                重新启动
+                Restart
               </button>
             )}
           </div>
@@ -117,18 +119,23 @@ export default function SettingsPanel() {
         if (ignored || !result.config) return
         const config = result.config
         const mode = config.permissionMode || 'default'
-        setMasked({ qwenApiKey: config.qwenApiKey, deepseekApiKey: config.deepseekApiKey, apiKey: config.apiKey, doubaoVisionApiKey: config.doubaoVisionApiKey })
+        setMasked({
+          deepseekApiKey: config.deepseekApiKey || config.apiKey,
+          apiKey: config.apiKey,
+          browserUseApiKey: config.browserUseApiKey,
+          desktopUseApiKey: config.desktopUseApiKey
+        })
         setForm({
           ...DEFAULT_FORM,
           ...config,
-          qwenApiKey: '',
           deepseekApiKey: '',
-          doubaoVisionApiKey: '',
+          browserUseApiKey: '',
+          desktopUseApiKey: '',
           permissionMode: mode
         })
         localStorage.setItem('agentdev-permission-mode', mode)
       } catch (error) {
-        if (!ignored) setMsg(`加载失败：${error.message}`)
+        if (!ignored) setMsg(`Load failed: ${error.message}`)
       }
     }
     loadConfig()
@@ -144,19 +151,24 @@ export default function SettingsPanel() {
     setMsg('')
     try {
       const next = { ...form }
-      if (!next.qwenApiKey) delete next.qwenApiKey
       if (!next.deepseekApiKey) delete next.deepseekApiKey
-      if (!next.doubaoVisionApiKey) delete next.doubaoVisionApiKey
+      if (!next.browserUseApiKey) delete next.browserUseApiKey
+      if (!next.desktopUseApiKey) delete next.desktopUseApiKey
       const result = await setConfig(next)
       const mode = result.config?.permissionMode || form.permissionMode
-      setMasked({ qwenApiKey: result.config?.qwenApiKey, deepseekApiKey: result.config?.deepseekApiKey, apiKey: result.config?.apiKey, doubaoVisionApiKey: result.config?.doubaoVisionApiKey })
-      patch({ qwenApiKey: '', deepseekApiKey: '', doubaoVisionApiKey: '' })
+      setMasked({
+        deepseekApiKey: result.config?.deepseekApiKey,
+        apiKey: result.config?.apiKey,
+        browserUseApiKey: result.config?.browserUseApiKey,
+        desktopUseApiKey: result.config?.desktopUseApiKey
+      })
+      patch({ deepseekApiKey: '', browserUseApiKey: '', desktopUseApiKey: '' })
       localStorage.setItem('agentdev-permission-mode', mode)
       window.dispatchEvent(new CustomEvent('agentdev:permission-changed', { detail: { mode } }))
-      setMsg('已保存')
+      setMsg('Saved')
       setTimeout(() => setMsg(''), 2000)
     } catch (error) {
-      setMsg(`保存失败：${error.message}`)
+      setMsg(`Save failed: ${error.message}`)
     } finally {
       setSaving(false)
     }
@@ -203,38 +215,25 @@ export default function SettingsPanel() {
       {tab === 'models' && (
         <div className="space-y-4">
           <div className="space-y-3">
-            <h2 className="text-lg font-semibold">Doubao Vision (browser + desktop automation)</h2>
-            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]"><ApiKeyLabel text="API Key" url="https://console.volcengine.com/ark" />
-              <input type="password" value={form.doubaoVisionApiKey}
-                onChange={(event) => patch({ doubaoVisionApiKey: event.target.value })}
-                placeholder={masked.doubaoVisionApiKey || 'Volcengine Ark API Key'}
-                className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" />
-            </label>
-            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">Endpoint
-              <input value={form.doubaoVisionEndpoint}
-                onChange={(event) => patch({ doubaoVisionEndpoint: event.target.value })}
-                className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" />
-            </label>
-            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">Model Name
-              <input value={form.doubaoVisionModel}
-                onChange={(event) => patch({ doubaoVisionModel: event.target.value })}
-                className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" />
-            </label>
+            <h2 className="text-lg font-semibold">DeepSeek</h2>
+            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]"><ApiKeyLabel text="DeepSeek API Key" url="https://platform.deepseek.com/api_keys" /><input type="password" value={form.deepseekApiKey} onChange={(event) => patch({ deepseekApiKey: event.target.value })} placeholder={masked.deepseekApiKey || masked.apiKey || 'sk-...'} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
+            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">Model<input value={form.fallbackModel} onChange={(event) => patch({ fallbackModel: event.target.value })} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
+            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">Base URL<input value={form.deepseekBaseUrl} onChange={(event) => patch({ deepseekBaseUrl: event.target.value })} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
           </div>
 
-          <h2 className="text-lg font-semibold">Qwen 配置</h2>
-          <label className="block space-y-2 text-xs text-[color:var(--text-muted)]"><ApiKeyLabel text="API Key" url="https://dashscope.console.aliyun.com" /><input type="password" value={form.qwenApiKey} onChange={(event) => patch({ qwenApiKey: event.target.value })} placeholder={masked.qwenApiKey || 'DashScope API Key'} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
-          <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">Base URL<input value={form.qwenBaseUrl} onChange={(event) => patch({ qwenBaseUrl: event.target.value })} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
-          <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">主模型<input value={form.qwenPrimaryModel} onChange={(event) => patch({ qwenPrimaryModel: event.target.value })} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
-          <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">代码模型<input value={form.qwenCodingModel} onChange={(event) => patch({ qwenCodingModel: event.target.value })} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
+          <div className="border-t border-[color:var(--border)] pt-4 space-y-3">
+            <h2 className="text-lg font-semibold">Browser Use</h2>
+            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]"><ApiKeyLabel text="Browser Use API Key" url="https://zenmux.ai/" /><input type="password" value={form.browserUseApiKey} onChange={(event) => patch({ browserUseApiKey: event.target.value })} placeholder={masked.browserUseApiKey || 'ZenMux API Key'} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
+            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">Endpoint<input value={form.browserUseEndpoint} onChange={(event) => patch({ browserUseEndpoint: event.target.value })} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
+            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">Model<input value={form.browserUseModel} onChange={(event) => patch({ browserUseModel: event.target.value })} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
+          </div>
 
           <div className="border-t border-[color:var(--border)] pt-4 space-y-3">
-            <h2 className="text-lg font-semibold">DeepSeek 备用聊天</h2>
-            <p className="text-xs text-[color:var(--text-muted)]">仅作为普通聊天备用模型。DeepSeek 不会用于任务规划或动作意图。</p>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.fallbackProvider === 'deepseek'} onChange={(event) => patch({ fallbackProvider: event.target.checked ? 'deepseek' : '' })} /> 启用普通聊天备用模型</label>
-            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]"><ApiKeyLabel text="DeepSeek API Key" url="https://platform.deepseek.com" /><input type="password" value={form.deepseekApiKey} onChange={(event) => patch({ deepseekApiKey: event.target.value })} placeholder={masked.deepseekApiKey || masked.apiKey || 'sk-...'} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
-            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">备用模型<input value={form.fallbackModel} onChange={(event) => patch({ fallbackModel: event.target.value })} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
-            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">DeepSeek Base URL<input value={form.deepseekBaseUrl} onChange={(event) => patch({ deepseekBaseUrl: event.target.value })} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
+            <h2 className="text-lg font-semibold">Desktop Use</h2>
+            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]"><ApiKeyLabel text="Desktop Use API Key" url="https://zenmux.ai/" /><input type="password" value={form.desktopUseApiKey} onChange={(event) => patch({ desktopUseApiKey: event.target.value })} placeholder={masked.desktopUseApiKey || 'ZenMux API Key'} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
+            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">Endpoint<input value={form.desktopUseEndpoint} onChange={(event) => patch({ desktopUseEndpoint: event.target.value })} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
+            <label className="block space-y-2 text-xs text-[color:var(--text-muted)]">Model<input value={form.desktopUseModel} onChange={(event) => patch({ desktopUseModel: event.target.value })} className="w-full rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]" /></label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.desktopUseAllowBrowserFallback !== false} onChange={(event) => patch({ desktopUseAllowBrowserFallback: event.target.checked })} /> Allow Browser Use key fallback</label>
           </div>
         </div>
       )}
@@ -245,22 +244,22 @@ export default function SettingsPanel() {
 
       {tab === 'safety' && (
         <div className="space-y-5">
-          <h2 className="text-lg font-semibold">安全设置</h2>
+          <h2 className="text-lg font-semibold">Safety</h2>
           <div className="grid grid-cols-1 gap-2">
             <button type="button" onClick={() => patch({ permissionMode: 'default' })} className={`flex items-start gap-3 rounded-md border p-3 text-left ${!isFull ? 'border-[color:var(--accent)] bg-[color:var(--accent)]/5' : 'border-[color:var(--border)] hover:bg-[color:var(--bg-tertiary)]'}`}>
               <Shield size={18} className={!isFull ? 'text-[color:var(--accent)]' : 'text-[color:var(--text-muted)]'} />
-              <div><div className="text-sm font-medium">聊天模式</div><div className="text-xs text-[color:var(--text-muted)]">普通对话。执行任务仍会走动作提案和审批流程。</div></div>
+              <div><div className="text-sm font-medium">Safe mode</div><div className="text-xs text-[color:var(--text-muted)]">Use policy checks and confirmations for risky tool calls.</div></div>
             </button>
             <button type="button" onClick={() => patch({ permissionMode: 'full' })} className={`flex items-start gap-3 rounded-md border p-3 text-left ${isFull ? 'border-[color:var(--success)] bg-[color:var(--success)]/5' : 'border-[color:var(--border)] hover:bg-[color:var(--bg-tertiary)]'}`}>
               <ShieldCheck size={18} className={isFull ? 'text-[color:var(--success)]' : 'text-[color:var(--text-muted)]'} />
-              <div><div className="text-sm font-medium">兼容工具模式</div><div className="text-xs text-[color:var(--text-muted)]">旧版本地工具保留为兼容能力，但不会暴露给执行模式。</div></div>
+              <div><div className="text-sm font-medium">Full workspace mode</div><div className="text-xs text-[color:var(--text-muted)]">Allow broader workspace operations while keeping confirmations.</div></div>
             </button>
           </div>
           <div className="flex gap-2">
             <input value={form.workspace_root} onChange={(event) => patch({ workspace_root: event.target.value })} className="min-w-0 flex-1 rounded-md border border-[color:var(--border)] bg-[color:var(--bg-primary)] px-3 py-2 text-sm outline-none focus:border-[color:var(--accent)]" />
-            <button type="button" onClick={chooseWorkspace} className="h-9 rounded-md border border-[color:var(--border)] px-3 text-sm hover:bg-[color:var(--bg-tertiary)] flex items-center gap-1"><FolderOpen size={14} /> 选择</button>
+            <button type="button" onClick={chooseWorkspace} className="h-9 rounded-md border border-[color:var(--border)] px-3 text-sm hover:bg-[color:var(--bg-tertiary)] flex items-center gap-1"><FolderOpen size={14} /> Browse</button>
           </div>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.session_confirm_cache_enabled} onChange={(event) => patch({ session_confirm_cache_enabled: event.target.checked })} /> 本会话记住已批准的兼容 shell 命令</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.session_confirm_cache_enabled} onChange={(event) => patch({ session_confirm_cache_enabled: event.target.checked })} /> Reuse confirmation decisions in a session</label>
         </div>
       )}
 
@@ -268,7 +267,7 @@ export default function SettingsPanel() {
       {tab === 'rules' && <RulesTab />}
 
       {['models', 'runtimes', 'safety'].includes(tab) && (
-        <button type="button" onClick={handleSave} disabled={saving} className="w-full h-9 rounded-md bg-[color:var(--accent)] text-white text-sm font-medium disabled:opacity-50">{saving ? '保存中...' : '保存设置'}</button>
+        <button type="button" onClick={handleSave} disabled={saving} className="w-full h-9 rounded-md bg-[color:var(--accent)] text-white text-sm font-medium disabled:opacity-50">{saving ? 'Saving...' : 'Save settings'}</button>
       )}
       {msg && <div className="text-xs text-[color:var(--text-muted)]">{msg}</div>}
     </div>

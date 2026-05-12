@@ -21,15 +21,24 @@ const CONFIG_PATH = path.join(DATA_DIR, 'config.json')
 const DATA_PATH = path.join(DATA_DIR, 'data.json')
 const CONFIG_SCHEMA_VERSION = 2
 
+const DEPRECATED_CONFIG_KEYS = new Set([
+  'qwenApiKey',
+  'qwenBaseUrl',
+  'qwenPrimaryModel',
+  'qwenCodingModel',
+  'qwenVisionEndpoint',
+  'qwenVisionApiKey',
+  'qwenVisionModel',
+  'doubaoVisionEndpoint',
+  'doubaoVisionApiKey',
+  'doubaoVisionModel'
+])
+
 const DEFAULT_CONFIG = {
   configVersion: CONFIG_SCHEMA_VERSION,
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
   model: 'deepseek-chat',
-  qwenApiKey: '',
-  qwenBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  qwenPrimaryModel: 'qwen-max-latest',
-  qwenCodingModel: 'qwen3-coder-plus',
   fallbackProvider: '',
   fallbackModel: 'deepseek-chat',
   deepseekApiKey: '',
@@ -37,12 +46,6 @@ const DEFAULT_CONFIG = {
   deepseekChatEndpoint: 'https://api.deepseek.com',
   deepseekPlannerModel: 'deepseek-chat',
   deepseekCodingModel: 'deepseek-coder',
-  qwenVisionEndpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  qwenVisionApiKey: '',
-  qwenVisionModel: 'qwen3-vl-plus',
-  doubaoVisionEndpoint: 'https://ark.cn-beijing.volces.com/api/v3',
-  doubaoVisionApiKey: '',
-  doubaoVisionModel: 'doubao-seed-1-6-vision-250815',
   browserUseEndpoint: 'https://zenmux.ai/api/v1',
   browserUseApiKey: '',
   browserUseModel: 'openai/gpt-5.5',
@@ -77,6 +80,12 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value))
 }
 
+function stripDeprecatedConfigKeys(config = {}) {
+  const next = { ...config }
+  for (const key of DEPRECATED_CONFIG_KEYS) delete next[key]
+  return next
+}
+
 function ensureDirs() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
   if (!fs.existsSync(GENERATED_DIR)) fs.mkdirSync(GENERATED_DIR, { recursive: true })
@@ -108,7 +117,7 @@ function writeJson(filePath, value) {
 }
 
 function normalizeConfig(config, source = config) {
-  const next = { ...config }
+  const next = stripDeprecatedConfigKeys(config)
   const sourceVersion = Number(source.configVersion || 1)
   if (
     sourceVersion < 2 &&
@@ -131,17 +140,17 @@ const store = {
 
   getConfig() {
     const diskConfig = readJson(CONFIG_PATH, DEFAULT_CONFIG)
-    return normalizeConfig({ ...DEFAULT_CONFIG, ...diskConfig }, diskConfig)
+    return stripDeprecatedConfigKeys(normalizeConfig({ ...DEFAULT_CONFIG, ...diskConfig }, diskConfig))
   },
 
   setConfig(patch) {
-    const next = normalizeConfig({ ...this.getConfig(), ...(patch || {}) })
+    const next = stripDeprecatedConfigKeys(normalizeConfig({ ...this.getConfig(), ...(patch || {}) }))
     writeJson(CONFIG_PATH, next)
     return next
   },
 
   getMaskedConfig() {
-    const config = this.getConfig()
+    const config = stripDeprecatedConfigKeys(this.getConfig())
     const mask = (key = '') => key.length > 10 ? `${key.slice(0, 6)}***${key.slice(-4)}` : (key ? '***' : '')
     const maskBrowserUse = (key = '') => {
       if (!key) return ''
@@ -151,9 +160,7 @@ const store = {
     return {
       ...config,
       apiKey: mask(config.apiKey || ''),
-      qwenApiKey: mask(config.qwenApiKey || ''),
       deepseekApiKey: mask(config.deepseekApiKey || ''),
-      doubaoVisionApiKey: mask(config.doubaoVisionApiKey || ''),
       browserUseApiKey: maskBrowserUse(config.browserUseApiKey || ''),
       desktopUseApiKey: maskBrowserUse(config.desktopUseApiKey || '')
     }
@@ -233,4 +240,4 @@ const store = {
   }
 }
 
-module.exports = { store, DEFAULT_CONFIG, DEFAULT_DATA }
+module.exports = { store, DEFAULT_CONFIG, DEFAULT_DATA, DEPRECATED_CONFIG_KEYS, stripDeprecatedConfigKeys }

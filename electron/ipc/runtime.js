@@ -1,26 +1,59 @@
 const { store } = require('../store')
 const { sanitizeConfigPatch } = require('./config')
-const qwenProvider = require('../services/models/qwenProvider')
-const deepseek = require('../services/deepseek')
 
 function ok(data = {}) { return { ok: true, ...data } }
 function fail(error) { return { ok: false, error: { code: error.code || 'IPC_ERROR', message: error.message || String(error) } } }
 
 async function runtimeStatus(config = store.getConfig()) {
+  const deepseekConfigured = Boolean(config.deepseekApiKey || config.apiKey)
+  const desktopConfigured = Boolean(
+    config.desktopUseApiKey ||
+    (config.desktopUseAllowBrowserFallback !== false && config.browserUseApiKey)
+  )
+
   return [
-    { runtime: 'qwen', state: qwenProvider.getStatus(config).configured ? 'ready' : 'needs-configuration', ...qwenProvider.getStatus(config) },
-    { runtime: 'deepseek', state: Boolean(config.deepseekApiKey || config.apiKey) ? 'ready' : 'not-configured', configured: Boolean(config.deepseekApiKey || config.apiKey) },
-    { runtime: 'browser-use', state: 'managed-by-supervisor', configured: Boolean(config.doubaoVisionApiKey) },
-    { runtime: 'ui-tars', state: 'managed-by-supervisor', configured: Boolean(config.doubaoVisionApiKey) },
-    { runtime: 'aionui-dry-run', state: config.dryRunEnabled === false ? 'disabled' : 'ready', configured: true }
+    {
+      runtime: 'deepseek',
+      state: deepseekConfigured ? 'ready' : 'needs-configuration',
+      configured: deepseekConfigured,
+      endpoint: config.deepseekChatEndpoint || config.deepseekBaseUrl || config.baseUrl,
+      model: config.deepseekPlannerModel || config.model
+    },
+    {
+      runtime: 'browser-use',
+      state: 'managed-by-supervisor',
+      configured: Boolean(config.browserUseApiKey),
+      endpoint: config.browserUseEndpoint,
+      model: config.browserUseModel
+    },
+    {
+      runtime: 'desktop-use',
+      state: 'managed-by-supervisor',
+      configured: desktopConfigured,
+      endpoint: config.desktopUseEndpoint,
+      model: config.desktopUseModel
+    },
+    {
+      runtime: 'dry-run',
+      state: config.dryRunEnabled === false ? 'disabled' : 'ready',
+      configured: config.dryRunEnabled !== false
+    }
   ]
 }
 
-async function bootstrapRuntime(runtime, config = store.getConfig()) {
-  if (runtime === 'qwen') return qwenProvider.getStatus(config)
-  if (runtime === 'deepseek') return { runtime, state: Boolean(config.deepseekApiKey || config.apiKey) ? 'ready' : 'not-configured', configured: Boolean(config.deepseekApiKey || config.apiKey) }
-  if (runtime === 'aionui-dry-run') return { runtime, state: config.dryRunEnabled === false ? 'disabled' : 'ready' }
-  throw new Error(`未知运行时：${runtime}`)
+async function bootstrapRuntime(runtime) {
+  if (runtime === 'browser-use') {
+    const browserUse = require('../services/browserUse')
+    return browserUse.repair()
+  }
+  if (runtime === 'deepseek') {
+    const config = store.getConfig()
+    const configured = Boolean(config.deepseekApiKey || config.apiKey)
+    return { runtime: 'deepseek', state: configured ? 'ready' : 'needs-configuration', configured }
+  }
+  if (runtime === 'desktop-use') return { runtime: 'desktop-use', state: 'managed-by-supervisor' }
+  if (runtime === 'dry-run' || runtime === 'aionui-dry-run') return { runtime: 'dry-run', state: 'ready' }
+  throw new Error(`Unsupported runtime ${runtime}`)
 }
 
 function register(ipcMain) {

@@ -8,17 +8,22 @@ function setBridgeContext(ctx) {
 
 const KEY_FIELD_MAP = {
   deepseekKey: 'deepseekApiKey',
-  doubaoKey: 'doubaoVisionApiKey'
+  browserUseKey: 'browserUseApiKey',
+  desktopUseKey: 'desktopUseApiKey'
 }
 
 async function computeSetupStatus({ storeRef = store } = {}) {
   const cfg = storeRef.getConfig()
+  const desktopUseKey = Boolean(
+    cfg.desktopUseApiKey ||
+    (cfg.desktopUseAllowBrowserFallback !== false && cfg.browserUseApiKey)
+  )
   const deps = {
-    deepseekKey: Boolean(cfg.deepseekApiKey),
-    doubaoKey: Boolean(cfg.doubaoVisionApiKey),
+    deepseekKey: Boolean(cfg.deepseekApiKey || cfg.apiKey),
+    browserUseKey: Boolean(cfg.browserUseApiKey),
+    desktopUseKey,
   }
 
-  // Check Python/bridge health (non-blocking)
   try {
     if (typeof pythonBootstrap !== 'undefined' && pythonBootstrap) {
       const pyResult = await pythonBootstrap.detect()
@@ -26,14 +31,21 @@ async function computeSetupStatus({ storeRef = store } = {}) {
       deps.browserUse = pyResult.browserUseInstalled
       deps.playwright = pyResult.playwrightInstalled
     }
-  } catch { deps.python = false }
+  } catch {
+    deps.python = false
+  }
 
   try {
     if (typeof supervisor !== 'undefined' && supervisor) {
       const bridgeState = supervisor.getState()
       deps.bridgesRunning = Object.values(bridgeState).every(b => b.state === 'running')
     }
-  } catch { deps.bridgesRunning = false }
+  } catch {
+    deps.bridgesRunning = false
+  }
+
+  const browserReady = deps.deepseekKey && deps.browserUseKey && deps.python !== false
+  const desktopReady = deps.deepseekKey && deps.desktopUseKey
 
   const tiers = {
     lite: {
@@ -42,18 +54,25 @@ async function computeSetupStatus({ storeRef = store } = {}) {
       ready: deps.deepseekKey
     },
     browser: {
-      label: 'Browser + Desktop automation',
-      requires: ['deepseekKey', 'doubaoKey'],
-      ready: deps.deepseekKey && deps.doubaoKey && deps.python !== false,
+      label: 'Browser automation',
+      requires: ['deepseekKey', 'browserUseKey'],
+      ready: browserReady,
       recommended: true
     },
+    desktop: {
+      label: 'Desktop automation',
+      requires: ['deepseekKey', 'desktopUseKey'],
+      ready: desktopReady
+    }
   }
+
   return {
     deps,
     tiers,
     helpLinks: {
       deepseekKey: 'https://platform.deepseek.com/api_keys',
-      doubaoKey: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
+      browserUseKey: 'https://zenmux.ai/',
+      desktopUseKey: 'https://zenmux.ai/',
     }
   }
 }

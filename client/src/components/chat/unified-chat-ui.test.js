@@ -32,12 +32,15 @@ describe('unified chat UI wiring', () => {
     expect(source).not.toContain('onModeChange')
   })
 
-  test('ModelSelector uses the configured Doubao endpoint alias instead of a hard-coded old model', () => {
+  test('ModelSelector exposes only DeepSeek chat models plus automation plugin chips', () => {
     const source = readProjectFile('client/src/components/chat/ModelSelector.jsx')
 
-    expect(source).toContain("{ id: 'doubao-vision'")
-    expect(source).toContain("'doubao-seed-1-6-vision': 'doubao-vision'")
-    expect(source).not.toContain("{ id: 'doubao-seed-1-6-vision'")
+    expect(source).toContain("{ id: 'deepseek-chat'")
+    expect(source).toContain("{ id: 'deepseek-coder'")
+    expect(source).toContain('BROWSER_USE_OPTION')
+    expect(source).toContain('DESKTOP_USE_OPTION')
+    expect(source).not.toMatch(/doubao/i)
+    expect(source).not.toMatch(/qwen/i)
   })
 
   test('MainArea and TopBar no longer expose execution mode copy', () => {
@@ -88,21 +91,21 @@ describe('unified chat UI wiring', () => {
     expect(topBar).toContain('统一对话工作台')
   })
 
-  test('SettingsPage shows external-link buttons for all model API keys', () => {
+  test('SettingsPage shows external-link buttons for active model and automation API keys', () => {
     const settings = readProjectFile('client/src/pages/SettingsPage.jsx')
 
     expect(settings).toContain('ExternalLink')
-    expect(settings.match(/<ApiKeyInput /g)).toHaveLength(4)
-    expect(settings).toContain('id="settings-qwen-api-key"')
+    expect(settings.match(/<ApiKeyInput /g)).toHaveLength(3)
     expect(settings).toContain('id="settings-deepseek-api-key"')
-    expect(settings).toContain('id="settings-doubao-api-key"')
     expect(settings).toContain('id="settings-browser-use-api-key"')
-    expect(settings).toContain("qwenApiKey: ''")
+    expect(settings).toContain('id="settings-desktop-use-api-key"')
+    expect(settings).toContain("deepseekApiKey: ''")
     expect(settings).toContain("browserUseApiKey: ''")
-    expect(settings).toContain('https://bailian.console.aliyun.com/')
+    expect(settings).toContain("desktopUseApiKey: ''")
     expect(settings).toContain('https://platform.deepseek.com/api_keys')
-    expect(settings).toContain('https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey')
     expect(settings).toContain('https://zenmux.ai/')
+    expect(settings).not.toMatch(/qwen/i)
+    expect(settings).not.toMatch(/doubao/i)
   })
 
   test('SettingsPage keeps masked API key state visible after save or reload', () => {
@@ -111,14 +114,12 @@ describe('unified chat UI wiring', () => {
     expect(settings).toContain('maskedKeys')
     expect(settings).toContain('setMaskedKeys')
     expect(settings).toContain('applyConfig(result.config || {})')
-    expect(settings).toContain("placeholder={maskedKeys.qwenApiKey || 'DashScope API Key'}")
     expect(settings).toContain("placeholder={maskedKeys.deepseekApiKey || 'sk-...'}")
-    expect(settings).toContain("placeholder={maskedKeys.doubaoVisionApiKey || 'Volcengine Ark API Key'}")
     expect(settings).toContain("placeholder={maskedKeys.browserUseApiKey || 'ZenMux API Key'}")
-    expect(settings).toContain('savedValue={maskedKeys.qwenApiKey}')
+    expect(settings).toContain("placeholder={maskedKeys.desktopUseApiKey || 'ZenMux API Key'}")
     expect(settings).toContain('savedValue={maskedKeys.deepseekApiKey}')
-    expect(settings).toContain('savedValue={maskedKeys.doubaoVisionApiKey}')
     expect(settings).toContain('savedValue={maskedKeys.browserUseApiKey}')
+    expect(settings).toContain('savedValue={maskedKeys.desktopUseApiKey}')
   })
 
   test('SettingsPage exposes Browser Use endpoint model and vision toggle', () => {
@@ -186,7 +187,7 @@ describe('unified chat UI wiring', () => {
     expect(settings).toContain("window.electronAPI?.invoke?.('bridge:restart'")
     expect(settings).toContain('onRestart')
     expect(settings).toContain('bridgeKey="browserUse"')
-    expect(settings).toContain('bridgeKey="uitars"')
+    expect(settings).toContain("bridgeKey={bridges.desktopUse ? 'desktopUse' : 'uitars'}")
     expect(settings).toContain('BridgeDetailCard')
     expect(settings).toContain('nextSteps')
     expect(settings).toContain('stdoutLog')

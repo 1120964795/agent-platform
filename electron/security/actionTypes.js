@@ -1,8 +1,8 @@
 const RUNTIME_NAMES = Object.freeze({
-  QWEN: 'qwen',
   DEEPSEEK: 'deepseek',
-  UI_TARS: 'ui-tars',
-  DRY_RUN: 'aionui-dry-run'
+  BROWSER_USE: 'browser-use',
+  DESKTOP_USE: 'desktop-use',
+  DRY_RUN: 'dry-run'
 })
 
 const ACTION_TYPES = Object.freeze({

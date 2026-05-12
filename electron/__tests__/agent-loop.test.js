@@ -47,19 +47,19 @@ test('no tool calls → returns immediately', async () => {
   expect(deepseek).toBeDefined()
 })
 
-test('Doubao model aliases use configured Ark endpoint model from settings', () => {
-  const doubao = { chat: vi.fn() }
+test('legacy non-DeepSeek model aliases fall back to DeepSeek chat', () => {
+  const deepseek = { chat: vi.fn() }
 
-  expect(getProvider('doubao-vision', { doubao })).toEqual({ model: undefined, chat: doubao.chat })
-  expect(getProvider('doubao-seed-1-6-vision', { doubao })).toEqual({ model: undefined, chat: doubao.chat })
-  expect(getProvider('ep-20260510143244-hjcjf', { doubao })).toEqual({ model: 'ep-20260510143244-hjcjf', chat: doubao.chat })
+  expect(getProvider('legacy-vision', { deepseek })).toEqual({ model: 'deepseek-chat', chat: deepseek.chat })
+  expect(getProvider('ep-20260510143244-hjcjf', { deepseek })).toEqual({ model: 'deepseek-chat', chat: deepseek.chat })
+  expect(getProvider('deepseek-coder', { deepseek })).toEqual({ model: 'deepseek-coder', chat: deepseek.chat })
 })
 
-test('runTurn sends Doubao alias without overriding configured Ark endpoint model', async () => {
-  const doubao = {
+test('runTurn sends legacy model aliases through DeepSeek fallback', async () => {
+  const deepseek = {
     chat: vi.fn(async ({ model }) => ({
-      content: `model:${model || 'configured'}`,
-      assistant_message: { role: 'assistant', content: `model:${model || 'configured'}` },
+      content: `model:${model}`,
+      assistant_message: { role: 'assistant', content: `model:${model}` },
       tool_calls: []
     }))
   }
@@ -67,12 +67,12 @@ test('runTurn sends Doubao alias without overriding configured Ark endpoint mode
   const policy = mockPolicy({})
 
   const result = await runTurn(
-    { messages: [{ role: 'user', content: 'hi' }], model: 'doubao-vision' },
-    { doubao, tools, policy }
+    { messages: [{ role: 'user', content: 'hi' }], model: 'legacy-vision' },
+    { deepseek, tools, policy }
   )
 
-  expect(doubao.chat).toHaveBeenCalledWith(expect.objectContaining({ model: undefined }))
-  expect(result.finalText).toBe('model:configured')
+  expect(deepseek.chat).toHaveBeenCalledWith(expect.objectContaining({ model: 'deepseek-chat' }))
+  expect(result.finalText).toBe('model:deepseek-chat')
 })
 
 test('single tool call → executed → result fed back → finishes', async () => {

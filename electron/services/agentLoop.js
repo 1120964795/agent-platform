@@ -34,15 +34,8 @@ function toolAttemptKey(call) {
 
 function getProvider(modelId, deps = {}) {
   const deepseek = deps.deepseek || require('./deepseek')
-  const doubao = deps.doubao || require('./doubao')
-
-  if (!modelId || modelId.startsWith('deepseek')) {
-    return { model: modelId || 'deepseek-chat', chat: deepseek.chat }
-  }
-  if (modelId.startsWith('doubao') || modelId.startsWith('ep-')) {
-    return { model: modelId.startsWith('ep-') ? modelId : undefined, chat: doubao.chat }
-  }
-  return { model: 'deepseek-chat', chat: deepseek.chat }
+  const resolvedModel = modelId && modelId.startsWith('deepseek') ? modelId : undefined
+  return { model: resolvedModel || 'deepseek-chat', chat: deepseek.chat }
 }
 
 function createStreamEvent(type, patch = {}) {

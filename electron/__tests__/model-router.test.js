@@ -44,9 +44,9 @@ test('getProviderForRole returns the DeepSeek provider implementation', () => {
   expect(typeof result.provider.chat).toBe('function')
 })
 
-test('Qwen is not reachable from modelRouter', () => {
+test('legacy provider config is ignored by modelRouter', () => {
   for (const role of Object.values(MODEL_ROLES)) {
-    const selected = selectModelForRole(role, { ...deepseekConfig, qwenApiKey: 'sk-qwen' })
-    expect(selected.provider).not.toBe(MODEL_PROVIDERS.QWEN)
+    const selected = selectModelForRole(role, { ...deepseekConfig, legacyProviderApiKey: 'sk-legacy' })
+    expect(selected.provider).toBe(MODEL_PROVIDERS.DEEPSEEK)
   }
 })
