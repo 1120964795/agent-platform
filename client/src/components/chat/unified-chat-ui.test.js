@@ -232,6 +232,18 @@ describe('unified chat UI wiring', () => {
     expect(source).toContain("pluginMode === 'desktop'")
   })
 
+  test('chat hook preserves approval progress cancel and ask-user event handling', () => {
+    const hook = readProjectFile('client/src/hooks/useChat.js')
+
+    expect(hook).toContain('approval_required')
+    expect(hook).toContain('approval_resolved')
+    expect(hook).toContain('tool_progress')
+    expect(hook).toContain('task_cancelled')
+    expect(hook).toContain('abort')
+    expect(hook).toContain('ask_user')
+    expect(hook).toContain('desktop')
+  })
+
   test('ApprovalCard is limited to confirmation controls', () => {
     const source = readProjectFile('client/src/components/chat/ApprovalCard.jsx')
 

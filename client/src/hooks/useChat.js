@@ -91,6 +91,76 @@ function formatDesktopEvent(event = {}) {
   return ''
 }
 
+function normalizeStreamEvent(event = {}) {
+  const type = event.type || 'stream'
+  if (type === 'approval_required') {
+    return {
+      role: 'assistant',
+      type,
+      stream: true,
+      content: event.prompt || event.reason || 'Approval is required before continuing.'
+    }
+  }
+  if (type === 'approval_resolved') {
+    return {
+      role: 'assistant',
+      type,
+      stream: true,
+      content: event.summary || event.status || 'Approval resolved.'
+    }
+  }
+  if (type === 'tool_progress') {
+    return {
+      role: 'assistant',
+      type,
+      stream: true,
+      content: event.text || event.summary || event.message || 'Tool progress updated.',
+      tool: event.tool || null
+    }
+  }
+  if (type === 'desktop_event') {
+    const desktopEvent = event.event || event
+    return {
+      role: 'assistant',
+      type,
+      stream: true,
+      content: formatDesktopEvent(desktopEvent) || event.text || event.summary || '',
+      tool: event.tool || null
+    }
+  }
+  if (type === 'ask_user') {
+    return {
+      role: 'assistant',
+      type,
+      stream: true,
+      content: event.question || event.text || 'Computer Use needs your input.'
+    }
+  }
+  if (type === 'task_cancelled') {
+    return {
+      role: 'assistant',
+      type,
+      stream: true,
+      content: event.reason || event.message || 'Task cancelled.'
+    }
+  }
+  if (type === 'error') {
+    return {
+      role: 'assistant',
+      type,
+      stream: true,
+      content: event.message || event.error?.message || 'Task failed.'
+    }
+  }
+  return {
+    role: 'assistant',
+    type,
+    stream: true,
+    content: event.text || event.summary || '',
+    tool: event.tool || null
+  }
+}
+
 export function useChat(conversationId) {
   const [state, dispatch] = useReducer(reducer, initialState)
   const abortRef = useRef(null)
@@ -140,15 +210,18 @@ export function useChat(conversationId) {
   useEffect(() => {
     const unsubscribe = window.electronAPI?.onChatStream?.((payload) => {
       if (!payload?.event || payload.convId !== conversationIdRef.current) return
+      const normalized = normalizeStreamEvent(payload.event)
+      if (payload.event.type === 'ask_user') {
+        setPendingDesktopAsk({
+          requestId: payload.event.requestId || payload.event.id,
+          question: payload.event.question || payload.event.text || 'Computer Use needs your input.'
+        })
+      }
       dispatch({
         type: 'ADD',
         msg: {
           id: payload.event.id || uid(),
-          role: 'assistant',
-          type: payload.event.type,
-          stream: true,
-          content: payload.event.text || payload.event.summary || '',
-          tool: payload.event.tool || null,
+          ...normalized,
         }
       })
     })
