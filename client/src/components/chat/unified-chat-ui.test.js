@@ -135,6 +135,23 @@ describe('unified chat UI wiring', () => {
     expect(settings).toContain('Vision enabled')
   })
 
+  test('settings keeps artifacts tab and removes qwen doubao settings', () => {
+    const settings = readProjectFile('client/src/pages/SettingsPage.jsx')
+    expect(settings).toContain("['artifacts'")
+    expect(settings).toContain('deleteArtifact')
+    expect(settings).toContain('listArtifacts')
+    expect(settings).toContain('agentdev:artifact-created')
+    expect(settings).toContain('desktopUseApiKey')
+    expect(settings).toContain('browserUseApiKey')
+    expect(settings).not.toMatch(/qwenApiKey|doubaoVisionApiKey|qwenVisionApiKey/)
+  })
+
+  test('welcome setup does not request removed provider keys', () => {
+    const welcome = readProjectFile('client/src/components/WelcomeSetupDialog.jsx')
+    expect(welcome).toContain('browserUse')
+    expect(welcome).not.toMatch(/qwenApiKey|doubaoVisionApiKey|qwenVisionApiKey/)
+  })
+
   test('action updates are summarized in chat instead of rendered as action cards', () => {
     const messageList = readProjectFile('client/src/components/chat/MessageList.jsx')
     const chatArea = readProjectFile('client/src/components/chat/ChatArea.jsx')

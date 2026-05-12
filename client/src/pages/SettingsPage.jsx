@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ExternalLink, X } from 'lucide-react'
-import { getConfig, getRuntimeStatus, setConfig } from '../lib/api.js'
+import { ExternalLink, FileText, Presentation, RefreshCw, Trash2, X } from 'lucide-react'
+import { deleteArtifact, getConfig, getRuntimeStatus, listArtifacts, openFile, setConfig } from '../lib/api.js'
 
 const DEFAULT_FORM = {
   deepseekApiKey: '',
@@ -21,6 +21,7 @@ const DEFAULT_FORM = {
 }
 
 const TABS = [
+  ['artifacts', 'Artifacts'],
   ['models', 'Models'],
   ['runtime', 'Runtime'],
   ['safety', 'Safety'],
@@ -122,12 +123,31 @@ function BridgeDetailCard({ label, bridge = {}, bridgeKey, onRestart, restarting
   )
 }
 
+function formatArtifactTime(value) {
+  if (!value) return 'Unknown time'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Unknown time'
+  return date.toLocaleString()
+}
+
+function artifactTitle(artifact = {}) {
+  return artifact.title || artifact.name || artifact.filename || artifact.id || 'Untitled artifact'
+}
+
+function artifactIcon(type = '') {
+  const normalized = String(type).toLowerCase()
+  if (normalized.includes('ppt') || normalized.includes('presentation')) return <Presentation size={16} />
+  return <FileText size={16} />
+}
+
 export default function SettingsPage({ onClose, initialTab = 'models' }) {
   const [tab, setTab] = useState(initialTab)
   const [form, setForm] = useState(DEFAULT_FORM)
   const [maskedKeys, setMaskedKeys] = useState({})
   const [runtime, setRuntime] = useState(null)
   const [bridges, setBridges] = useState({})
+  const [artifacts, setArtifacts] = useState([])
+  const [artifactsLoading, setArtifactsLoading] = useState(false)
   const [restartingBridge, setRestartingBridge] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -147,20 +167,45 @@ export default function SettingsPage({ onClose, initialTab = 'models' }) {
     }))
   }
 
+  async function refreshArtifacts() {
+    setArtifactsLoading(true)
+    try {
+      const result = await listArtifacts()
+      const items = Array.isArray(result?.items) ? result.items : Array.isArray(result) ? result : []
+      setArtifacts(items)
+    } catch (error) {
+      setMessage(`Artifact refresh failed: ${error.message}`)
+    } finally {
+      setArtifactsLoading(false)
+    }
+  }
+
   useEffect(() => {
     let ignored = false
     async function load() {
       try {
         const bridgeStatus = window.electronAPI?.invoke?.('bridge:status') || Promise.resolve({ bridges: {} })
-        const [configResult, runtimeResult, bridgeResult] = await Promise.allSettled([getConfig(), getRuntimeStatus(), bridgeStatus])
+        const [configResult, runtimeResult, bridgeResult, artifactsResult] = await Promise.allSettled([getConfig(), getRuntimeStatus(), bridgeStatus, listArtifacts()])
         if (ignored) return
         if (configResult.status === 'fulfilled') applyConfig(configResult.value.config || {})
         if (runtimeResult.status === 'fulfilled') setRuntime(runtimeResult.value)
         if (bridgeResult.status === 'fulfilled') setBridges(bridgeResult.value.bridges || {})
+        if (artifactsResult.status === 'fulfilled') {
+          const items = Array.isArray(artifactsResult.value?.items) ? artifactsResult.value.items : []
+          setArtifacts(items)
+        }
       } catch {}
     }
     load()
     return () => { ignored = true }
+  }, [])
+
+  useEffect(() => {
+    function handleArtifactCreated() {
+      refreshArtifacts()
+    }
+    window.addEventListener('agentdev:artifact-created', handleArtifactCreated)
+    return () => window.removeEventListener('agentdev:artifact-created', handleArtifactCreated)
   }, [])
 
   useEffect(() => {
@@ -195,6 +240,31 @@ export default function SettingsPage({ onClose, initialTab = 'models' }) {
       setMessage(`Restart failed: ${error.message}`)
     } finally {
       setRestartingBridge('')
+    }
+  }
+
+  async function openArtifact(artifact) {
+    const filePath = artifact?.path || artifact?.filePath
+    if (!filePath) {
+      setMessage('Artifact has no file path')
+      return
+    }
+    try {
+      await openFile(filePath)
+    } catch (error) {
+      setMessage(`Open failed: ${error.message}`)
+    }
+  }
+
+  async function removeArtifact(artifact) {
+    if (!artifact?.id) return
+    setMessage('')
+    try {
+      await deleteArtifact(artifact.id)
+      await refreshArtifacts()
+      setMessage('Artifact deleted')
+    } catch (error) {
+      setMessage(`Delete failed: ${error.message}`)
     }
   }
 
@@ -238,6 +308,68 @@ export default function SettingsPage({ onClose, initialTab = 'models' }) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
+          {tab === 'artifacts' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-medium">Artifacts</h3>
+                  <p className="text-xs text-[color:var(--text-muted)]">Generated Word, PowerPoint, and file outputs.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={refreshArtifacts}
+                  disabled={artifactsLoading}
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-[color:var(--border)] px-3 text-sm hover:bg-[color:var(--bg-tertiary)] disabled:opacity-50"
+                >
+                  <RefreshCw size={14} className={artifactsLoading ? 'animate-spin' : ''} />
+                  Refresh
+                </button>
+              </div>
+
+              {artifacts.length === 0 && (
+                <div className="rounded-md border border-dashed border-[color:var(--border)] p-6 text-center text-sm text-[color:var(--text-muted)]">
+                  No artifacts yet.
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {artifacts.map((artifact) => (
+                  <article key={artifact.id || artifact.path || artifact.filename} className="flex items-center justify-between gap-3 rounded-md border border-[color:var(--border)] p-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[color:var(--bg-secondary)] text-[color:var(--accent)]">
+                        {artifactIcon(artifact.type || artifact.kind || artifact.filename)}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">{artifactTitle(artifact)}</div>
+                        <div className="truncate text-xs text-[color:var(--text-muted)]">
+                          {(artifact.type || 'file')} - {formatArtifactTime(artifact.createdAt)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openArtifact(artifact)}
+                        className="h-8 rounded-md border border-[color:var(--border)] px-3 text-xs hover:bg-[color:var(--bg-tertiary)]"
+                      >
+                        Open
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeArtifact(artifact)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--border)] text-red-500 hover:bg-red-50"
+                        aria-label={`Delete ${artifactTitle(artifact)}`}
+                        title="Delete artifact"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+
           {tab === 'models' && (
             <div className="space-y-5">
               <section className="space-y-3 rounded-md border border-[color:var(--border)] p-3">
