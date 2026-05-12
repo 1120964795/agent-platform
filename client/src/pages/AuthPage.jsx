@@ -354,6 +354,11 @@ function AuthStyles() {
         width: 100%;
         height: 100%;
         overflow: visible;
+        animation: breathe 6s ease-in-out infinite alternate;
+      }
+      @keyframes breathe {
+        0%   { transform: translateY(0); }
+        100% { transform: translateY(-6px); }
       }
 
       .flow-text {
@@ -504,6 +509,13 @@ function AuthStyles() {
         color: #b91c1c;
         font-size: 13px;
         line-height: 1.5;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .aurora,
+        .stars i,
+        .loop-svg {
+          animation: none !important;
+        }
       }
     `}</style>
   )
