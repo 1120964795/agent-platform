@@ -45,6 +45,31 @@ function withTimeout(promise, ms) {
   ])
 }
 
+function loadSupervisorWithPythonBootstrap(stub) {
+  const bridgePath = require.resolve('../services/bridgeSupervisor')
+  const bootstrapPath = require.resolve('../services/pythonBootstrap')
+  const originalBridge = require.cache[bridgePath]
+  const originalBootstrap = require.cache[bootstrapPath]
+  const actualBootstrap = require('../services/pythonBootstrap')
+
+  delete require.cache[bridgePath]
+  require.cache[bootstrapPath] = {
+    id: bootstrapPath,
+    filename: bootstrapPath,
+    loaded: true,
+    exports: { ...actualBootstrap, ...stub }
+  }
+
+  const loaded = require('../services/bridgeSupervisor')
+
+  delete require.cache[bridgePath]
+  if (originalBridge) require.cache[bridgePath] = originalBridge
+  if (originalBootstrap) require.cache[bootstrapPath] = originalBootstrap
+  else delete require.cache[bootstrapPath]
+
+  return loaded
+}
+
 describe('bridgeSupervisor', () => {
   it('starts all bridges and waits for /health', async () => {
     const calls = []
@@ -61,7 +86,7 @@ describe('bridgeSupervisor', () => {
     const uitars = calls.find((c) => c.args.some((arg) => arg.includes('uitars-bridge')))
     expect(uitars.env.UITARS_MODEL_PROVIDER).toBeUndefined()
     expect(uitars.env.UITARS_MODEL_ENDPOINT).toBeUndefined()
-    const browserUse = calls.find((c) => c.cmd === 'python' && c.args.some((arg) => arg.includes('browser-use-bridge')))
+    const browserUse = calls.find((c) => c.args.some((arg) => arg.includes('browser-use-bridge')))
     expect(browserUse).toBeDefined()
     expect(browserUse.env.BROWSER_USE_MODEL_ENDPOINT).toBe('https://zenmux.ai/api/v1')
     expect(browserUse.env.BROWSER_USE_MODEL_API_KEY).toBe('')
@@ -69,6 +94,58 @@ describe('bridgeSupervisor', () => {
     expect(browserUse.env.BROWSER_USE_VISION_ENABLED).toBe('true')
     expect(browserUse.env.BROWSER_USE_HEADLESS).toBe('false')
     expect(browserUse.env.BROWSER_USE_KEEP_ALIVE).toBe('true')
+  })
+
+  it('adds packaged browser-use Python deps to the bridge environment', async () => {
+    const rootDir = path.join(TMP, 'packaged-app')
+    const installedDeps = path.join(rootDir, 'installed-python-deps')
+    const bundledDeps = path.join(rootDir, 'server', 'browser-use-bridge', '.deps')
+    fs.mkdirSync(installedDeps, { recursive: true })
+    fs.mkdirSync(bundledDeps, { recursive: true })
+
+    const previousDepsDir = process.env.AGENTDEV_PYTHON_DEPS_DIR
+    process.env.AGENTDEV_PYTHON_DEPS_DIR = installedDeps
+    const calls = []
+    try {
+      const sup = createSupervisor({
+        rootDir,
+        spawnImpl: (cmd, args, opts) => {
+          calls.push({ cmd, args, env: opts.env })
+          return { on() {}, kill() {}, killed: false }
+        },
+        healthImpl: async () => ({ ok: true })
+      })
+
+      await sup.startOne('browserUse')
+    } finally {
+      if (previousDepsDir === undefined) delete process.env.AGENTDEV_PYTHON_DEPS_DIR
+      else process.env.AGENTDEV_PYTHON_DEPS_DIR = previousDepsDir
+    }
+
+    const browserUse = calls.find((c) => c.args.some((arg) => arg.includes('browser-use-bridge')))
+    expect(browserUse.env.PYTHONPATH.split(path.delimiter)).toEqual([installedDeps, bundledDeps])
+    expect(browserUse.env.PLAYWRIGHT_BROWSERS_PATH).toBe('0')
+  })
+
+  it('uses a compatible Python executable when starting the browser-use bridge', async () => {
+    const calls = []
+    const { createSupervisor: createWithPython } = loadSupervisorWithPythonBootstrap({
+      buildPythonEnv: (_rootDir, env) => ({ ...env }),
+      findCompatiblePython: () => ({ command: 'C:\\Python312\\python.exe', args: [] })
+    })
+    const sup = createWithPython({
+      spawnImpl: (cmd, args, opts) => {
+        calls.push({ cmd, args, env: opts.env })
+        return { on() {}, kill() {}, killed: false }
+      },
+      healthImpl: async () => ({ ok: true })
+    })
+
+    await sup.startOne('browserUse')
+
+    const browserUse = calls.find((c) => c.args.some((arg) => arg.includes('browser-use-bridge')))
+    expect(browserUse.cmd).toBe('C:\\Python312\\python.exe')
+    expect(browserUse.args).toEqual(expect.arrayContaining(['-u']))
   })
 
   it('captures child stdout and stderr in bridge-specific log files', async () => {
