@@ -55,6 +55,10 @@
       {
         "from": "dist-bridges/uitars-bridge",
         "to": "server/uitars-bridge"
+      },
+      {
+        "from": "dist-bridges/desktop-use-bridge",
+        "to": "server/desktop-use-bridge"
       }
     ],
     "win": {

@@ -3,7 +3,7 @@ const os = require('os')
 const path = require('path')
 const { spawnSync } = require('child_process')
 
-const BRIDGES = ['uitars-bridge']
+const BRIDGES = ['uitars-bridge', 'desktop-use-bridge']
 const REPO_ROOT = path.join(__dirname, '..')
 const SRC_ROOT = path.join(REPO_ROOT, 'server')
 // Stage OUTSIDE the workspace tree so npm doesn't walk up to the repo's
