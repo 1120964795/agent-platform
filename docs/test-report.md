@@ -117,3 +117,16 @@ Not run. Spike A failed, so the required discipline was to stop before B/C/D.
 Passed: **0/4**
 
 Recommendation: fork plan is not viable yet in this Windows environment. Return to the v3 self-build route, or run a separate targeted Windows dependency-install investigation before reconsidering UI-TARS-desktop as a fork base.
+
+## 2026-05-12 Main / Merge Dev Reconciliation
+
+Verification should cover provider cleanup, Browser Use runtime install/repair, Desktop/Computer Use, chat confirmation flow, Settings Artifacts, Office artifact generation, full tests, client build, and package build where the local environment allows it.
+
+Current targeted verification:
+
+| Command | Result | Notes |
+|---|---|---|
+| `npm.cmd test -- client/src/components/chat/unified-chat-ui.test.js client/src/lib/api.test.js` | PASS | Settings Artifacts, Welcome setup, and renderer API coverage |
+| `npm.cmd test -- client/src/components/chat/unified-chat-ui.test.js electron/__tests__/chat.test.js electron/__tests__/chat-confirmation.test.js electron/__tests__/agent-loop.test.js` | PASS | Chat, confirmation, stream compatibility, and agent loop coverage |
+| `npm.cmd test -- electron/__tests__/office-artifact-planner.test.js electron/__tests__/docs-tools.test.js electron/__tests__/ipc.test.js` | PASS | Office artifact planning, DOCX/PPTX artifact metadata, and IPC coverage |
+| `npm.cmd run build:client` | BLOCKED | Local `client/node_modules` is missing `@vitejs/plugin-react`; `client/package.json` declares it, so dependency installation is required before build verification |

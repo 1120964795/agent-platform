@@ -1,28 +1,26 @@
 # AionUi
 
-AionUi is a Windows desktop control plane for agentic work. It keeps the model, local execution, screen control, confirmations, audit logs, and runtime setup in one visible Electron app.
+AionUi is a Windows desktop control plane for agentic work. It keeps the model, browser automation, desktop automation, confirmations, audit logs, generated artifacts, and runtime setup in one visible Electron app.
 
-The V2 product direction is deliberately narrow and tri-model by design:
+The merged V2 direction is deliberately focused:
 
-- DeepSeek-V4 owns chat, planning, intent classification, and coding reasoning.
-- Qwen3-VL is vision-only and drives browser automation through the Midscene bridge.
-- Doubao 1.5 vision runs desktop screen control through UI-TARS on Volcengine Ark.
-- Open Interpreter remains the managed local runtime for command, file, and code work.
-- AionUi owns policy, confirmations, audit logging, emergency stop, setup guidance, and run outputs.
+- DeepSeek owns chat, planning, intent classification, and coding reasoning.
+- Browser Use handles browser automation through the Browser Use bridge and ZenMux-compatible settings.
+- Desktop/Computer Use handles real desktop automation through the desktop-use bridge.
+- AionUi owns policy, confirmations, audit logging, emergency stop, setup guidance, artifacts, and runtime setup.
 
 The model proposes actions. AionUi validates and classifies them. The user approves risky work. Adapters execute only approved actions. Every meaningful event is recorded in the audit log.
 
-Security review details live in `docs/security-policy.md`. The short version is: model output must pass through the action planner, policy engine, broker, confirmation path, adapter boundary, audit log, and run output storage.
-
 ## Features
 
-- Chat and Execute modes in the main conversation surface.
-- Models and Runtimes setup for DeepSeek, Qwen3-VL, Doubao vision, Open Interpreter, Midscene, UI-TARS, and dry-run demos.
-- Control Center for pending, running, completed, failed, denied, blocked, and cancelled actions.
-- Structured confirmation UI for medium and high risk actions.
-- Sanitized append-only audit logs with filters and export.
-- Run Outputs panel for command summaries, generated files, screenshots, and demo artifacts.
-- Dry-run runtime so the full flow can be demonstrated without external installs.
+- Unified chat surface with DeepSeek text reasoning.
+- Browser Use bridge for browser tasks, snapshots, navigation, and web interaction.
+- Desktop Use bridge for real desktop observation and input with confirmation controls.
+- Settings pages for API keys, runtime diagnostics, safety policy, and generated artifacts.
+- Artifacts list for generated Word, PowerPoint, and file outputs with open/delete actions.
+- Browser Use dependency install and repair through the app-managed Python runtime setup.
+- Desktop/Computer Use bridge packaged as a managed sidecar.
+- Dry-run runtime for demos when external runtime configuration is unavailable.
 - Windows NSIS packaging through electron-builder.
 
 ## Architecture
@@ -30,38 +28,31 @@ Security review details live in `docs/security-policy.md`. The short version is:
 ```text
 React UI
   -> Electron IPC
-  -> Model Router -> DeepSeek-V4 (chat / plan / intent / code)
-  -> Action Planner
-  -> Action Broker
-  -> Policy + Confirmation + Audit
-  -> Runtime Adapters
-       -> Open Interpreter adapter -> 127.0.0.1:8756 -> server/oi-bridge -> external Open Interpreter
-       -> UI-TARS adapter          -> 127.0.0.1:8765 -> server/uitars-bridge -> Doubao vision on Volcengine Ark
-       -> Midscene adapter         -> 127.0.0.1:8770 -> server/midscene-bridge -> Chrome extension + Qwen3-VL
-       -> Dry Run adapter
-  -> Run Outputs
+  -> DeepSeek model path
+  -> Agent loop and tool policy
+  -> Confirmation, audit, and artifact registration
+  -> Runtime bridges
+       -> Browser Use bridge  -> server/browser-use-bridge
+       -> Desktop Use bridge  -> server/desktop-use-bridge
+       -> Dry-run helpers
+  -> Generated artifacts
 ```
 
 Hard boundaries:
 
-- Open Interpreter source is not vendored in this repository.
-- Midscene is consumed from npm; the Chrome extension is installed manually by the user.
-- UI-TARS input actions require active screen authorization.
-- Model output never executes commands directly.
-- High-risk actions always require explicit confirmation.
-- Legacy Office, diagnostics, and workflow surfaces are compatibility helpers, not the product center.
+- Model output never executes commands or GUI input directly.
+- High-risk actions require explicit confirmation.
+- Browser Use Python dependencies are installed into app-managed dependency storage.
+- Desktop input is supervised by the desktop-use bridge and can pause for user input.
+- Generated Office and file outputs are registered as artifacts.
 
 ## Prerequisites
 
-- Windows 10/11 x64
-- Python 3.10+ with `pip install open-interpreter`
-- Google Chrome with the Midscene browser extension installed and connected
-- API keys for three Chinese-cloud endpoints:
-  - DeepSeek (https://platform.deepseek.com)
-  - Alibaba DashScope (Qwen3-VL)
-  - Volcengine Ark (Doubao 1.5 vision)
-
-All three default endpoints are mainland-China reachable. No cross-border egress required.
+- Windows 10/11 x64.
+- Node.js and npm for development.
+- Python 3.11+ for Browser Use runtime installation.
+- DeepSeek API key for chat and planning.
+- ZenMux-compatible API key for Browser Use and Desktop Use automation.
 
 ## Install
 
@@ -96,45 +87,34 @@ The Windows installer is written to `dist-electron/`.
 
 Open Settings inside the app:
 
-- Add a DeepSeek API key and keep the default mainland endpoint unless your deployment differs.
-- Add a DashScope Qwen3-VL key for browser vision through Midscene.
-- Add a Volcengine Ark Doubao vision key for UI-TARS desktop automation.
-- Configure Open Interpreter if you want shell, file, and code actions.
-- Pick a workspace root for command/file context.
-- Keep dry-run enabled when external runtimes are not installed.
+- Add a DeepSeek API key.
+- Add Browser Use endpoint, model, and API key.
+- Add Desktop Use endpoint, model, and API key, or enable Browser Use key fallback.
+- Review runtime diagnostics for Browser Use and Desktop Use bridges.
+- Open Settings -> Artifacts to inspect generated Word, PowerPoint, and file outputs.
+- Keep dry-run enabled when external runtime settings are not available.
 
-## Open Interpreter Runtime
+## Browser Use Runtime
 
-AionUi launches the managed `server/oi-bridge` sidecar on `127.0.0.1:8756`. Install Open Interpreter outside this repository with Python, then let the sidecar call the external runtime for approved shell, file, and code actions.
+AionUi launches `server/browser-use-bridge` and can repair Browser Use Python dependencies from Settings or during Windows install. The dependency set comes from `server/browser-use-bridge/requirements.txt`.
 
-Open Interpreter's AGPL source is not vendored here. Setup commands are high risk and must be confirmed through AionUi before running.
+## Desktop Use Runtime
 
-## UI-TARS Runtime
-
-UI-TARS is the desktop screen-control capability. AionUi launches `server/uitars-bridge` on `127.0.0.1:8765` and injects the Doubao 1.5 vision endpoint from Settings. Screen authorization must be active before observe, mouse, or keyboard actions run.
-
-Mouse and keyboard proposals are high risk by default and appear in Control Center. Emergency stop cancels queued UI actions and notifies the adapter.
-
-## Midscene Runtime
-
-Midscene is the browser automation capability. AionUi launches `server/midscene-bridge` on `127.0.0.1:8770`; the bridge uses `@midscene/web` Bridge Mode, Qwen3-VL on DashScope, and the manually installed Chrome Midscene extension.
-
-Browser actions such as `web.observe`, `web.click`, `web.type`, and `web.query` still pass through policy, confirmation, audit logging, and run outputs. AionUi never auto-installs the Chrome extension.
+AionUi launches `server/desktop-use-bridge` for real desktop automation. Desktop Use can use its own ZenMux-compatible settings or reuse Browser Use settings when fallback is enabled.
 
 ## Safety Model
 
 Risk levels:
 
 - `low`: safe observation, status checks, and non-mutating reads.
-- `medium`: local command/file/code work that is bounded but may change the workspace.
-- `high`: install, delete, overwrite, GUI input, submit, or other impactful work.
+- `medium`: bounded actions that may change local state.
+- `high`: installs, deletes, overwrites, GUI input, submissions, or other impactful work.
 - `blocked`: credential exfiltration, formatting disks, disabling security tooling, hidden background execution, and unbounded recursive delete.
 
-Medium and high risk actions pause in the Control Center until approved or denied. Blocked actions never reach runtime adapters.
+Medium and high risk actions pause for confirmation. Blocked actions never reach runtime adapters.
 
 ## Documentation
 
-- Final delivery plan: `docs/superpowers/plans/2026-05-08-aionui-v2-final-delivery-plan.md`
 - Dry-run demo script: `docs/demo-script.md`
 - User manual: `docs/USER_MANUAL.md`
 - Runtime setup: `docs/runtime-setup.md`
