@@ -131,6 +131,38 @@ describe('bridgeSupervisor', () => {
     expect(desktopUse.env.DESKTOP_USE_MODEL_NAME).toBe('openai/desktop-relay')
   })
 
+  it('starts desktop-use with explicit desktop config without legacy provider fields', async () => {
+    const calls = []
+    const rootDir = path.resolve(process.cwd())
+    const fakeChild = () => ({ on() {}, kill() { this.killed = true }, killed: false })
+    const sup = createSupervisor({
+      rootDir,
+      storeRef: {
+        getConfig: () => ({
+          browserUseApiKey: '',
+          desktopUseApiKey: 'sk-desktop-relay',
+          desktopUseEndpoint: 'https://desktop-relay.example/v1',
+          desktopUseModel: 'openai/desktop-relay',
+          desktopUseGroundingBackend: 'manual-coordinate',
+          desktopUseAllowBrowserFallback: true
+        })
+      },
+      spawnImpl: (cmd, args, options) => {
+        calls.push({ cmd, args, env: options.env })
+        return fakeChild()
+      },
+      healthImpl: async () => ({ ok: true })
+    })
+
+    await sup.startOne('desktopUse')
+    const desktopUse = calls.find((c) => c.args.some((arg) => arg.includes('desktop-use-bridge')))
+    expect(desktopUse.env.DESKTOP_USE_MODEL_ENDPOINT).toBe('https://desktop-relay.example/v1')
+    expect(desktopUse.env.DESKTOP_USE_MODEL_API_KEY).toBe('sk-desktop-relay')
+    expect(desktopUse.env.DESKTOP_USE_MODEL_NAME).toBe('openai/desktop-relay')
+    expect(desktopUse.env.DESKTOP_USE_GROUNDING_BACKEND).toBe('manual-coordinate')
+    expect(desktopUse.env).not.toHaveProperty('UITARS_MODEL_API_KEY')
+  })
+
   it('captures child stdout and stderr in bridge-specific log files', async () => {
     const seenStdio = []
     const openedFds = []

@@ -165,6 +165,7 @@ function createSupervisor(opts = {}) {
     }
   })
   const rootDir = opts.rootDir || resolveDefaultRootDir()
+  const storeRef = opts.storeRef || require('../store').store
   const emitter = new EventEmitter()
 
   const state = Object.fromEntries(
@@ -176,7 +177,7 @@ function createSupervisor(opts = {}) {
   const generationWaiters = Object.fromEntries(Object.keys(DEFAULTS).map((key) => [key, new Set()]))
 
   function buildEnv(key) {
-    const config = require('../store').store.getConfig()
+    const config = storeRef.getConfig()
     const env = key === 'browserUse' ? buildPythonEnv(rootDir, process.env) : { ...process.env }
     if (key === 'uitars') {
       const desktopModel = resolveDesktopUseModelConfig(config)
