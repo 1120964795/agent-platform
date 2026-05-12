@@ -53,6 +53,28 @@ test('main-process runtime modules are production dependencies', () => {
   }
 })
 
+test('browser-use bridge runtime dependencies are installed by the app installer', () => {
+  const prepareScript = fs.readFileSync(path.join(repoRoot, 'scripts', 'prepare-bridges.js'), 'utf-8')
+  const requirements = fs.readFileSync(path.join(repoRoot, 'server', 'browser-use-bridge', 'requirements.txt'), 'utf-8')
+
+  expect(prepareScript).toContain("'.deps'")
+  expect(prepareScript).not.toContain('pip install -r')
+  expect(prepareScript).not.toContain('--target')
+  expect(prepareScript).not.toContain('playwright install chromium')
+  expect(requirements).toContain('selenium')
+  expect(requirements).toContain('playwright')
+})
+
+test('windows installer runs browser runtime dependency setup after app install', () => {
+  const installerInclude = path.join(repoRoot, 'build', 'installer.nsh')
+  const mainProcess = fs.readFileSync(path.join(repoRoot, 'electron', 'main.js'), 'utf-8')
+
+  expect(pkg.build.nsis.include).toBe('build/installer.nsh')
+  expect(fs.existsSync(installerInclude)).toBe(true)
+  expect(fs.readFileSync(installerInclude, 'utf-8')).toContain('--install-browser-runtime')
+  expect(mainProcess).toContain('--install-browser-runtime')
+})
+
 test('README describes the V2 control plane scope', () => {
   const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf-8')
   const requiredText = [

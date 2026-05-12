@@ -3,6 +3,7 @@ const path = require('path')
 const fs = require('fs')
 const { registerAll } = require('./ipc')
 const { createSupervisor } = require('./services/bridgeSupervisor')
+const pythonBootstrap = require('./services/pythonBootstrap')
 const { setSupervisor } = require('./ipc/bridgeStatus')
 const { setBridgeContext } = require('./ipc/setupStatus')
 const { store } = require('./store')
@@ -14,6 +15,7 @@ let supervisor = null
 const rootDir = isDev ? path.join(__dirname, '..') : process.resourcesPath
 const devUrl = process.env.AGENTDEV_DEV_SERVER_URL || 'http://localhost:5173'
 const shouldOpenDevTools = isDev && process.env.AIONUI_OPEN_DEVTOOLS === '1'
+const installBrowserRuntimeOnly = process.argv.includes('--install-browser-runtime')
 
 function renderLoadFailure(reason) {
   if (!mainWindow || mainWindow.isDestroyed()) return
@@ -88,18 +90,32 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(async () => {
-  registerAll(ipcMain)
-  supervisor = createSupervisor()
-  setSupervisor(supervisor)
-  setBridgeContext({ pythonBootstrap: null, supervisor })
-  supervisor.start().catch((err) => console.error('[bridges] start failed', err))
-  createWindow()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+if (installBrowserRuntimeOnly) {
+  app.whenReady().then(() => {
+    try {
+      const { installBrowserRuntime } = require('./services/pythonRuntimeInstaller')
+      const result = installBrowserRuntime({ rootDir })
+      console.log('[browser-runtime] installed', result)
+      app.exit(0)
+    } catch (error) {
+      console.error('[browser-runtime] install failed', error)
+      app.exit(2)
+    }
   })
-})
+} else {
+  app.whenReady().then(async () => {
+    registerAll(ipcMain)
+    supervisor = createSupervisor()
+    setSupervisor(supervisor)
+    setBridgeContext({ pythonBootstrap, supervisor })
+    supervisor.start().catch((err) => console.error('[bridges] start failed', err))
+    createWindow()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  })
+}
 
 app.on('before-quit', () => {
   if (supervisor) try { supervisor.stop() } catch {}
