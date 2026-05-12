@@ -124,6 +124,38 @@ test('desktop_task rejects empty goal', async () => {
   expect(result.error.code).toBe('INVALID_ARGS')
 })
 
+test('desktop_task defaults to 30 max steps when omitted', async () => {
+  fetchMock
+    .mockResolvedValueOnce({ json: async () => ({ ok: true, runtime: 'desktop-use' }) })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: true, exitCode: 0, metadata: { summary: 'done' }, durationMs: 40 }),
+    })
+
+  const { desktopTask } = require('../tools/desktopTask')
+  const result = await desktopTask({ goal: 'Open Notepad' }, { skipInternalConfirm: true })
+
+  expect(result.max_steps).toBe(30)
+  const body = JSON.parse(fetchMock.mock.calls[1][1].body)
+  expect(body.payload).toMatchObject({ goal: 'Open Notepad', maxSteps: 30 })
+})
+
+test('desktop_task honors explicit max_steps', async () => {
+  fetchMock
+    .mockResolvedValueOnce({ json: async () => ({ ok: true, runtime: 'desktop-use' }) })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ok: true, exitCode: 0, metadata: { summary: 'done' }, durationMs: 40 }),
+    })
+
+  const { desktopTask } = require('../tools/desktopTask')
+  const result = await desktopTask({ goal: 'Open Notepad', max_steps: 7 }, { skipInternalConfirm: true })
+
+  expect(result.max_steps).toBe(7)
+  const body = JSON.parse(fetchMock.mock.calls[1][1].body)
+  expect(body.payload).toMatchObject({ goal: 'Open Notepad', maxSteps: 7 })
+})
+
 test('desktop_task forwards live desktop events from the bridge', async () => {
   const encoder = new TextEncoder()
   const stream = new ReadableStream({

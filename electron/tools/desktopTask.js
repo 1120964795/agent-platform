@@ -2,9 +2,11 @@ const { register } = require('./index')
 const { healthCheck, execute } = require('../services/desktop/adapter')
 const { requestConfirm } = require('../confirm')
 
+const DEFAULT_DESKTOP_TASK_MAX_STEPS = 30
+
 function parseMaxSteps(value) {
   const parsed = Number(value)
-  return Number.isFinite(parsed) ? Math.max(1, parsed) : 12
+  return Number.isFinite(parsed) ? Math.max(1, parsed) : DEFAULT_DESKTOP_TASK_MAX_STEPS
 }
 
 async function desktopTask(args, context = {}) {
@@ -69,7 +71,7 @@ register({
     type: 'object',
     properties: {
       goal: { type: 'string', description: 'Natural-language desktop task description.' },
-      max_steps: { type: 'number', description: 'Maximum desktop interaction steps. Default: 12.' },
+      max_steps: { type: 'number', description: 'Maximum desktop interaction steps. Default: 30.' },
     },
     required: ['goal'],
   },
