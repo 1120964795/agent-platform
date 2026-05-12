@@ -1,4 +1,5 @@
 const MAX_STEPS = 30
+const DEFAULT_DESKTOP_TASK_MAX_STEPS = 30
 
 function normalizeToolFailure(result) {
   if (!result || typeof result !== 'object') return null
@@ -58,6 +59,7 @@ function createForcedToolCall(forceTool, messages = []) {
   const supported = new Set(['browser_task', 'desktop_task'])
   if (!supported.has(forceTool)) return null
   const args = { goal: latestUserContent(messages) }
+  if (forceTool === 'desktop_task') args.max_steps = DEFAULT_DESKTOP_TASK_MAX_STEPS
   const id = `forced-${forceTool.replace(/_/g, '-')}-${Date.now()}`
   return {
     id,

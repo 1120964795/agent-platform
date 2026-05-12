@@ -495,8 +495,15 @@ test('desktop plugin mode creates a desktop_task tool call', async () => {
   expect(requestApproval).toHaveBeenCalledWith(expect.objectContaining({
     call: expect.objectContaining({ name: 'desktop_task' })
   }))
+  expect(requestApproval).toHaveBeenCalledWith(expect.objectContaining({
+    call: expect.objectContaining({
+      name: 'desktop_task',
+      args: expect.objectContaining({ max_steps: 30 })
+    })
+  }))
   expect(tools.execute).toHaveBeenCalledWith('desktop_task', expect.objectContaining({
-    goal: 'Open Notepad and type hello'
+    goal: 'Open Notepad and type hello',
+    max_steps: 30
   }), expect.objectContaining({ skipInternalConfirm: true }))
 })
 
