@@ -100,6 +100,15 @@ export default function AuthPage({ needsSetup = false, onLogin }) {
                 </filter>
                 <path id="strandA" d="M 530,160 C 530,40 380,40 300,160 C 220,280 70,280 70,160" />
                 <path id="strandB" d="M 70,160 C 70,40 220,40 300,160 C 380,280 530,280 530,160" />
+                {/* Double-traversal figure-8 path used only for the flowing text.
+                    The geometry visually overlaps itself (same on-screen figure-8) but
+                    the underlying path length is 2x one loop, which keeps the text
+                    coverage clean: every screen point is hit by at most one occurrence. */}
+                <path id="textRoute" fill="none" d="
+                  M 530,160
+                  C 530,40 380,40 300,160 C 220,280 70,280 70,160 C 70,40 220,40 300,160 C 380,280 530,280 530,160
+                  C 530,40 380,40 300,160 C 220,280 70,280 70,160 C 70,40 220,40 300,160 C 380,280 530,280 530,160
+                " />
               </defs>
 
               {/* Atmospheric halo */}
@@ -120,6 +129,17 @@ export default function AuthPage({ needsSetup = false, onLogin }) {
               <use href="#strandB" fill="none" stroke="url(#frontFace)" strokeWidth="48" strokeLinecap="round" />
               <use href="#strandB" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" transform="translate(0,-23)" />
               <use href="#strandB" fill="none" stroke="rgba(15,23,42,0.45)" strokeWidth="1.5" transform="translate(0,23)" />
+
+              {/* Flowing workflow text on a 2-loop path. Text length ~ 2/3 of one
+                  loop ensures no two text occurrences overlap on the same screen point.
+                  Animation runs startOffset 0% -> 50% (one loop on a 2-loop path),
+                  making end-state identical to start-state for a seamless cycle. */}
+              <text className="flow-text">
+                <textPath href="#textRoute" startOffset="0%">
+                  {'INTENT  ·  PLAN  ·  ACT  ·  TRACE  ·  ∞  ·  INTENT  ·  PLAN  ·  ACT  ·  TRACE  ·  ∞'}
+                  <animate attributeName="startOffset" from="0%" to="50%" dur="40s" repeatCount="indefinite" />
+                </textPath>
+              </text>
             </svg>
           </div>
 
@@ -334,6 +354,15 @@ function AuthStyles() {
         width: 100%;
         height: 100%;
         overflow: visible;
+      }
+
+      .flow-text {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 5px;
+        fill: #ffffff;
+        mix-blend-mode: difference;
+        font-family: 'SF Pro Display', -apple-system, 'Helvetica Neue', sans-serif;
       }
 
       .tagline { position: relative; text-align: left; }
