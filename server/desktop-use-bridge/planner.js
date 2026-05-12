@@ -37,6 +37,9 @@ function buildActionContractText() {
     'Do not return send_message.',
     'Do not return locate, inspect, or any other high-level action.',
     'Break high-level intentions into low-level desktop actions: click, type, hotkey, wait, scroll, drag, ask_user, done, or fail.',
+    'If the target app, contact, conversation, form, or input field is already visible and the goal includes text to send or submit, prioritize focusing the input, typing the requested text, and submitting it.',
+    'Avoid repeating search/navigation actions once the destination is visible.',
+    'Use done only after the requested final action appears completed.',
     'Use ask_user when login, permission, ambiguity, missing app state, or low confidence blocks safe execution.',
     'For pointer actions, include screenshot coordinates and confidence from 0 to 1.'
   ].join('\n')

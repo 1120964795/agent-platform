@@ -37,6 +37,16 @@ describe('desktop planner', () => {
     expect(text).toContain('Break high-level intentions into low-level desktop actions')
   })
 
+  test('includes completion-priority guidance in the prompt', () => {
+    const messages = buildPlannerMessages({ goal: 'send hello in QQ', step: 10, maxSteps: 30, observation, steps: [] })
+    const text = messages[1].content.find(part => part.type === 'text').text
+
+    expect(text).toContain('If the target app, contact, conversation, form, or input field is already visible')
+    expect(text).toContain('prioritize focusing the input, typing the requested text, and submitting it')
+    expect(text).toContain('Avoid repeating search/navigation actions once the destination is visible')
+    expect(text).toContain('Use done only after the requested final action appears completed')
+  })
+
   test('includes correction context after unsupported planner output', () => {
     const correction = {
       code: 'UNSUPPORTED_PLANNER_ACTION',
