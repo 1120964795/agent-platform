@@ -20,7 +20,7 @@ function getInitialConversationId() {
   return next
 }
 
-export default function Layout() {
+export default function Layout({ onLogout, username }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsInitialTab, setSettingsInitialTab] = useState('models')
@@ -63,6 +63,8 @@ export default function Layout() {
           onRename={rename}
           onSearch={refresh}
           onOpenSettings={() => openSettings('models')}
+          onLogout={onLogout}
+          username={username}
         />
         <MainArea conversationId={conversationId} />
       </div>

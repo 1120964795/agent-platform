@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, LogOut, MoreHorizontal, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 function formatTime(value) {
@@ -27,13 +27,16 @@ export default function Sidebar({
   onDelete,
   onRename,
   onSearch,
-  onOpenSettings
+  onOpenSettings,
+  onLogout,
+  username
 }) {
   const [query, setQuery] = useState('')
   const [menuId, setMenuId] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editingTitle, setEditingTitle] = useState('')
   const [deletingId, setDeletingId] = useState(null)
+  const [confirmLogout, setConfirmLogout] = useState(false)
   const width = collapsed ? 'w-[60px]' : 'w-[300px]'
 
   useEffect(() => {
@@ -188,11 +191,47 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="p-2 border-t border-[color:var(--border)]">
+      <div className="p-2 border-t border-[color:var(--border)] space-y-1">
+        {!collapsed && username && (
+          <div className="px-2 py-1 text-[11px] text-[color:var(--text-muted)] truncate" title={username}>
+            当前用户：{username}
+          </div>
+        )}
         <button type="button" onClick={onOpenSettings} className="w-full flex items-center justify-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-[color:var(--bg-tertiary)]" title="设置">
           <Settings size={16} />
           {!collapsed && <span>设置</span>}
         </button>
+        {confirmLogout ? (
+          <div className="space-y-1 rounded-md border border-[color:var(--border)] p-2">
+            {!collapsed && <div className="text-xs text-[color:var(--text-muted)]">确认退出当前账号？</div>}
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={async () => { setConfirmLogout(false); await onLogout?.() }}
+                className="h-7 flex-1 rounded bg-[color:var(--error)] text-xs text-white"
+              >
+                {collapsed ? '退出' : '确认退出'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmLogout(false)}
+                className="h-7 flex-1 rounded border border-[color:var(--border)] text-xs hover:bg-[color:var(--bg-tertiary)]"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmLogout(true)}
+            className="w-full flex items-center justify-center gap-2 rounded-md px-2 py-2 text-sm text-[color:var(--text-secondary)] hover:bg-[color:var(--bg-tertiary)] hover:text-[color:var(--error)]"
+            title="退出登录"
+          >
+            <LogOut size={16} />
+            {!collapsed && <span>退出登录</span>}
+          </button>
+        )}
       </div>
     </aside>
   )
