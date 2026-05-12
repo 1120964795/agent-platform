@@ -8,10 +8,50 @@ function extractJson(text) {
   return JSON.parse(candidate.slice(start, end + 1))
 }
 
-const ACTION_TYPES = new Set(['click', 'type', 'hotkey', 'wait', 'scroll', 'drag', 'ask_user', 'done', 'fail'])
+const ALLOWED_ACTION_TYPES = Object.freeze(['click', 'type', 'hotkey', 'wait', 'scroll', 'drag', 'ask_user', 'done', 'fail'])
+const ACTION_TYPES = new Set(ALLOWED_ACTION_TYPES)
 
 function actionType(action) {
   return String(action?.action || action?.type || '').trim().toLowerCase()
+}
+
+function rawActionName(action) {
+  return String(action?.action || action?.type || '').trim().toLowerCase()
+}
+
+function stringifyCompact(value) {
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function buildActionContractText() {
+  return [
+    `Allowed actions: ${ALLOWED_ACTION_TYPES.join(', ')}`,
+    'Return exactly one JSON object for one next desktop action.',
+    'Use only action/type plus action-specific fields; do not wrap the JSON in prose.',
+    'Do not return open_app, launch_app, or focus_window.',
+    'Do not return search_contact.',
+    'Do not return send_message.',
+    'Do not return locate, inspect, or any other high-level action.',
+    'Break high-level intentions into low-level desktop actions: click, type, hotkey, wait, scroll, drag, ask_user, done, or fail.',
+    'Use ask_user when login, permission, ambiguity, missing app state, or low confidence blocks safe execution.',
+    'For pointer actions, include screenshot coordinates and confidence from 0 to 1.'
+  ].join('\n')
+}
+
+function buildCorrectionText(correction) {
+  if (!correction) return ''
+  return [
+    'Previous planner output was invalid.',
+    `Invalid reason: ${correction.message || correction.code || 'unsupported action'}`,
+    `Invalid action name: ${correction.invalidActionName || 'unknown'}`,
+    `Raw invalid action: ${stringifyCompact(correction.rawAction)}`,
+    `Allowed actions: ${(correction.allowedActions || ALLOWED_ACTION_TYPES).join(', ')}`,
+    'Return a replacement action using only the allowed actions. Do not repeat the invalid action.'
+  ].join('\n')
 }
 
 function finiteNumber(value, fallback = 0) {
@@ -36,7 +76,8 @@ function normalizeAction(action) {
     confidence: normalizeConfidence(action?.confidence),
     reason: String(action?.reason || ''),
     userVisibleSummary: String(action?.userVisibleSummary || action?.summary || action?.reason || ''),
-    raw: action
+    raw: action,
+    unsupportedAction: ACTION_TYPES.has(type) ? '' : (rawActionName(action) || 'unknown')
   }
   if (base.type === 'click') return { ...base, x: finiteNumber(action.x), y: finiteNumber(action.y), button: action.button || 'left' }
   if (base.type === 'type') return { ...base, text: String(action.text ?? '') }
@@ -50,7 +91,7 @@ function normalizeAction(action) {
   return base
 }
 
-function buildPlannerMessages({ goal, step, maxSteps, observation = {}, steps = [] }) {
+function buildPlannerMessages({ goal, step, maxSteps, observation = {}, steps = [], correction = null }) {
   const screen = observation.screen || {}
   const history = steps.slice(-8).map((item) => ({
     type: item.type,
@@ -58,14 +99,15 @@ function buildPlannerMessages({ goal, step, maxSteps, observation = {}, steps = 
     summary: item.summary,
     ok: item.ok
   }))
+  const correctionText = buildCorrectionText(correction)
   const text = [
     `Goal: ${goal}`,
     `Step: ${step} of ${maxSteps}`,
     `Screen: ${JSON.stringify(screen)}`,
     `Recent history: ${JSON.stringify(history)}`,
-    'Return only JSON with action, confidence, reason, userVisibleSummary, and action-specific fields.',
-    'Use ask_user when login, permission, ambiguity, or low confidence blocks safe execution.'
-  ].join('\n')
+    buildActionContractText(),
+    correctionText
+  ].filter(Boolean).join('\n\n')
   const content = [{ type: 'text', text }]
   if (observation.screenshotBase64) {
     content.push({
@@ -86,7 +128,7 @@ function createPlanner({ fetchImpl = fetch, env = process.env } = {}) {
   const apiKey = env.DESKTOP_USE_MODEL_API_KEY || ''
   const model = env.DESKTOP_USE_MODEL_NAME || 'openai/gpt-5.5'
   return {
-    async nextAction({ goal, step, maxSteps = 12, observation, steps = [] }) {
+    async nextAction({ goal, step, maxSteps = 12, observation, steps = [], correction = null }) {
       if (!apiKey) return { type: 'fail', summary: 'Desktop Use API key is not configured.' }
       const response = await fetchImpl(`${endpoint.replace(/\/$/, '')}/chat/completions`, {
         method: 'POST',
@@ -94,7 +136,7 @@ function createPlanner({ fetchImpl = fetch, env = process.env } = {}) {
         body: JSON.stringify({
           model,
           response_format: { type: 'json_object' },
-          messages: buildPlannerMessages({ goal, step, maxSteps, observation, steps })
+          messages: buildPlannerMessages({ goal, step, maxSteps, observation, steps, correction })
         })
       })
       const data = await response.json()
@@ -103,4 +145,4 @@ function createPlanner({ fetchImpl = fetch, env = process.env } = {}) {
   }
 }
 
-module.exports = { createPlanner, normalizeAction, extractJson, buildPlannerMessages }
+module.exports = { createPlanner, normalizeAction, extractJson, buildPlannerMessages, ALLOWED_ACTION_TYPES }
