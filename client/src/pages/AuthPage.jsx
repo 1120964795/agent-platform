@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { login as authLogin, setup as authSetup, storeToken, ERROR_MESSAGES } from '../lib/auth.js'
 
 export default function AuthPage({ needsSetup = false, onLogin }) {
@@ -9,8 +9,6 @@ export default function AuthPage({ needsSetup = false, onLogin }) {
   const [form, setForm] = useState({ account: '', password: '', confirm: '' })
   const [remember, setRemember] = useState(true)
   const [errorMsg, setErrorMsg] = useState('')
-  const [toast, setToast] = useState('')
-
   const isSetup = mode === 'register'
 
   function switchMode(next) {
@@ -18,16 +16,6 @@ export default function AuthPage({ needsSetup = false, onLogin }) {
     setMode(next)
     setErrorMsg('')
     setForm(f => ({ ...f, confirm: '' }))
-  }
-
-  useEffect(() => {
-    if (!toast) return
-    const id = setTimeout(() => setToast(''), 2400)
-    return () => clearTimeout(id)
-  }, [toast])
-
-  function notReady(label) {
-    setToast(`${label} 即将上线,敬请期待`)
   }
 
   function validate() {
@@ -177,12 +165,6 @@ export default function AuthPage({ needsSetup = false, onLogin }) {
 
       {/* ════════ RIGHT PANEL ════════ */}
       <div className="auth-right">
-        <button className="lang-btn" type="button">
-          <GlobeIcon />
-          简体中文
-          <ChevronIcon />
-        </button>
-
         <form className="login-box" onSubmit={handleSubmit}>
           <div className="logo-row">
             <div className="logo-icon">
@@ -260,7 +242,6 @@ export default function AuthPage({ needsSetup = false, onLogin }) {
                 <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
                 记住我
               </label>
-              <a href="#" className="forgot" onClick={e => { e.preventDefault(); notReady('找回密码') }}>忘记密码？</a>
             </div>
           )}
 
@@ -270,16 +251,6 @@ export default function AuthPage({ needsSetup = false, onLogin }) {
               : (<><span>{isSetup ? '创建并登录' : '登录'}</span><ArrowIcon /></>)}
           </button>
 
-          {!isSetup && <div className="divider">其他登录方式</div>}
-
-          {!isSetup && (
-            <div className="socials">
-              <button type="button" className="social-btn" title="飞书登录" onClick={() => notReady('飞书登录')}><FeishuIcon /></button>
-              <button type="button" className="social-btn" title="GitHub登录" onClick={() => notReady('GitHub 登录')}><GitHubIcon /></button>
-              <button type="button" className="social-btn" title="Microsoft账号" onClick={() => notReady('Microsoft 登录')}><MicrosoftIcon /></button>
-            </div>
-          )}
-
           <div className="terms">
             <ShieldIcon />
             登录即代表同意
@@ -287,7 +258,6 @@ export default function AuthPage({ needsSetup = false, onLogin }) {
           </div>
         </form>
 
-        {toast && <div className="auth-toast" role="status">{toast}</div>}
       </div>
 
       <AuthStyles />
@@ -334,26 +304,7 @@ const LockIcon = () => <svg width="17" height="17" viewBox="0 0 24 24" fill="non
 const EyeIcon = () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
 const EyeOffIcon = () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
 const ArrowIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
-const GlobeIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
-const ChevronIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9" /></svg>
 const ShieldIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-const FeishuIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
-    <path d="M14 3L4 9v6c0 5 4.5 9.5 10 11 5.5-1.5 10-6 10-11V9L14 3z" fill="#3370FF" opacity="0.15" />
-    <circle cx="10.5" cy="12" r="2" fill="#3370FF" />
-    <circle cx="17.5" cy="12" r="2" fill="#3370FF" />
-    <path d="M9 17c1.5 1.5 3.5 2 5 2s3.5-0.5 5-2" stroke="#3370FF" strokeWidth="1.8" strokeLinecap="round" fill="none" />
-  </svg>
-)
-const GitHubIcon = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="#24292e"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" /></svg>
-const MicrosoftIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 22 22">
-    <rect x="0" y="0" width="10" height="10" fill="#f25022" />
-    <rect x="12" y="0" width="10" height="10" fill="#7fba00" />
-    <rect x="0" y="12" width="10" height="10" fill="#00a4ef" />
-    <rect x="12" y="12" width="10" height="10" fill="#ffb900" />
-  </svg>
-)
 
 /* ── Scoped CSS injected inline so this page works without touching theme.css ── */
 function AuthStyles() {
@@ -554,15 +505,6 @@ function AuthStyles() {
         display: flex; align-items: center; justify-content: center;
         position: relative;
       }
-      .lang-btn { position: absolute; top: 24px; right: 24px;
-        display: flex; align-items: center; gap: 7px;
-        padding: 7px 14px; border: 1.5px solid #e5edf7;
-        border-radius: 22px; font-size: 13px; color: #475569;
-        background: rgba(255,255,255,0.95); cursor: pointer;
-        transition: all 0.2s; font-family: inherit; }
-      .lang-btn:hover { border-color: #93c5fd; color: #2563eb;
-        box-shadow: 0 4px 12px rgba(59,130,246,0.12); }
-
       .login-box { width: 400px; }
       .logo-row { display: flex; align-items: center; gap: 14px; margin-bottom: 30px; }
       .logo-icon { position: relative; width: 54px; height: 54px;
@@ -628,9 +570,6 @@ function AuthStyles() {
         font-size: 13.5px; color: #334155; }
       .check-label input { width: 16px; height: 16px;
         accent-color: #3b82f6; cursor: pointer; }
-      .forgot { font-size: 13.5px; color: #3b82f6;
-        text-decoration: none; cursor: pointer; }
-      .forgot:hover { text-decoration: underline; }
 
       .login-btn { position: relative; overflow: hidden;
         width: 100%; padding: 15px; border: none;
@@ -655,23 +594,6 @@ function AuthStyles() {
       .login-btn:active { transform: translateY(0); }
       .login-btn:disabled { opacity: 0.8; cursor: not-allowed; }
 
-      .divider { display: flex; align-items: center; gap: 12px;
-        margin-bottom: 18px; color: #94a3b8; font-size: 13px; }
-      .divider::before, .divider::after {
-        content: ''; flex: 1; height: 1px;
-        background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
-      }
-
-      .socials { display: flex; justify-content: center;
-        gap: 14px; margin-bottom: 24px; }
-      .social-btn { width: 52px; height: 52px;
-        border: 1.5px solid #e8eef6; border-radius: 13px;
-        background: white; display: flex; align-items: center;
-        justify-content: center; cursor: pointer; transition: all 0.2s; }
-      .social-btn:hover { border-color: #93c5fd;
-        box-shadow: 0 6px 18px rgba(59,130,246,0.2);
-        transform: translateY(-2px); }
-
       .terms { text-align: center; font-size: 12px;
         color: #94a3b8; display: flex; align-items: center;
         justify-content: center; gap: 4px; flex-wrap: wrap; }
@@ -687,26 +609,6 @@ function AuthStyles() {
         color: #b91c1c;
         font-size: 13px;
         line-height: 1.5;
-      }
-      .auth-toast {
-        position: absolute;
-        bottom: 28px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(15, 23, 42, 0.92);
-        color: white;
-        padding: 10px 18px;
-        border-radius: 22px;
-        font-size: 13px;
-        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
-        animation: toastIn 0.25s ease-out;
-        z-index: 50;
-        max-width: 80%;
-        white-space: nowrap;
-      }
-      @keyframes toastIn {
-        from { opacity: 0; transform: translate(-50%, 12px); }
-        to   { opacity: 1; transform: translate(-50%, 0); }
       }
     `}</style>
   )
