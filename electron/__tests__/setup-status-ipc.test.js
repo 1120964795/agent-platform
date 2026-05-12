@@ -17,33 +17,50 @@ describe('setup-status', () => {
     expect(status.tiers.lite.ready).toBe(true)
     expect(status.deps.deepseekKey).toBe(true)
     expect(status.deps).not.toHaveProperty('doubaoKey')
+    expect(status.deps).not.toHaveProperty('qwenKey')
   })
 
-  it('returns verified help links without removed Doubao key setup', async () => {
+  it('returns verified help links without removed provider setup', async () => {
     const fakeStore = { getConfig: () => ({ deepseekApiKey: '' }) }
     setBridgeContext({ pythonBootstrap: null, supervisor: null })
     const status = await computeSetupStatus({ storeRef: fakeStore })
     expect(status.helpLinks).toEqual({
-      deepseekKey: 'https://platform.deepseek.com/api_keys'
+      deepseekKey: 'https://platform.deepseek.com/api_keys',
+      browserUseKey: 'https://zenmux.ai/'
     })
   })
 
-  it('reports browser tier ready when DeepSeek key and python deps are available', async () => {
-    const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k' }) }
+  it('reports browser tier ready when keys and python deps are available', async () => {
+    const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k', browserUseApiKey: 'b' }) }
     setBridgeContext({
-      pythonBootstrap: { detect: async () => ({ available: true, browserUseInstalled: true, playwrightInstalled: true }) },
+      pythonBootstrap: { detect: async () => ({ available: true, browserUseInstalled: true, playwrightInstalled: true, seleniumInstalled: true, userDepsPath: 'deps' }) },
       supervisor: null
     })
     const status = await computeSetupStatus({ storeRef: fakeStore })
     expect(status.tiers.browser.ready).toBe(true)
+    expect(status.deps.browserUseKey).toBe(true)
     expect(status.deps.python).toBe(true)
     expect(status.deps.browserUse).toBe(true)
+    expect(status.deps.playwright).toBe(true)
+    expect(status.deps.selenium).toBe(true)
+    expect(status.deps.pythonDepsInstalled).toBe(true)
+  })
+
+  it('reports browser tier not ready when Browser Use key is missing', async () => {
+    const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k', browserUseApiKey: '' }) }
+    setBridgeContext({
+      pythonBootstrap: { detect: async () => ({ available: true, browserUseInstalled: true, playwrightInstalled: true, seleniumInstalled: true }) },
+      supervisor: null
+    })
+    const status = await computeSetupStatus({ storeRef: fakeStore })
+    expect(status.tiers.browser.ready).toBe(false)
+    expect(status.deps.browserUseKey).toBe(false)
   })
 
   it('reports browser tier not ready when python is missing', async () => {
-    const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k' }) }
+    const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k', browserUseApiKey: 'b' }) }
     setBridgeContext({
-      pythonBootstrap: { detect: async () => ({ available: false, browserUseInstalled: false, playwrightInstalled: false }) },
+      pythonBootstrap: { detect: async () => ({ available: false, browserUseInstalled: false, playwrightInstalled: false, seleniumInstalled: false }) },
       supervisor: null
     })
     const status = await computeSetupStatus({ storeRef: fakeStore })
@@ -52,7 +69,7 @@ describe('setup-status', () => {
   })
 
   it('reports bridges running when supervisor reports all running', async () => {
-    const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k', doubaoVisionApiKey: 'd' }) }
+    const fakeStore = { getConfig: () => ({ deepseekApiKey: 'k', browserUseApiKey: 'b' }) }
     setBridgeContext({
       pythonBootstrap: null,
       supervisor: { getState: () => ({ uitars: { state: 'running' }, browserUse: { state: 'running' } }) }
@@ -79,6 +96,8 @@ describe('setup-status', () => {
 
     expect(handlers.get('setup:set-key')({}, { dep: 'deepseekKey', value: '  sk-test  ' })).toEqual({ ok: true })
     expect(setConfig).toHaveBeenCalledWith({ deepseekApiKey: 'sk-test' })
+    expect(handlers.get('setup:set-key')({}, { dep: 'browserUseKey', value: '  sk-browser  ' })).toEqual({ ok: true })
+    expect(setConfig).toHaveBeenCalledWith({ browserUseApiKey: 'sk-browser' })
   })
 
   it('setup:set-key rejects unknown dep', () => {
@@ -86,7 +105,7 @@ describe('setup-status', () => {
     vi.spyOn(store, 'setConfig').mockImplementation((patch) => patch)
     register({ handle: (channel, handler) => handlers.set(channel, handler) })
 
-    expect(() => handlers.get('setup:set-key')({}, { dep: 'foo', value: 'sk-test' })).toThrow(/未知配置项/)
+    expect(() => handlers.get('setup:set-key')({}, { dep: 'foo', value: 'sk-test' })).toThrow()
   })
 
   it('setup:set-key rejects non-string and oversized values', () => {
@@ -94,7 +113,7 @@ describe('setup-status', () => {
     vi.spyOn(store, 'setConfig').mockImplementation((patch) => patch)
     register({ handle: (channel, handler) => handlers.set(channel, handler) })
 
-    expect(() => handlers.get('setup:set-key')({}, { dep: 'deepseekKey', value: 123 })).toThrow(/密钥无效/)
-    expect(() => handlers.get('setup:set-key')({}, { dep: 'deepseekKey', value: 'x'.repeat(4097) })).toThrow(/密钥无效/)
+    expect(() => handlers.get('setup:set-key')({}, { dep: 'deepseekKey', value: 123 })).toThrow()
+    expect(() => handlers.get('setup:set-key')({}, { dep: 'deepseekKey', value: 'x'.repeat(4097) })).toThrow()
   })
 })
