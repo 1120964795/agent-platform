@@ -181,6 +181,7 @@ function summarizeDesktopEvent(event = {}) {
   if (event.type === 'ask_user') return event.question || 'Computer Use needs your input.'
   if (event.type === 'done') return event.summary || 'Computer Use finished.'
   if (event.type === 'fail') return event.summary || event.message || 'Computer Use failed.'
+  if (event.type === 'planner_correction') return 'Computer Use corrected an invalid planner action.'
   return `Computer Use: ${event.type || 'event'}`
 }
 

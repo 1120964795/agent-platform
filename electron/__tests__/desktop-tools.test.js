@@ -151,6 +151,34 @@ test('desktop_task forwards live desktop events from the bridge', async () => {
   expect(events).toContainEqual(expect.objectContaining({ type: 'observe', summary: 'Looking' }))
 })
 
+test('desktop_task preserves enhanced unsupported planner errors', async () => {
+  fetchMock
+    .mockResolvedValueOnce({ json: async () => ({ ok: true, runtime: 'desktop-use' }) })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ok: false,
+        error: {
+          code: 'UNSUPPORTED_PLANNER_ACTION',
+          message: 'Unsupported planner action: open_app',
+          allowedActions: ['click', 'type'],
+          rawAction: { action: 'open_app', app: 'QQ' },
+          retryAttempted: true
+        }
+      }),
+    })
+
+  const { desktopTask } = require('../tools/desktopTask')
+  const result = await desktopTask({ goal: 'Open QQ' }, { skipInternalConfirm: true })
+
+  expect(result.error).toEqual(expect.objectContaining({
+    code: 'UNSUPPORTED_PLANNER_ACTION',
+    allowedActions: ['click', 'type'],
+    rawAction: { action: 'open_app', app: 'QQ' },
+    retryAttempted: true
+  }))
+})
+
 test('desktop_scroll and desktop_wait call the desktop-use bridge', async () => {
   fetchMock
     .mockResolvedValueOnce({ json: async () => ({ ok: true, runtime: 'desktop-use' }) })
